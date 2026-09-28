@@ -1,0 +1,32 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads (user data - don't track)
+uploads/*
+!uploads/.gitkeep
+
+# Environment
+.env
+
+# Temporary/scratch files
+*.log
+temp*.js
+fix.js
+clean.js
+replace.js
+replace_replace.js
+scratch_modal.txt
+test_cookie.txt
+new_modal.html
+index2.html
+
+# XAMPP specific
+.htaccess.bak

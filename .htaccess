@@ -1,0 +1,5 @@
+﻿# Set default homepage order
+DirectoryIndex index.php login.php index.html
+
+# Prevent directory listing
+Options -Indexes
