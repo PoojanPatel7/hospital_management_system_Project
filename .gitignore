@@ -3,6 +3,9 @@
 Thumbs.db
 desktop.ini
 
+# Large video files
+video/
+
 # IDE files
 .vscode/
 .idea/
