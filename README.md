@@ -11,6 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP"/>
   <img src="https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL"/>
+  <img src="https://img.shields.io/badge/MariaDB-10.3+-003545?style=for-the-badge&logo=mariadb&logoColor=white" alt="MariaDB"/>
   <img src="https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS"/>
   <img src="https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript"/>
   <img src="https://img.shields.io/badge/XAMPP-Apache-FB7A24?style=for-the-badge&logo=xampp&logoColor=white" alt="XAMPP"/>
@@ -19,456 +20,414 @@
 ---
 
 ## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Screenshots](#-screenshots)
-- [Technology Stack](#-technology-stack)
-- [Project Architecture](#-project-architecture)
-- [Installation & Setup](#-installation--setup)
-- [Database Schema](#-database-schema)
-- [Module Documentation](#-module-documentation)
+- [Project Overview](#-project-overview)
+- [Complete Feature List](#-complete-feature-list)
+- [Database Schema (16 tables)](#-database-schema-16-tables)
+- [Project Architecture](#-project-architecture-file-tree)
 - [API Reference](#-api-reference)
+- [How The Consultation Workflow Works](#-how-the-consultation-workflow-works)
+- [How Backup & Restore Works](#-how-backup--restore-works)
+- [How BLOB File Storage Works](#-how-blob-file-storage-works)
+- [Installation & Setup](#%EF%B8%8F-installation--setup)
 - [Security Features](#-security-features)
 - [Benefits](#-benefits)
 - [Future Enhancements](#-future-enhancements)
 - [Contributing](#-contributing)
 - [License](#-license)
+- [Author](#-author)
 
 ---
 
-## 🌟 Overview
-
-The **Hospital Management System** is a comprehensive web application designed to digitize and streamline hospital operations. It provides a centralized platform for managing patients, doctors, appointments, consultations, bed assignments, medical history, prescriptions, and clinical files — all through an elegant, modern user interface.
-
-This system eliminates paper-based processes and provides real-time data access to hospital staff, enabling faster decision-making, better patient care, and efficient resource utilization.
+## 🌟 PROJECT OVERVIEW
+A comprehensive web-based Hospital Management System for digitizing hospital operations — patients, doctors, consultations, bed management, staff, backup/restore, and more. Built with PHP 8+, MySQL/MariaDB, Tailwind CSS 3.x, JavaScript ES6+, and Apache (XAMPP).
 
 ---
 
-## 🚀 Key Features
+## 🚀 COMPLETE FEATURE LIST
 
-### 👤 Patient Management
-- **Patient Registration** — Register new patients with full demographic details including name, age, gender, blood group, phone number, father's name, and emergency contact information
-- **Patient Directory** — Searchable, filterable grid/table view of all registered patients with instant multi-term search
-- **Patient Profile** — Dedicated full-profile page for each patient showing demographics, contact info, appointment history, medical files, prescriptions, diagnoses, and activity timeline
-- **Edit & Delete** — Full CRUD operations on patient records with confirmation modals and validation
-- **10-Digit Phone Validation** — Strict validation enforced on all phone number fields across registration and edit forms
-- **Direct Call Integration** — All phone numbers displayed as clickable `tel:` links for instant dialing from mobile devices
+### 1. Authentication & Multi-Hospital Support 🔐
+- Session/cookie-based login with hospital code verification
+- Multi-hospital support — each hospital gets a unique code
+- Hospital registration with auto-generated codes
+- Protected routes — all pages require authentication
+- Logout confirmation modal
 
-### 👨‍⚕️ Doctor Management
-- **Doctor Directory** — Full list of all hospital doctors with their specializations, departments, and availability status
-- **Department-Wise Filtering** — Filter doctors by department/specialization
-- **Availability Tracking** — Real-time tracking of doctor availability status (Available, Consulting, On Leave)
+### 2. Dashboard (`dashboard.php`) 📊
+- Real-time statistics: total patients, live queue count, today's appointments, occupied beds, active staff, total doctors
+- Live heartbeat canvas animation in header
+- Emergency notification banner — auto-displays when emergency patients are in the queue with critical alert cards
+- Quick action buttons to navigate to key modules
+- Staff summary section showing attendance overview
+- Live system active indicator
 
-### 📅 Appointment & Booking System
-- **Quick Booking** — Book appointments directly from the patient directory or patient profile
-- **Doctor Selection** — Choose from available doctors filtered by department
-- **Time Slot Management** — Select available consultation time slots
-- **Appointment Codes** — Auto-generated unique appointment codes (APP-XXXX format) for easy tracking
+### 3. Patient Management 👤
+- Patient Registration (`index.php`) with floating label inputs, custom dropdowns for Gender & Blood Group
+- Patient Directory (`patients.php`) with searchable grid/table view, instant multi-term search
+- 10-digit phone validation, clickable tel: links
+- Full CRUD operations with confirmation modals
 
-### 🏨 Bed & Ward Management
-- **Visual Bed Map** — Interactive visual representation of hospital beds organized by wards
-- **Real-Time Bed Status** — Color-coded bed availability (Available, Occupied, Maintenance)
-- **Admission & Discharge** — Assign and release beds directly from the bed management interface
-- **Ward Statistics** — Dashboard showing occupancy rates per ward
+### 4. Patient Profile (`patient_profile.php`) — DETAILED 📝
+- **Full 4-step consultation workstation display** matching the `queue.php` clinical workflow:
+  - Step 1: Diagnoses (ICD-style diagnosis list)
+  - Step 2: Prescriptions with patient-friendly frequency translations (TID→'3 Times Daily', SOS→'As Needed', BID→'Twice Daily', QID→'4 Times Daily', OD→'Once Daily', etc.)
+  - Step 3: Disposition info with state banners (Discharged, Waiting for Reports, Admitted Ward/ICU with bed numbers)
+  - Step 4: Doctor's advice and clinical notes
+- Ordered diagnostic tests display
+- Quick stats bar (total visits, medicines prescribed, files uploaded)
+- Printable prescription slip modal with `@media print` CSS
+- Image preview lightbox modal
+- First appointment auto-expanded
+- Edit profile modal
 
-### 📊 Dashboard & Analytics
-- **Real-Time Statistics** — Live counts of total patients, active doctors, occupied beds, and today's appointments
-- **Quick Actions** — One-click access to register patients, book appointments, and manage beds
-- **Status Overview** — At-a-glance view of hospital operational status
+### 5. Queue Management & Clinical Consultation (`queue.php`) ⏱️
+- Live patient queue pipeline with drag-and-drop-like status management
+- 4-Step Consultation Workstation:
+  - Step 1 — Diagnoses: Add multiple diagnoses with descriptions
+  - Step 2 — Prescriptions: Medicine name, dosage, frequency, duration, instructions
+  - Step 3 — Disposition & Tests: Set patient disposition (Discharged/Admitted Ward/Admitted ICU/Waiting for Reports), order diagnostic tests, assign beds
+  - Step 4 — Advice & Summary: Doctor's notes, clinical summary, finalize
+- File uploads during consultation (stored as binary BLOB data in database, NOT file paths)
+- Activity timeline auto-generated for each visit
+- Patient dossier modal for quick-view from queue
 
-### 📂 Medical Records & History
-- **Global Patient History** — Master log of all patient visits, admissions, checkups, and discharges in a searchable table
-- **Appointment History** — Detailed chronological history of each patient's visits with expandable accordion details
-- **Year Display** — Appointment dates show full year for easy historical reference
-- **Activity Timeline** — Step-by-step timeline of events during each visit (check-in, consultation, discharge)
-- **Click-to-Profile Navigation** — Click any history record to navigate directly to that patient's full profile
+### 6. Binary BLOB File Storage System 🗄️
+- All medical files (X-rays, lab reports, scans) stored as binary BLOB data directly in the MySQL database
+- No dependency on filesystem — data is safe even if files are accidentally deleted from device
+- `patient_files` table stores: file_data (LONGBLOB), file_type (MIME), file_name, file_size
+- Files served via `api/file.php` endpoint with proper Content-Type headers
+- Supports image preview (JPEG, PNG) and PDF files
 
-### 💊 Clinical Features
-- **Diagnoses Tracking** — Record and display multiple diagnoses per appointment
-- **Prescription Management** — Full prescription details including medicine name, dosage, frequency, and doctor notes
-- **Doctor's Notes** — Free-text clinical notes attached to each consultation
-- **File & Scan Uploads** — Upload and manage medical files, lab reports, X-rays, and scans per appointment
-- **Medical Files Gallery** — Dedicated tab showing all uploaded files with image previews and PDF icons
+### 7. Doctor Management (`doctors.php`) 👨‍⚕️
+- Doctor directory with department filtering
+- Availability tracking (Available, Consulting, On Leave)
+- Doctor categories and specializations
+- Day-wise schedule management
 
-### 🔐 Authentication & Security
-- **Secure Login System** — Cookie/session-based authentication with hospital code verification
-- **Hospital Registration** — Multi-hospital support with unique hospital code generation
-- **Protected Routes** — All pages require authentication; unauthorized access is redirected to login
-- **Logout Confirmation** — Beautiful modal confirmation before logout with session cleanup
+### 8. Bed & Ward Management (`beds.php`) 🏨
+- Visual bed map organized by wards
+- Color-coded bed status (Available, Occupied, Maintenance)
+- Assign/release beds directly from interface
+- Ward occupancy statistics
 
-### 🎨 UI/UX Design
-- **Modern Glass-Morphism Design** — Clean, professional UI with rounded corners, shadows, and subtle animations
-- **Fully Responsive** — Optimized for desktop, tablet, and mobile devices
-- **Custom Dropdowns** — Beautifully designed custom dropdown selectors for Gender and Blood Group with colored icons
-- **Floating Labels** — Animated floating label inputs that rise when focused
-- **Toast Notifications** — Elegant slide-in toast messages for success/error feedback
-- **Skeleton Loaders** — Smooth loading animations while data is being fetched
-- **Confirmation Modals** — Professional confirmation dialogs for all destructive or important actions
+### 9. Staff Management (`staff.php`) — DETAILED 👥
+- **3 View Modes:**
+  - Daily Roster: See today's attendance with check-in status per staff member
+  - Staff Directory: Full list of all staff with roles, departments, contact info
+  - Monthly Sheet: Day-by-day attendance matrix for entire month
+- Add/Edit/Delete staff members with full profile (name, role, department, phone, email, photo)
+- Staff photos stored as BLOB
+- Quick Mark All Present — one-click mark all active staff as present
+- Individual attendance marking (Present, Absent, Half-Day, On Leave)
+- Daily summary statistics (total staff, present, absent, on leave)
+- Monthly analytics with attendance percentage per staff member
+- User account creation for staff members (optional)
+- Staff profile detail modal with performance analytics
+
+### 10. Database Backup System (`backup.php`) — DETAILED 💾
+- **Create Backup:** Generates complete SQL dump of all 16 database tables including:
+  - Schema (CREATE TABLE statements with IF NOT EXISTS)
+  - Full data (INSERT statements with proper escaping)
+  - Binary BLOB data encoded as hex literals
+  - Wrapped in START TRANSACTION / COMMIT for atomicity
+- **List Backups:** Shows all saved .sql backup files with file size and creation date
+- **Download Backup:** Download any backup file directly to PC
+- **Delete Backup:** Remove old backup files with confirmation
+- **Open Backup Folder:** Opens the backup folder in PC's File Explorer (Windows explorer.exe integration)
+- Animated success checkmark SVG after backup creation
+- Backups stored in `/backups/` directory
+
+### 11. Data Restore System (`restore.php`) — DETAILED 🔄
+- **Upload SQL File:** Upload a .sql backup file from PC
+- **Schema Compatibility Scanner:**
+  - Scans the uploaded SQL file for CREATE TABLE statements
+  - Compares against current database schema (all 16 tables)
+  - Validates table names AND column fields match
+  - Shows animated scanning progress — tables scanned one by one with visual animation
+  - Green checkmark for compatible tables, red X for mismatched tables
+  - Shows detailed field comparison if mismatch detected
+  - Gives error/warning if schema doesn't match — prevents corrupted restores
+- **Restore Execution:** If all tables pass compatibility check, gives option to execute the restore
+- **Success Animation:** Animated checkmark SVG on successful restore
+- Supports both scanning local backup files and uploaded files
+
+### 12. Medical Records & History (`history.php`) 📂
+- Global searchable table of all patient visits
+- Shows date, patient name, doctor, consultation type, status, diagnoses
+- Click-to-profile navigation
+- Appointment history per patient with expandable accordion
+- Activity timeline per visit
+
+### 13. Appointment Booking System 📅
+- Quick booking from patient directory or profile
+- Department → Doctor → Time Slot selection flow
+- Auto-generated appointment codes (APP-XXXX format)
+- Prevents double-booking, checks doctor availability
+
+### 14. UI/UX Design Features 🎨
+- Modern glass-morphism design with rounded corners, shadows, subtle animations
+- Fully responsive (desktop, tablet, mobile)
+- Sidebar navigation (desktop) + hamburger drawer (mobile)
+- Custom styled dropdowns for Gender and Blood Group
+- Floating label animated inputs
+- Toast notifications (success/error)
+- Skeleton loaders during data fetch
+- Confirmation modals for destructive actions
+- Gradient backgrounds and card-based layouts
 
 ---
 
-## 🛠 Technology Stack
+## 🗄️ DATABASE SCHEMA (16 tables)
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | HTML5, CSS3, JavaScript (ES6+) | UI structure, styling, and interactivity |
-| **CSS Framework** | Tailwind CSS 3.x (CDN) | Utility-first responsive design |
-| **Icons** | Font Awesome 6 | Professional icon library |
-| **Backend** | PHP 8.0+ | Server-side logic and API endpoints |
-| **Database** | MySQL 5.7+ / MariaDB | Relational data storage |
-| **Server** | Apache (XAMPP) | Local development web server |
-| **Architecture** | REST API + SPA-like | Async data loading via `fetch()` API |
+The system uses a robust 16-table MySQL architecture:
+
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| `hospitals` | Hospital registration | `id, name, code, created_at` |
+| `patients` | Patient records | `id, name, surname, father_name, phone, age, gender, blood_group, emergency_contact_name, emergency_contact_phone, hospital_id` |
+| `doctors` | Doctor profiles | `id, name, specialization, department_id, status, hospital_id` |
+| `departments` | Hospital departments | `id, name, hospital_id` |
+| `appointments` | Bookings | `id, patient_id, doctor_id, date, slot, type, status, symptoms, doctor_notes, bed_number, hospital_id` |
+| `diagnoses` | Diagnoses per appointment | `id, appointment_id, description` |
+| `prescriptions` | Medicine prescriptions | `id, appointment_id, medicine_name, dosage, frequency, duration, instructions` |
+| `timeline_events` | Activity timeline | `id, appointment_id, event_time, event_description` |
+| `patient_files` | Medical files as BLOB | `id, patient_id, appointment_id, file_name, file_type, file_size, file_data LONGBLOB, title, record_date` |
+| `beds` | Bed/ward inventory | `id, bed_number, ward, status, patient_id` |
+| `doctor_categories` | Specialization categories | - |
+| `doctor_day_schedules`| Day-wise doctor schedules | - |
+| `doctor_slots` | Available time slots per doctor | - |
+| `staff` | Staff registry | `id, name, role, department, phone, email, photo LONGBLOB, status, hospital_id` |
+| `staff_attendance` | Daily attendance records | `id, staff_id, date, status, check_in_time` |
+| `system_state` | System configuration/state | - |
 
 ---
 
-## 🏗 Project Architecture
+## 🏗️ PROJECT ARCHITECTURE (File Tree)
 
-```
+```text
 Hospital Management System/
-│
 ├── api/                          # REST API Endpoints
 │   ├── auth.php                  # Authentication (login, register, verify)
 │   ├── patients.php              # Patient CRUD operations
 │   ├── doctors.php               # Doctor management
 │   ├── booking.php               # Appointment booking
-│   ├── consultation.php          # Consultation & clinical data
+│   ├── consultation.php          # Consultation & clinical data (supports BLOB uploads)
 │   ├── beds.php                  # Bed/ward management
 │   ├── history.php               # Patient history & dossier
-│   └── queue.php                 # Queue management
+│   ├── queue.php                 # Queue management
+│   ├── staff.php                 # Staff CRUD & attendance management
+│   ├── backup.php                # Backup create/list/delete/download/restore/scan
+│   └── file.php                  # Binary file serving from BLOB storage
 │
 ├── includes/                     # Reusable PHP Components
-│   ├── header.php                # Global page header with navigation
-│   ├── footer.php                # Global page footer with modals
+│   ├── header.php                # Global sidebar + mobile drawer navigation
+│   ├── footer.php                # Global page footer
 │   ├── booking_modal.php         # Appointment booking modal
 │   ├── confirm_modal.php         # Confirmation dialog component
-│   ├── dossier_modal.php         # Patient dossier modal
+│   ├── dossier_modal.php         # Patient dossier popup modal
 │   ├── logout_modal.php          # Logout confirmation modal
 │   └── book_popup.php            # Quick booking popup
 │
-├── images/                       # Static Image Assets
-│   ├── Logo.png                  # Hospital system logo
-│   ├── Login.png                 # Login page illustration
-│   ├── Patient Registration.jpg  # Registration page illustration
-│   ├── Patient Directory.jpg     # Directory page illustration
-│   ├── Book Appointment.jpg      # Booking illustration
-│   └── ...                       # Other status/ward images
-│
-├── uploads/                      # User-uploaded medical files
-├── Database/                     # Database related files
-├── video/                        # Video assets
+├── images/                       # Static image assets
+├── backups/                      # SQL backup files (auto-created)
+├── Database/                     # Database reference files
 │
 ├── index.php                     # Patient Registration Page
 ├── login.php                     # Login Page
 ├── register_hospital.php         # Hospital Registration Page
-├── dashboard.php                 # Main Dashboard
+├── dashboard.php                 # Main Dashboard with live stats
 ├── patients.php                  # Patient Directory
-├── patient_profile.php           # Individual Patient Profile
+├── patient_profile.php           # Full Patient Profile with consultation details
 ├── doctors.php                   # Doctor Management
 ├── book.php                      # Appointment Booking
 ├── beds.php                      # Bed & Ward Management
-├── queue.php                     # Patient Queue
+├── queue.php                     # Live Queue & 4-Step Consultation Workstation
 ├── history.php                   # Global Patient History Log
+├── staff.php                     # Staff Management & Attendance
+├── backup.php                    # Database Backup Management
+├── restore.php                   # Data Restore with Schema Validation
 ├── auth.php                      # Authentication Guard
-├── db.php                        # Database Connection
+├── db.php                        # Database Connection & Auto-Schema Setup
 ├── setup.php                     # Initial Database Setup
-├── schema.sql                    # Database Schema
-├── hospital_db_dump.sql          # Full Database Dump
-├── .htaccess                     # Apache URL Rewriting
 └── README.md                     # This file
 ```
 
 ---
 
-## ⚙️ Installation & Setup
-
-### Prerequisites
-
-- [XAMPP](https://www.apachefriends.org/) (Apache + MySQL + PHP) **or** any AMP stack
-- PHP 8.0 or higher
-- MySQL 5.7+ or MariaDB 10.3+
-- Web browser (Chrome, Firefox, Edge recommended)
-
-### Step-by-Step Installation
-
-#### 1️⃣ Clone the Repository
-
-```bash
-git clone https://github.com/PoojanPatel7/hospital_management_system_Project.git
-```
-
-#### 2️⃣ Move to Web Server Directory
-
-Copy/move the project folder to your web server's root directory:
-
-```bash
-# For XAMPP on Windows:
-Move the folder to: C:\xampp\htdocs\Hospital Management System
-
-# For XAMPP on Mac:
-Move the folder to: /Applications/XAMPP/htdocs/Hospital Management System
-
-# For Linux (LAMP):
-Move the folder to: /var/www/html/Hospital Management System
-```
-
-#### 3️⃣ Start XAMPP Services
-
-1. Open **XAMPP Control Panel**
-2. Start **Apache** (Web Server)
-3. Start **MySQL** (Database Server)
-
-#### 4️⃣ Create the Database
-
-**Option A — Automatic Setup:**
-1. Open your browser and navigate to: `http://localhost/Hospital%20Management%20System/setup.php`
-2. The setup script will automatically create the database and tables
-
-**Option B — Manual Setup via phpMyAdmin:**
-1. Open `http://localhost/phpmyadmin`
-2. Create a new database named `hospital_db`
-3. Import the `schema.sql` file (or `hospital_db_dump.sql` for sample data)
-
-#### 5️⃣ Configure Database Connection
-
-Open `db.php` and verify the connection settings:
-
-```php
-$host = "localhost";
-$username = "root";
-$password = "";           // Default XAMPP has no password
-$database = "hospital_db";
-```
-
-#### 6️⃣ Access the Application
-
-Open your browser and navigate to:
-
-```
-http://localhost/Hospital%20Management%20System/login.php
-```
-
-#### 7️⃣ First-Time Setup
-
-1. Click **"Register Hospital"** to create a new hospital account
-2. Enter your hospital name and create login credentials
-3. You'll receive a unique **Hospital Code** — save this!
-4. Log in with your credentials and hospital code
-5. Start by registering patients from the **Patient Registration** page
-
----
-
-## 🗄 Database Schema
-
-The system uses a relational MySQL database with the following core tables:
-
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| `hospitals` | Hospital registration data | id, name, code, created_at |
-| `users` | Login credentials per hospital | id, username, password, hospital_id |
-| `patients` | Patient demographic records | id, name, surname, father_name, phone, blood_group, demographics, emergency_contact_name, emergency_contact_phone |
-| `doctors` | Doctor profiles | id, name, specialization, department_id, status |
-| `appointments` | Appointment bookings | id, patient_id, doctor_id, date, slot, type, status, bed_number |
-| `diagnoses` | Diagnoses per appointment | id, appointment_id, description |
-| `prescriptions` | Medicine prescriptions | id, appointment_id, medicine_name, dosage, frequency, duration, instructions |
-| `timeline_events` | Activity timeline entries | id, appointment_id, event_time, event_description |
-| `patient_files` | Uploaded medical files | id, patient_id, appointment_id, title, file_path, record_date |
-| `beds` | Bed/ward inventory | id, bed_number, ward, status, patient_id |
-
-### Entity Relationship
-
-```
-hospitals ─┐
-           ├── users
-           │
-patients ──┤
-           ├── appointments ──┬── diagnoses
-           │                  ├── prescriptions
-           │                  ├── timeline_events
-           │                  └── patient_files
-           │
-doctors ───┘
-           │
-beds ──────┘
-```
-
----
-
-## 📖 Module Documentation
-
-### 1. Patient Registration (`index.php`)
-- **Design:** Two-column split layout with registration illustration on the left
-- **Features:** Floating label inputs, custom styled dropdowns for Gender & Blood Group, 10-digit phone validation
-- **Flow:** Fill form → Preview confirmation modal → Submit → Patient created with auto-generated MRN ID
-
-### 2. Patient Directory (`patients.php`)
-- **Design:** Hero header with `Patient Directory.jpg` image, search bar, Grid/Table toggle
-- **Features:** Multi-term fuzzy search across all patient fields, direct phone call links
-- **Grid View:** Clean card layout with avatar, demographics, contact info, and action buttons
-- **Table View:** Compact tabular view with sorting and quick actions
-
-### 3. Patient Profile (`patient_profile.php`)
-- **Design:** Two-column layout — left sidebar (profile card + latest visit) and right content area (tabs)
-- **Profile Card:** Separate boxes for Age, Gender, Blood Group; clickable phone numbers; emergency contact section
-- **Appointments Tab:** Expandable accordion cards showing full visit details including timeline, diagnoses, prescriptions, doctor's notes, and uploaded files
-- **Files Tab:** Gallery grid of all uploaded medical files with image previews
-
-### 4. Dashboard (`dashboard.php`)
-- **Design:** Statistics cards at top, quick action buttons, and recent activity
-- **Stats:** Total patients, active doctors, occupied beds, today's appointments
-- **Quick Actions:** Register patient, book appointment, manage beds
-
-### 5. Doctor Management (`doctors.php`)
-- **Features:** Doctor listing with department filtering, availability status tracking
-- **Status Colors:** Green (Available), Yellow (Consulting), Red (On Leave)
-
-### 6. Bed Management (`beds.php`)
-- **Design:** Visual bed map organized by wards
-- **Features:** Assign/release beds, color-coded status, occupancy statistics
-
-### 7. Global History (`history.php`)
-- **Design:** Full-width searchable table of all patient visit history
-- **Features:** Shows date, patient name, doctor, consultation type, status, bed, diagnoses
-- **Navigation:** Click any row to open that patient's full profile
-
-### 8. Appointment Booking (`book.php`)
-- **Features:** Select patient, choose department, pick doctor, select time slot
-- **Validation:** Prevents double-booking, checks doctor availability
-
----
-
-## 🔌 API Reference
-
-All API endpoints are located in the `api/` directory and return JSON responses.
+## 🔌 API REFERENCE
 
 ### Patients API (`api/patients.php`)
-
 | Action | Method | Parameters | Description |
 |--------|--------|-----------|-------------|
 | `get_all` | GET | — | Fetch all patients |
-| `register` | POST | name, surname, father, phone, age, gender, blood_group, emergency_contact_name, emergency_contact_phone | Register new patient |
-| `update` | POST | id, name, surname, father, phone, age, gender, blood_group, emergency_contact_name, emergency_contact_phone | Update patient info |
+| `register` | POST | name, surname, father, phone, age, gender, blood_group, emergency contacts | Register new patient |
+| `update` | POST | id + fields | Update patient info |
 | `delete` | GET | id | Delete a patient |
 
 ### History API (`api/history.php`)
-
 | Action | Method | Parameters | Description |
 |--------|--------|-----------|-------------|
-| `get_all_patients` | GET | q (optional search) | Fetch all visit history records |
-| `get_dossier` | GET | patient_id | Fetch complete patient dossier with appointments, diagnoses, prescriptions, files, timeline |
+| `get_all_patients` | GET | q (optional search) | Fetch all visit history |
+| `get_dossier` | GET | patient_id | Complete patient dossier with appointments, diagnoses, prescriptions, files, timeline, symptoms, doctor_notes, tests_ordered |
+
+### Staff API (`api/staff.php`)
+| Action | Method | Parameters | Description |
+|--------|--------|-----------|-------------|
+| `get_staff` | GET | date (optional) | List staff with attendance status |
+| `get_staff_details` | GET | id | Full staff profile + monthly analytics |
+| `save_staff` | POST | name, role, department, phone, email, photo, create_account | Create/update staff |
+| `delete_staff` | GET | id | Delete staff member |
+| `mark_attendance` | POST | staff_id, date, status | Mark individual attendance |
+| `quick_mark_all` | POST | date | Mark all active staff present |
+| `get_daily_summary` | GET | date | Aggregate daily stats |
+| `get_monthly_sheet` | GET | month, year | Full month attendance matrix |
+
+### Backup API (`api/backup.php`)
+| Action | Method | Parameters | Description |
+|--------|--------|-----------|-------------|
+| `create_backup` | POST | — | Generate SQL dump of entire database |
+| `list_backups` | GET | — | List all backup files |
+| `download` | GET | file | Download backup .sql file |
+| `delete_backup` | POST | file | Delete a backup file |
+| `open_folder` | GET | — | Open backup directory in Windows File Explorer |
+| `scan_sql_file` | POST | file | Scan local backup for schema compatibility |
+| `upload_sql_file` | POST | file (multipart) | Upload + scan external SQL file |
+| `restore_backup` | POST | file | Execute database restore from validated backup |
+
+### File API (`api/file.php`)
+| Action | Method | Parameters | Description |
+|--------|--------|-----------|-------------|
+| — | GET | id | Serve binary file from BLOB storage with proper MIME type headers |
+
+### Consultation API (`api/consultation.php`)
+| Action | Method | Parameters | Description |
+|--------|--------|-----------|-------------|
+| `get_consultation` | GET | appointment_id | Get diagnoses, medicines, files, tests for appointment |
+| `save_with_files` | POST | multipart form with diagnoses, prescriptions, disposition, tests, file uploads (BLOB) | Save complete consultation |
+| `save` | POST | JSON body | Save consultation (without files) |
 
 ### Booking API (`api/booking.php`)
-
 | Action | Method | Parameters | Description |
 |--------|--------|-----------|-------------|
 | `get_slots` | GET | doctor_id, date | Get available time slots |
-| `book` | POST | patient_id, doctor_id, date, slot, type | Book an appointment |
-
-### Doctors API (`api/doctors.php`)
-
-| Action | Method | Parameters | Description |
-|--------|--------|-----------|-------------|
-| `get_all` | GET | — | Fetch all doctors |
-| `get_by_dept` | GET | dept | Filter doctors by department |
-
-### Beds API (`api/beds.php`)
-
-| Action | Method | Parameters | Description |
-|--------|--------|-----------|-------------|
-| `get_all` | GET | — | Fetch all beds with status |
-| `assign` | POST | bed_id, patient_id | Assign patient to bed |
-| `release` | POST | bed_id | Release/discharge bed |
+| `book` | POST | patient_id, doctor_id, date, slot, type | Book appointment |
 
 ### Authentication API (`api/auth.php`)
-
 | Action | Method | Parameters | Description |
 |--------|--------|-----------|-------------|
-| `login` | POST | username, password, hospital_code | Authenticate user |
-| `register` | POST | hospital_name, username, password | Register new hospital |
-| `verify` | GET | — | Verify current session |
-| `logout` | GET | — | Destroy session and logout |
+| `login` | POST | username, password, hospital_code | Authenticate |
+| `register` | POST | hospital_name, username, password | Register hospital |
+| `verify` | GET | — | Verify session |
+| `logout` | GET | — | Destroy session |
+
+### Beds API (`api/beds.php`)
+| Action | Method | Parameters | Description |
+|--------|--------|-----------|-------------|
+| `get_all` | GET | — | Fetch all beds |
+| `assign` | POST | bed_id, patient_id | Assign patient to bed |
+| `release` | POST | bed_id | Release bed |
 
 ---
 
-## 🔒 Security Features
-
-- **Session-Based Authentication** — Secure PHP sessions with hospital-scoped access
-- **Route Protection** — `auth.php` guard included on every page; redirects unauthorized users to login
-- **Input Validation** — Server-side and client-side validation on all forms
-- **Phone Number Validation** — Pattern-based 10-digit enforcement with `maxlength` restrictions
-- **SQL Injection Prevention** — Prepared statements used for database queries
-- **XSS Protection** — `htmlspecialchars()` used when rendering user-supplied data
-- **Confirmation Modals** — All destructive actions (delete, edit) require explicit user confirmation
-- **Password Security** — Passwords hashed before storage
-
----
-
-## 💡 Benefits
-
-### For Hospital Administration
-- 📊 **Real-time analytics** on patient flow, bed occupancy, and doctor availability
-- 📋 **Paperless operations** — No more physical patient files or appointment books
-- 🔍 **Instant search** — Find any patient, doctor, or record in milliseconds
-- 📈 **Scalable** — Supports unlimited patients, doctors, and appointments
-
-### For Doctors & Medical Staff
-- 📂 **Complete patient history** at a glance — diagnoses, prescriptions, clinical notes
-- 🗓 **Organized appointments** — Clear view of daily schedule and patient queue
-- 📎 **Medical file access** — Quick access to lab reports, X-rays, and scans
-- ⏱ **Activity timeline** — Track exactly what happened during each patient visit
-
-### For Patient Care
-- 📱 **Direct call integration** — Call patients or emergency contacts with one tap
-- 🩸 **Blood group visibility** — Clearly displayed across all views for emergency access
-- 🚑 **Emergency contact info** — Always accessible from the patient profile and directory cards
-- 🔄 **Complete medical history** — Full longitudinal view of all visits, treatments, and outcomes
-
-### Technical Benefits
-- 🎨 **Modern UI/UX** — Beautiful, intuitive interface that requires minimal training
-- 📱 **Responsive design** — Works on any device (desktop, tablet, mobile)
-- ⚡ **Fast performance** — Async data loading with no page reloads
-- 🔧 **Easy maintenance** — Clean code architecture with separated concerns (API, UI, includes)
-- 🌐 **No external dependencies** — Runs entirely on a standard LAMP/XAMPP stack
+## ⚕️ HOW THE CONSULTATION WORKFLOW WORKS
+The 4-step clinical workflow provides an intuitive process for doctors:
+1. Patient enters the queue from an appointment booking.
+2. Doctor opens the consultation workstation from the queue.
+3. **Step 1 — Diagnoses:** Doctor adds one or more diagnoses.
+4. **Step 2 — Prescriptions:** Doctor prescribes medicines with dosage, frequency, duration.
+5. **Step 3 — Disposition:** Doctor sets patient outcome (discharge, admit to ward/ICU, waiting for reports) and orders diagnostic tests.
+6. **Step 4 — Summary:** Doctor adds clinical notes and finalizes the consultation.
+7. All data including uploaded files (as BLOB) is saved via the consultation API.
+8. Timeline events are auto-generated throughout the process.
+9. All consultation data is viewable later in `patient_profile.php` and via the dossier modal.
 
 ---
 
-## 🔮 Future Enhancements
-
-- [ ] **Reporting & Analytics Dashboard** — Charts, graphs, and exportable reports
-- [ ] **SMS/Email Notifications** — Appointment reminders and discharge summaries
-- [ ] **Lab Integration** — Direct integration with laboratory information systems
-- [ ] **Billing Module** — Invoice generation, payment tracking, and insurance claims
-- [ ] **Role-Based Access Control** — Separate roles for admin, doctor, nurse, receptionist
-- [ ] **Multi-Language Support** — Localization for regional hospital requirements
-- [ ] **Dark Mode** — System-wide dark theme toggle
-- [ ] **Pharmacy Module** — Medicine inventory tracking and dispensing
-- [ ] **Telemedicine** — Video consultation integration
-- [ ] **Mobile App** — Native Android/iOS companion app
+## 💾 HOW BACKUP & RESTORE WORKS
+1. **Backup:** Generates a complete SQL dump with `CREATE TABLE` + `INSERT` statements for all 16 tables, including BLOB hex encoding.
+2. The file is saved in the `/backups/` directory with a timestamp filename.
+3. **Restore:** Upload or select a backup SQL file.
+4. **Schema Scanner:** Validates every table and every column matches the current schema.
+5. Visual animation shows scanning progress table by table.
+6. If compatible, the restore replaces all data using a `TRANSACTION` for safety.
+7. If incompatible, shows a detailed error with which tables/fields don't match.
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to contribute to this project:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-Please make sure your code follows the existing coding style and includes appropriate comments.
+## 🗄️ HOW BLOB FILE STORAGE WORKS
+1. During consultation, files are uploaded via a multipart form.
+2. PHP reads the file content with `file_get_contents()` and stores it as a `LONGBLOB` in the `patient_files` table.
+3. File metadata (name, MIME type, size) is stored alongside the binary data.
+4. Files are served via `api/file.php?id=X` which reads the BLOB and sends it with the proper `Content-Type` header.
+5. This approach means data is safe even if the device filesystem is corrupted or files are manually deleted.
 
 ---
 
-## 📝 License
+## ⚙️ INSTALLATION & SETUP
 
-This project is open source and available under the [MIT License](LICENSE).
+### Prerequisites
+- XAMPP (Apache + MySQL + PHP)
+- PHP 8.0+
+- MySQL 5.7+ or MariaDB
+
+### Steps:
+1. **Clone:** `git clone https://github.com/PoojanPatel7/hospital_management_system_Project.git`
+2. **Move:** Copy to `C:\xampp\htdocs\Hospital Management System`
+3. **Start:** Launch Apache and MySQL in XAMPP.
+4. **Database:** The database auto-creates! Just visit the app. `db.php` auto-creates all tables and runs migrations.
+5. *(Optional)* Use `setup.php` for manual setup, or import `schema.sql` via phpMyAdmin.
+6. **Configure:** Check `db.php` (`host=localhost, user=root, pass='', db=hospital_db`).
+7. **Run:** Visit `http://localhost/Hospital%20Management%20System/login.php`
+8. Register a hospital first, then login.
 
 ---
 
-## 👨‍💻 Author
+## 🔒 SECURITY FEATURES
+- **Session-based auth** with hospital-scoped access
+- **Route protection** via `auth.php` guard
+- **Prepared statements** for SQL injection prevention
+- `htmlspecialchars()` for XSS protection
+- 10-digit phone validation
+- Confirmation modals for destructive actions
+- Password hashing
+- **Binary file storage** in DB (no filesystem exposure)
 
+---
+
+## 💡 BENEFITS
+- **Seamless Digitization:** Completely paperless hospital environment.
+- **Robust Data Safety:** Reliable BLOB storage and atomic backup/restore guarantees data integrity.
+- **Rapid Decision-Making:** Live queue, real-time dashboards, and unified dossiers improve hospital response times.
+- **Modern User Experience:** Smooth, visually appealing interface ensuring low learning curves for medical staff.
+
+---
+
+## 🔮 FUTURE ENHANCEMENTS
+- [ ] Comprehensive Reporting & Analytics Dashboard
+- [ ] Automated SMS/Email Notifications for Appointments
+- [ ] Integration with External Laboratory Information Systems
+- [ ] Dedicated Billing & Insurance Module
+- [ ] Role-Based Access Control (Admin, Doctor, Nurse, Receptionist)
+- [ ] Pharmacy Inventory Management Module
+- [ ] Telemedicine Video Consultation Integration
+
+---
+
+## 🤝 CONTRIBUTING
+Contributions are highly welcome!
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+---
+
+## 📝 LICENSE
+This project is open-source and available under the [MIT License](LICENSE).
+
+---
+
+## 👨‍💻 AUTHOR
 **Poojan Patel**
 - GitHub: [@PoojanPatel7](https://github.com/PoojanPatel7)
 

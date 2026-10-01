@@ -31,5 +31,22 @@ test_cookie.txt
 new_modal.html
 index2.html
 
+# Python helper/fixer scripts (development utilities)
+*.py
+
+# PHP backup copies
+*_backup.php
+
+# Runtime backup files
+backups/
+
+# SQL dumps (keep schema.sql)
+hospital_db_dump.sql
+hospital_update.sql
+infinityfree_database_import.sql
+
 # XAMPP specific
 .htaccess.bak
+
+# Dev-only PHP scripts
+alter.php

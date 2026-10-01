@@ -90,12 +90,53 @@ if ($action === 'login') {
             if ($isMatch) {
                 $_SESSION['hospital_id'] = (int)$row['id'];
                 $_SESSION['hospital_name'] = $row['name'];
+                $_SESSION['user_type'] = 'admin';
                 jsonResponse(['status' => 'success', 'message' => 'Login successful']);
             } else {
                 jsonResponse(['status' => 'error', 'message' => 'Invalid password.']);
             }
         } else {
-            jsonResponse(['status' => 'error', 'message' => 'Hospital account not found.']);
+            // Check if it's a staff member user account
+            $stfStmt = $conn->prepare("SELECT s.id, s.hospital_id, s.first_name, s.last_name, s.role, s.department, s.username, s.password, s.is_user, s.status, h.name AS hospital_name 
+                                       FROM staff s 
+                                       JOIN hospitals h ON s.hospital_id = h.id 
+                                       WHERE LOWER(s.username) = LOWER(?) AND s.is_user = 1");
+            if ($stfStmt) {
+                $stfStmt->bind_param("s", $username);
+                $stfStmt->execute();
+                $stfRes = $stfStmt->get_result();
+                if ($stfRow = $stfRes->fetch_assoc()) {
+                    if ($stfRow['status'] === 'Inactive') {
+                        jsonResponse(['status' => 'error', 'message' => 'This staff user account has been deactivated. Please contact hospital admin.']);
+                    }
+                    $isMatch = false;
+                    if (password_verify($password, $stfRow['password'])) {
+                        $isMatch = true;
+                    } else if ($password === $stfRow['password']) {
+                        $isMatch = true;
+                        $newHash = password_hash($password, PASSWORD_DEFAULT);
+                        $upStmt = $conn->prepare("UPDATE staff SET password = ? WHERE id = ?");
+                        $upStmt->bind_param("si", $newHash, $stfRow['id']);
+                        $upStmt->execute();
+                    }
+
+                    if ($isMatch) {
+                        $_SESSION['hospital_id'] = (int)$stfRow['hospital_id'];
+                        $_SESSION['hospital_name'] = $stfRow['hospital_name'];
+                        $_SESSION['staff_id'] = (int)$stfRow['id'];
+                        $_SESSION['staff_name'] = $stfRow['first_name'] . ' ' . $stfRow['last_name'];
+                        $_SESSION['staff_role'] = $stfRow['role'];
+                        $_SESSION['user_type'] = 'staff';
+                        jsonResponse(['status' => 'success', 'message' => 'Welcome ' . $stfRow['first_name'] . '! Staff login successful']);
+                    } else {
+                        jsonResponse(['status' => 'error', 'message' => 'Invalid staff password.']);
+                    }
+                } else {
+                    jsonResponse(['status' => 'error', 'message' => 'Account not found. Please check your username.']);
+                }
+            } else {
+                jsonResponse(['status' => 'error', 'message' => 'Account not found.']);
+            }
         }
     } else {
         jsonResponse(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);

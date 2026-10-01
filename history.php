@@ -68,9 +68,11 @@ include 'includes/header.php';
           return;
       }
       historyRecords.forEach(h => {
-          const statusColors = h.status && h.status.includes('Admit') 
-              ? 'bg-rose-100 text-rose-800 border-rose-200' 
-              : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+          const statusColors = h.status === 'Waiting for Reports'
+              ? 'bg-amber-100 text-amber-800 border-amber-200'
+              : (h.status && h.status.includes('Admit') 
+                  ? 'bg-rose-100 text-rose-800 border-rose-200' 
+                  : 'bg-emerald-100 text-emerald-800 border-emerald-200');
               
           tbody.innerHTML += `
             <tr class="hover:bg-slate-50 transition cursor-pointer group" onclick="window.location.href='patient_profile.php?id=${h.patient_id}'">

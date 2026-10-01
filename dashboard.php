@@ -55,62 +55,86 @@ include 'includes/header.php';
 </div>
 
 <!-- Live Stats Overview -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-    <div class="apple-card p-6 flex flex-col gap-4 relative overflow-hidden group">
-        <div class="absolute -right-4 -bottom-4 text-blue-500 opacity-10 text-8xl group-hover:scale-110 transition-transform duration-500"><i class="fa-solid fa-users"></i></div>
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
+    <div class="apple-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
         <div class="flex justify-between items-start z-10">
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                 <i class="fa-solid fa-users"></i>
             </div>
-            <div class="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">Total</div>
+            <div class="bg-blue-50 text-blue-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Total</div>
         </div>
-        <div class="z-10">
-            <div id="stat-dash-patients" class="text-3xl font-black text-slate-900 tracking-tight">...</div>
-            <div class="text-xs font-bold text-slate-500 mt-1">Registered Patients</div>
+        <div class="z-10 mt-3">
+            <div id="stat-dash-patients" class="text-2xl font-black text-slate-900 tracking-tight">...</div>
+            <div class="text-[11px] font-bold text-slate-500 mt-0.5 truncate">Patients</div>
         </div>
     </div>
 
-    <div class="apple-card p-6 flex flex-col gap-4 relative overflow-hidden group">
-        <div class="absolute -right-4 -bottom-4 text-emerald-500 opacity-10 text-8xl group-hover:scale-110 transition-transform duration-500"><i class="fa-solid fa-bars-staggered"></i></div>
+    <div class="apple-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
         <div class="flex justify-between items-start z-10">
-            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
                 <i class="fa-solid fa-bars-staggered"></i>
             </div>
-            <div class="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">Live</div>
+            <div class="bg-emerald-50 text-emerald-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Live</div>
         </div>
-        <div class="z-10">
-            <div id="stat-dash-queue" class="text-3xl font-black text-emerald-600 tracking-tight">...</div>
-            <div class="text-xs font-bold text-slate-500 mt-1">Active in Pipeline</div>
+        <div class="z-10 mt-3">
+            <div id="stat-dash-queue" class="text-2xl font-black text-emerald-600 tracking-tight">...</div>
+            <div class="text-[11px] font-bold text-slate-500 mt-0.5 truncate">Pipeline Queue</div>
         </div>
     </div>
 
-    <div class="apple-card p-6 flex flex-col gap-4 relative overflow-hidden group">
-        <div class="absolute -right-4 -bottom-4 text-indigo-500 opacity-10 text-8xl group-hover:scale-110 transition-transform duration-500"><i class="fa-solid fa-user-doctor"></i></div>
+    <div class="apple-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
         <div class="flex justify-between items-start z-10">
-            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
                 <i class="fa-solid fa-user-doctor"></i>
             </div>
-            <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">Staff</div>
+            <div class="bg-indigo-50 text-indigo-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Doctors</div>
         </div>
-        <div class="z-10">
-            <div id="stat-dash-doctors" class="text-3xl font-black text-indigo-600 tracking-tight">...</div>
-            <div class="text-xs font-bold text-slate-500 mt-1">Medical Professionals</div>
+        <div class="z-10 mt-3">
+            <div id="stat-dash-doctors" class="text-2xl font-black text-indigo-600 tracking-tight">...</div>
+            <div class="text-[11px] font-bold text-slate-500 mt-0.5 truncate">Consultants</div>
         </div>
     </div>
 
-    <div class="apple-card p-6 flex flex-col gap-4 relative overflow-hidden group">
-        <div class="absolute -right-4 -bottom-4 text-rose-500 opacity-10 text-8xl group-hover:scale-110 transition-transform duration-500"><i class="fa-solid fa-bed-pulse"></i></div>
+    <div class="apple-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
         <div class="flex justify-between items-start z-10">
-            <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0 group-hover:bg-rose-600 group-hover:text-white transition-colors duration-300">
+            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg shrink-0 group-hover:bg-rose-600 group-hover:text-white transition-colors duration-300">
                 <i class="fa-solid fa-bed-pulse"></i>
             </div>
-            <div class="bg-rose-50 text-rose-600 text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">Beds</div>
+            <div class="bg-rose-50 text-rose-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Beds</div>
         </div>
-        <div class="z-10">
-            <div id="stat-dash-beds" class="text-3xl font-black text-rose-600 tracking-tight">...</div>
-            <div class="text-xs font-bold text-slate-500 mt-1">Available Capacity</div>
+        <div class="z-10 mt-3">
+            <div id="stat-dash-beds" class="text-2xl font-black text-rose-600 tracking-tight">...</div>
+            <div class="text-[11px] font-bold text-slate-500 mt-0.5 truncate">Available Wards</div>
         </div>
     </div>
+
+    <!-- Staff On Duty -->
+    <a href="staff.php" class="apple-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group hover:border-teal-300 transition block">
+        <div class="flex justify-between items-start z-10">
+            <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-lg shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-clipboard-user"></i>
+            </div>
+            <div class="bg-teal-50 text-teal-700 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Staff</div>
+        </div>
+        <div class="z-10 mt-3">
+            <div id="stat-dash-staff" class="text-2xl font-black text-teal-700 tracking-tight">...</div>
+            <div class="text-[11px] font-bold text-slate-500 mt-0.5 truncate" id="stat-dash-staff-sub">On Duty Today</div>
+        </div>
+    </a>
+
+    <!-- Database Health & Backup -->
+    <a href="backup.php" class="apple-card p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group hover:border-blue-300 transition block">
+        <div class="flex justify-between items-start z-10">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                <i class="fa-solid fa-database"></i>
+            </div>
+            <div class="bg-blue-50 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Backup</div>
+        </div>
+        <div class="z-10 mt-3">
+            <div id="stat-dash-backup" class="text-2xl font-black text-blue-700 tracking-tight">...</div>
+            <div class="text-[11px] font-bold text-slate-500 mt-0.5 truncate" id="stat-dash-backup-sub">SQL Snapshot</div>
+        </div>
+    </a>
 </div>
 
 <!-- Quick Actions Hub Grid -->
@@ -163,8 +187,18 @@ include 'includes/header.php';
             <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 text-white flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-md shadow-cyan-500/20 z-10 relative">
                 <i class="fa-solid fa-user-doctor"></i>
             </div>
-            <h4 class="text-base font-bold text-slate-900 z-10 relative">Medical Staff</h4>
+            <h4 class="text-base font-bold text-slate-900 z-10 relative">Doctors & Slots</h4>
             <p class="text-xs text-slate-500 mt-1.5 leading-relaxed z-10 relative">Review doctor schedules, availability matrix, and specialization slots.</p>
+        </a>
+
+        <!-- Staff & Attendance Card -->
+        <a href="staff.php" class="apple-card p-6 block cursor-pointer group hover:bg-teal-50/30 hover:border-teal-300 transition-all duration-300 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-teal-100 rounded-full blur-2xl opacity-50 -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-md shadow-teal-500/20 z-10 relative">
+                <i class="fa-solid fa-clipboard-user"></i>
+            </div>
+            <h4 class="text-base font-bold text-slate-900 z-10 relative">Staff & Attendance</h4>
+            <p class="text-xs text-slate-500 mt-1.5 leading-relaxed z-10 relative">Manage hospital staff registry, grant portal user logins, and track daily attendance.</p>
         </a>
 
         <a href="beds.php" class="apple-card p-6 block cursor-pointer group hover:bg-rose-50/30 hover:border-rose-300 transition-all duration-300 relative overflow-hidden">
@@ -176,15 +210,146 @@ include 'includes/header.php';
             <p class="text-xs text-slate-500 mt-1.5 leading-relaxed z-10 relative">Live tracking of ICU, general wards, and occupancy metrics.</p>
         </a>
 
-        <a href="history.php" class="apple-card p-6 block cursor-pointer group hover:bg-amber-50/30 hover:border-amber-300 transition-all duration-300 relative overflow-hidden sm:col-span-2 xl:col-span-2">
+        <!-- Database Backup Card -->
+        <a href="backup.php" class="apple-card p-6 block cursor-pointer group hover:bg-blue-50/30 hover:border-blue-300 transition-all duration-300 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-blue-100 rounded-full blur-2xl opacity-50 -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-md shadow-blue-500/20 z-10 relative">
+                <i class="fa-solid fa-database"></i>
+            </div>
+            <h4 class="text-base font-bold text-slate-900 z-10 relative">Database Backup</h4>
+            <p class="text-xs text-slate-500 mt-1.5 leading-relaxed z-10 relative">Generate SQL snapshots, download patient data backups, and manage disaster archives.</p>
+        </a>
+
+        <a href="history.php" class="apple-card p-6 block cursor-pointer group hover:bg-amber-50/30 hover:border-amber-300 transition-all duration-300 relative overflow-hidden sm:col-span-2 xl:col-span-4">
             <div class="absolute top-0 right-0 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-40 -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-700"></div>
             <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-md shadow-amber-500/20 z-10 relative">
                 <i class="fa-solid fa-folder-medical"></i>
             </div>
-            <h4 class="text-base font-bold text-slate-900 z-10 relative">Medical Records & Dossiers</h4>
+            <h4 class="text-base font-bold text-slate-900 z-10 relative">Medical Records & Dossiers Vault</h4>
             <p class="text-xs text-slate-500 mt-1.5 leading-relaxed z-10 relative">Access complete patient histories, past prescriptions, lab reports, and clinical notes in a secure vault.</p>
         </a>
     </div>
+</div>
+
+<!-- ================= LIVE OPERATIONS: STAFF ROSTER & DATABASE HEALTH ================= -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    
+    <!-- Left 2 Cols: Staff Attendance Live Overview -->
+    <div class="lg:col-span-2 apple-card p-6 flex flex-col justify-between">
+        <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-lg font-bold">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-base font-extrabold text-slate-900">Hospital Staff on Duty Today</h4>
+                            <span id="dash-staff-rate-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">100% Rate</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">Real-time workforce attendance, shifts, and departmental status.</p>
+                    </div>
+                </div>
+                <a href="staff.php" class="text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 px-3.5 py-2 rounded-xl border border-teal-200 transition flex items-center gap-1.5 self-start sm:self-auto shadow-2xs">
+                    <span>Manage Attendance</span>
+                    <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+
+            <!-- Attendance Stats Pills -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 my-4">
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Staff</span>
+                    <span class="text-lg font-black text-slate-800" id="dash-staff-total">0</span>
+                </div>
+                <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100 text-center">
+                    <span class="text-[10px] uppercase font-bold text-emerald-700 block">Present</span>
+                    <span class="text-lg font-black text-emerald-800" id="dash-staff-present">0</span>
+                </div>
+                <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-100 text-center">
+                    <span class="text-[10px] uppercase font-bold text-amber-700 block">Late</span>
+                    <span class="text-lg font-black text-amber-800" id="dash-staff-late">0</span>
+                </div>
+                <div class="bg-sky-50/60 p-2.5 rounded-xl border border-sky-100 text-center">
+                    <span class="text-[10px] uppercase font-bold text-sky-700 block">Half Day</span>
+                    <span class="text-lg font-black text-sky-800" id="dash-staff-half">0</span>
+                </div>
+                <div class="bg-rose-50/60 p-2.5 rounded-xl border border-rose-100 text-center col-span-2 sm:col-span-1">
+                    <span class="text-[10px] uppercase font-bold text-rose-700 block">Absent/Leave</span>
+                    <span class="text-lg font-black text-rose-800" id="dash-staff-absent">0</span>
+                </div>
+            </div>
+
+            <!-- Mini On-Duty Roster List -->
+            <div class="space-y-2" id="dash-staff-roster-preview">
+                <div class="text-center py-6 text-slate-400 text-xs font-medium">
+                    <i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading staff duty roster...
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500"></i> Auto-synced with daily check-ins</span>
+            <a href="staff.php" class="font-bold text-blue-600 hover:text-blue-800">Open Roster &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Right 1 Col: Database Backup Health Overview -->
+    <div class="lg:col-span-1 apple-card p-6 flex flex-col justify-between bg-gradient-to-br from-white to-blue-50/30">
+        <div>
+            <div class="flex items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-base font-extrabold text-slate-900">Database Snapshots</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">Disaster recovery & backup</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono">SQL Dump</span>
+            </div>
+
+            <div class="my-4 space-y-3">
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2 text-xs">
+                    <div class="flex items-center justify-between text-slate-600">
+                        <span class="font-semibold">Database Engine:</span>
+                        <span class="font-mono font-bold text-slate-800" id="dash-backup-dbname">hospital_db</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-600">
+                        <span class="font-semibold">Live Tables:</span>
+                        <span class="font-bold text-emerald-700" id="dash-backup-tables">16 Tables Online</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-600">
+                        <span class="font-semibold">Total Snapshots:</span>
+                        <span class="font-bold text-slate-800" id="dash-backup-count">0</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-600">
+                        <span class="font-semibold">Archive Storage:</span>
+                        <span class="font-bold text-slate-800" id="dash-backup-size">0 KB</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-emerald-50/70 border border-emerald-200/70 rounded-xl text-xs text-emerald-800">
+                    <div class="font-bold flex items-center gap-1.5 mb-0.5">
+                        <i class="fa-solid fa-shield-check text-emerald-600"></i> Protected Storage
+                    </div>
+                    <p class="text-[11px] text-emerald-700">Latest backup: <strong id="dash-backup-latest">Never</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-2 pt-2">
+            <a href="backup.php" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-down"></i>
+                <span>Take Database Backup</span>
+            </a>
+            <a href="backup.php" class="w-full py-2 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition text-center block">
+                View Backup Archives
+            </a>
+        </div>
+    </div>
+
 </div>
 
 <!-- 4-Section Pipeline Summary with Images and Concise Patient Info -->
@@ -288,6 +453,131 @@ async function loadDashboardStats() {
         }
     } catch(err) {
         console.warn('Beds fetch error:', err);
+    }
+
+    // 5. Fetch Staff Attendance Today
+    try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const resStaffSumm = await fetch(`api/staff.php?action=get_daily_summary&date=${todayStr}`);
+        const dataStaffSumm = await resStaffSumm.json();
+
+        const resStaffList = await fetch(`api/staff.php?action=get_staff&date=${todayStr}`);
+        const dataStaffList = await resStaffList.json();
+
+        if (dataStaffSumm.status === 'success' && dataStaffSumm.summary) {
+            const s = dataStaffSumm.summary;
+            const staffCount = s.total_active_staff || 0;
+            const onDuty = s.present + s.late;
+            const staffEl = document.getElementById('stat-dash-staff');
+            const staffSub = document.getElementById('stat-dash-staff-sub');
+            if (staffEl) staffEl.textContent = `${onDuty} / ${staffCount}`;
+            if (staffSub) staffSub.textContent = `${s.attendance_rate}% Rate Today`;
+
+            renderStaffDashboardWidget(s, dataStaffList.data || []);
+        }
+    } catch(err) {
+        console.warn('Staff fetch error:', err);
+    }
+
+    // 6. Fetch Database Backup Info
+    try {
+        const resBackup = await fetch('api/backup.php?action=list_backups');
+        const dataBackup = await resBackup.json();
+        if (dataBackup.status === 'success' && dataBackup.data) {
+            renderBackupDashboardWidget(dataBackup.data);
+        }
+    } catch(err) {
+        console.warn('Backup fetch error:', err);
+    }
+}
+
+function renderStaffDashboardWidget(summary, list) {
+    document.getElementById('dash-staff-total').textContent = summary.total_active_staff || 0;
+    document.getElementById('dash-staff-present').textContent = summary.present || 0;
+    document.getElementById('dash-staff-late').textContent = summary.late || 0;
+    document.getElementById('dash-staff-half').textContent = summary.half_day || 0;
+    document.getElementById('dash-staff-absent').textContent = (summary.absent || 0) + (summary.on_leave || 0);
+
+    const rateBadge = document.getElementById('dash-staff-rate-badge');
+    if (rateBadge) {
+        rateBadge.textContent = `${summary.attendance_rate || 0}% Rate`;
+    }
+
+    const container = document.getElementById('dash-staff-roster-preview');
+    if (!container) return;
+
+    if (!list || list.length === 0) {
+        container.innerHTML = `<div class="text-center py-5 text-slate-400 text-xs font-medium">No staff members registered.</div>`;
+        return;
+    }
+
+    // Show top 4 on-duty or active staff members
+    const previewList = list.slice(0, 4);
+    container.innerHTML = previewList.map(s => {
+        const initials = ((s.first_name || '')[0] || '') + ((s.last_name || '')[0] || '');
+        const st = s.att_status || 'Unmarked';
+        let statusBadge = 'bg-slate-100 text-slate-600';
+        if (st === 'Present') statusBadge = 'bg-emerald-100 text-emerald-800';
+        else if (st === 'Late') statusBadge = 'bg-amber-100 text-amber-800';
+        else if (st === 'Half Day') statusBadge = 'bg-sky-100 text-sky-800';
+        else if (st === 'Absent') statusBadge = 'bg-rose-100 text-rose-800';
+        else if (st === 'On Leave') statusBadge = 'bg-purple-100 text-purple-800';
+
+        return `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 transition border border-slate-100 text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-7 h-7 rounded-lg bg-teal-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
+                    ${initials.toUpperCase()}
+                </div>
+                <div class="truncate">
+                    <span class="font-bold text-slate-900 block truncate">${s.first_name} ${s.last_name}</span>
+                    <span class="text-[10px] text-slate-500 font-medium">${s.role} &bull; ${s.department}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadge}">${st}</span>
+                <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">${s.check_in_time ? s.check_in_time.substring(0, 5) : '--:--'}</span>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+function renderBackupDashboardWidget(backupData) {
+    const summ = backupData.summary || {};
+    const backups = backupData.backups || [];
+
+    const count = summ.total_backups || 0;
+    const dbName = summ.database_name || 'hospital_db';
+    const tablesCount = summ.db_tables_count || 16;
+    const totalSize = summ.total_size_formatted || '0 KB';
+
+    // Top Stat Card
+    const backupStatEl = document.getElementById('stat-dash-backup');
+    const backupSubEl = document.getElementById('stat-dash-backup-sub');
+    if (backupStatEl) backupStatEl.textContent = count > 0 ? `${count} Files` : 'Active';
+    if (backupSubEl) backupSubEl.textContent = count > 0 ? `${totalSize}` : 'Snapshot Ready';
+
+    // Right Card Widget
+    const dbNameEl = document.getElementById('dash-backup-dbname');
+    if (dbNameEl) dbNameEl.textContent = dbName;
+
+    const tablesEl = document.getElementById('dash-backup-tables');
+    if (tablesEl) tablesEl.textContent = `${tablesCount} Tables Online`;
+
+    const countEl = document.getElementById('dash-backup-count');
+    if (countEl) countEl.textContent = `${count} ${count === 1 ? 'Snapshot' : 'Snapshots'}`;
+
+    const sizeEl = document.getElementById('dash-backup-size');
+    if (sizeEl) sizeEl.textContent = totalSize;
+
+    const latestEl = document.getElementById('dash-backup-latest');
+    if (latestEl) {
+        if (backups.length > 0) {
+            latestEl.textContent = `${backups[0].relative_time} (${backups[0].size_formatted})`;
+        } else {
+            latestEl.textContent = 'None yet (Create first snapshot)';
+        }
     }
 }
 

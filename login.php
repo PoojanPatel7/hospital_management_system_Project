@@ -15,209 +15,187 @@ if (isset($_SESSION['hospital_id'])) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        /* Completely hide native video controls and overlays */
-        video::-webkit-media-controls,
-        video::-webkit-media-controls-enclosure,
-        video::-webkit-media-controls-panel {
-            display: none !important;
-            opacity: 0 !important;
-            -webkit-appearance: none !important;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        video::-webkit-media-controls { display: none !important; }
+        
+        /* Subtle grid background pattern */
+        .bg-grid-pattern {
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
         }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen flex flex-col lg:flex-row antialiased text-slate-800">
+<body class="min-h-screen bg-slate-50 bg-grid-pattern text-slate-800 flex items-center justify-center p-4 sm:p-8">
 
-    <!-- ================= LEFT HALF: Full Image Showcase without Any Cut ================= -->
-    <div class="w-full lg:w-1/2 min-h-[380px] lg:min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex flex-col justify-center items-center p-6 sm:p-8 lg:p-12 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-800">
+    <!-- Bento Grid Container -->
+    <div class="w-full max-w-[1400px] h-full min-h-[80vh] grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-3 gap-4 sm:gap-6">
         
-        <!-- Ambient lighting glows -->
-        <div class="absolute -top-24 -left-24 w-80 h-80 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -right-24 w-80 h-80 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"></div>
-
-        <!-- Video Container: Plays 1080p intro.mp4 without cutting/cropping -->
-        <div class="relative z-10 w-full max-w-xl xl:max-w-2xl 2xl:max-w-3xl flex flex-col items-center justify-center my-auto">
-            <div class="w-full bg-slate-900/90 rounded-2xl sm:rounded-3xl p-2 sm:p-3.5 border border-white/10 shadow-2xl backdrop-blur-md transition duration-300 hover:border-white/20">
-                <div class="relative w-full aspect-video rounded-xl sm:rounded-2xl overflow-hidden bg-black shadow-lg flex items-center justify-center select-none" oncontextmenu="return false;">
-                    <video 
-                        id="login-intro-video"
-                        autoplay 
-                        loop 
-                        muted 
-                        playsinline 
-                        preload="auto"
-                        disablepictureinpicture
-                        disableremoteplayback
-                        class="w-full h-full object-contain mx-auto block pointer-events-none select-none"
-                        poster="images/Login.png"
-                    >
-                        <source src="video/intro.mp4" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
+        <!-- ================= Bento Item 1: Video Showcase (Spans 2 cols, 2 rows) ================= -->
+        <div class="lg:col-span-2 lg:row-span-2 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden relative flex items-center justify-center min-h-[300px] lg:min-h-0">
+            <!-- Overlay gradients for premium feel -->
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent z-10 pointer-events-none"></div>
+            <div class="absolute bottom-8 left-8 z-20 pointer-events-none">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold uppercase tracking-wider mb-3">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Systems Online
                 </div>
+                <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">CarePulse OS</h2>
+                <p class="text-slate-200 mt-1 font-medium">Advanced Hospital Management</p>
             </div>
-        </div>
-
-    </div>
-
-    <!-- ================= RIGHT HALF: Clean Modern Login Interface ================= -->
-    <div class="w-full lg:w-1/2 min-h-screen bg-white flex flex-col justify-between p-6 sm:p-10 lg:p-14 xl:p-16 overflow-y-auto">
-        
-        <!-- Top Bar with Official Logo -->
-        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-            <img src="images/Logo.png" alt="Bhooma Hospital Logo" class="h-10 sm:h-12 w-auto max-w-[220px] object-contain">
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
-                <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Staff Access
-            </div>
-        </div>
-
-        <!-- Center Form Area -->
-        <div class="w-full max-w-md mx-auto my-8 sm:my-auto py-4">
             
-            <!-- Title Header -->
-            <div class="mb-8">
-                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm border border-blue-100 mb-4">
-                    <i class="fa-solid fa-user-doctor"></i>
+            <video 
+                id="login-intro-video"
+                autoplay loop muted playsinline 
+                class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none z-0"
+                poster="images/Login.png"
+            >
+                <source src="video/intro.mp4" type="video/mp4">
+            </video>
+        </div>
+
+        <!-- ================= Bento Item 2: Login Form (Spans 1 col, 3 rows) ================= -->
+        <div class="lg:col-span-1 lg:row-span-3 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 sm:p-10 flex flex-col justify-center relative overflow-y-auto">
+            
+            <div class="mb-10 text-center sm:text-left">
+                <img src="images/Logo.png" alt="Bhooma Medicare Logo" class="h-14 sm:h-16 w-auto object-contain mb-6 mx-auto sm:mx-0" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 items-center justify-center mb-6 mx-auto sm:mx-0 hidden">
+                    <i class="fa-solid fa-hospital-user text-2xl text-blue-600"></i>
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Staff Sign In</h1>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1.5">Enter your authorized credentials to access clinical dashboard, patient queue, and bed status.</p>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Sign In</h1>
+                <p class="text-slate-500 font-medium text-sm">Welcome back! Please enter your details.</p>
             </div>
 
-            <!-- Error Alert Box -->
-            <div id="error-msg" class="hidden mb-5 text-xs text-rose-700 font-bold bg-rose-50 border border-rose-200 p-3.5 rounded-2xl flex items-center gap-3 transition shadow-sm">
-                <i class="fa-solid fa-circle-exclamation text-rose-500 text-base shrink-0"></i>
-                <span id="error-text">Network error occurred.</span>
+            <!-- Error Alert -->
+            <div id="error-msg" class="hidden mb-6 bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3">
+                <i class="fa-solid fa-circle-exclamation text-red-500 mt-0.5"></i>
+                <p id="error-text" class="text-sm text-red-700 font-semibold">Invalid credentials provided.</p>
             </div>
 
-            <!-- Form -->
-            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-                <!-- Username Field -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 ml-1 flex items-center gap-1.5">
-                        <i class="fa-solid fa-hospital-user text-blue-600"></i> Hospital Username
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-6">
+                
+                <!-- Username Input (Floating Label on Border) -->
+                <div class="relative mt-2">
+                    <input 
+                        type="text" 
+                        id="log-username" 
+                        required 
+                        autofocus
+                        class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm"
+                        placeholder=" "
+                    >
+                    <label 
+                        for="log-username" 
+                        class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">
+                        Username / Staff Account
                     </label>
-                    <div class="relative">
-                        <i class="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                        <input 
-                            type="text" 
-                            id="log-username" 
-                            required 
-                            autofocus
-                            class="w-full bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition shadow-sm placeholder-slate-400" 
-                            placeholder="Enter registered username">
-                    </div>
                 </div>
 
-                <!-- Password Field with Visibility Toggle -->
-                <div>
-                    <div class="flex items-center justify-between mb-2 ml-1">
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                            <i class="fa-solid fa-key text-blue-600"></i> Password (Min 6 Characters)
-                        </label>
-                    </div>
-                    <div class="relative">
-                        <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                        <input 
-                            type="password" 
-                            id="log-password" 
-                            required 
-                            minlength="6"
-                            class="w-full bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-2xl pl-11 pr-12 py-3.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition shadow-sm placeholder-slate-400" 
-                            placeholder="••••••••">
-                        <button 
-                            type="button" 
-                            onclick="togglePasswordVisibility('log-password', 'eye-icon')" 
-                            class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg transition"
-                            title="Toggle password visibility">
-                            <i id="eye-icon" class="fa-regular fa-eye text-sm"></i>
-                        </button>
-                    </div>
+                <!-- Password Input (Floating Label on Border) -->
+                <div class="relative mt-2">
+                    <input 
+                        type="password" 
+                        id="log-password" 
+                        required 
+                        minlength="4"
+                        maxlength="50"
+                        class="block w-full pl-4 pr-12 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm"
+                        placeholder=" "
+                    >
+                    <label 
+                        for="log-password" 
+                        class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">
+                        Password
+                    </label>
+                    <button type="button" onclick="togglePassword('log-password', 'eye-icon')" class="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 outline-none">
+                        <i id="eye-icon" class="fa-regular fa-eye"></i>
+                    </button>
                 </div>
 
-                <!-- Options Row -->
-                <div class="flex items-center justify-between pt-1 text-xs">
-                    <label class="flex items-center gap-2 cursor-pointer text-slate-600 font-medium select-none">
-                        <input type="checkbox" id="remember-me" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
-                        Remember session
+                <div class="flex items-center justify-between mt-2 mb-4">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-600 font-medium select-none">
+                        <input type="checkbox" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded-md">
+                        Remember me
                     </label>
-                    <span class="text-slate-400 text-[11px] font-medium flex items-center gap-1">
-                        <i class="fa-solid fa-shield-halved text-emerald-500"></i> Secure Node
-                    </span>
+                    <a href="#" class="text-sm font-bold text-blue-600 hover:text-blue-700">Forgot password?</a>
                 </div>
 
                 <!-- Submit Button -->
-                <div class="pt-2">
-                    <button 
-                        type="submit" 
-                        id="btn-submit"
-                        class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-blue-500/25 transition duration-200 flex items-center justify-center gap-2 text-sm active:scale-[0.99]">
-                        <span>Sign In to Dashboard</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
-                    </button>
-                </div>
+                <button 
+                    type="submit" 
+                    id="btn-submit"
+                    class="w-full py-4 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-lg shadow-slate-900/20 transition-all duration-200 flex justify-center items-center gap-2 mt-2 active:scale-[0.98]">
+                    <span>Sign In</span>
+                </button>
             </form>
+
+            <div class="mt-8 text-center">
+                <p class="text-sm font-medium text-slate-500">
+                    Don't have a workspace? 
+                    <a href="register_hospital.php" class="font-bold text-blue-600 hover:text-blue-700 transition-colors">Register Hospital</a>
+                </p>
+            </div>
         </div>
 
-        <!-- Bottom Footer Link -->
-        <div class="border-t border-slate-100 pt-6 text-center">
-            <p class="text-xs sm:text-sm font-medium text-slate-500">
-                Register a new hospital branch? 
-                <a href="register_hospital.php" class="text-blue-600 hover:text-blue-700 font-bold ml-1 inline-flex items-center gap-1">
-                    Create Workspace <i class="fa-solid fa-arrow-right text-[10px]"></i>
-                </a>
+        <!-- ================= Bento Item 3: Info/Brand Card (Spans 1 col, 1 row) ================= -->
+        <div class="lg:col-span-1 lg:row-span-1 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 flex flex-col justify-between">
+            <div class="flex items-center gap-4">
+                <img src="images/Logo.png" alt="Logo" class="h-10 w-auto object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center hidden">
+                    <i class="fa-solid fa-hospital text-blue-600"></i>
+                </div>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <span class="text-slate-500 font-medium text-sm">Bhooma Medicare & I.C.U</span>
+            </div>
+            <p class="text-slate-600 text-sm font-medium mt-4 lg:mt-0">
+                Securely manage patient records, appointments, and hospital infrastructure in one unified platform.
             </p>
-            <p class="text-[11px] text-slate-400 mt-2">Bhooma Medicare Hospital & I.C.U • Version 2.6</p>
+        </div>
+
+        <!-- ================= Bento Item 4: Stats/Feature Card (Spans 1 col, 1 row) ================= -->
+        <div class="lg:col-span-1 lg:row-span-1 bg-blue-600 text-white rounded-[2rem] shadow-md shadow-blue-500/20 p-8 flex flex-col justify-center relative overflow-hidden">
+            <!-- Decorative circle -->
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500 rounded-full blur-2xl"></div>
+            <div class="relative z-10 flex items-center justify-between">
+                <div>
+                    <h3 class="text-3xl font-extrabold mb-1">100%</h3>
+                    <p class="text-blue-100 font-medium text-sm">Secure Patient Data</p>
+                </div>
+                <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+                    <i class="fa-solid fa-lock text-xl"></i>
+                </div>
+            </div>
         </div>
 
     </div>
 
     <script>
-        // Ensure seamless continuous video looping without stopping or showing controls
         window.addEventListener('DOMContentLoaded', () => {
-            const introVid = document.getElementById('login-intro-video');
-            if (introVid) {
-                introVid.muted = true;
-                introVid.defaultMuted = true;
-                const playPromise = () => {
-                    const p = introVid.play();
-                    if (p !== undefined) {
-                        p.catch(() => {
-                            introVid.muted = true;
-                            introVid.play();
-                        });
+            const vid = document.getElementById('login-intro-video');
+            if(vid) {
+                vid.muted = true;
+                const playVid = () => {
+                    const p = vid.play();
+                    if(p !== undefined) {
+                        p.catch(() => { vid.muted = true; vid.play(); });
                     }
                 };
-                playPromise();
-
-                // Explicit loop guarantee on ended
-                introVid.addEventListener('ended', () => {
-                    introVid.currentTime = 0;
-                    playPromise();
-                });
-
-                // Resume if paused or tab switched back
+                playVid();
+                vid.addEventListener('ended', () => { vid.currentTime = 0; playVid(); });
                 document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden && introVid.paused) {
-                        playPromise();
-                    }
+                    if (!document.hidden && vid.paused) playVid();
                 });
-
-                window.addEventListener('click', () => {
-                    if (introVid.paused) playPromise();
-                }, { once: true });
             }
         });
 
-        function togglePasswordVisibility(inputId, iconId) {
+        function togglePassword(inputId, iconId) {
             const input = document.getElementById(inputId);
             const icon = document.getElementById(iconId);
             if (input.type === 'password') {
                 input.type = 'text';
-                icon.className = 'fa-regular fa-eye-slash text-sm text-blue-600';
+                icon.className = 'fa-regular fa-eye-slash text-slate-600';
             } else {
                 input.type = 'password';
-                icon.className = 'fa-regular fa-eye text-sm text-slate-400';
+                icon.className = 'fa-regular fa-eye text-slate-400';
             }
         }
 
@@ -228,14 +206,16 @@ if (isset($_SESSION['hospital_id'])) {
             const errText = document.getElementById('error-text');
             const password = document.getElementById('log-password').value;
 
-            if (password.length < 6) {
-                errText.textContent = "Password must be at least 6 characters long.";
+            if (password.length < 8 || password.length > 20) {
+                errText.textContent = "Password must be between 8 and 20 characters.";
                 errBox.classList.remove('hidden');
                 return;
             }
             
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Authenticating...';
+            const originalBtnHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
             btn.disabled = true;
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
             errBox.classList.add('hidden');
 
             const payload = {
@@ -255,27 +235,29 @@ if (isset($_SESSION['hospital_id'])) {
                 try {
                     data = JSON.parse(raw);
                 } catch (parseErr) {
-                    console.error("Auth Raw Response:", raw);
-                    throw new Error("Invalid response from server. Please check database connection.");
+                    throw new Error("Invalid server response. Please try again later.");
                 }
 
                 if (data.status === 'success') {
-                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Success! Redirecting...';
-                    btn.className = 'w-full bg-emerald-600 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-500/25 transition duration-200 flex items-center justify-center gap-2 text-sm';
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Success!';
+                    btn.classList.remove('bg-slate-900', 'hover:bg-slate-800', 'shadow-slate-900/20');
+                    btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'shadow-emerald-500/30');
                     setTimeout(() => {
                         window.location.href = 'dashboard.php';
-                    }, 350);
+                    }, 500);
                 } else {
                     errText.textContent = data.message || "Invalid username or password.";
                     errBox.classList.remove('hidden');
-                    btn.innerHTML = '<span>Sign In to Dashboard</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
+                    btn.innerHTML = originalBtnHtml;
                     btn.disabled = false;
+                    btn.classList.remove('opacity-80', 'cursor-not-allowed');
                 }
             } catch (error) {
-                errText.textContent = error.message || "Network error occurred. Please try again.";
+                errText.textContent = error.message || "Network error occurred.";
                 errBox.classList.remove('hidden');
-                btn.innerHTML = '<span>Sign In to Dashboard</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
+                btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
             }
         }
     </script>

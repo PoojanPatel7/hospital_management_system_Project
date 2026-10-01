@@ -91,7 +91,13 @@
             
             // Appt Status
             document.getElementById('dossier-status').textContent = p.status || 'Unknown';
-            document.getElementById('dossier-status').className = (p.status && p.status.includes('Admit')) ? 'text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800' : 'text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800';
+            let dStatusCls = 'text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800';
+            if (p.status === 'Waiting for Reports') {
+                dStatusCls = 'text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+            } else if (p.status && p.status.includes('Admit')) {
+                dStatusCls = 'text-xs font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300';
+            }
+            document.getElementById('dossier-status').className = dStatusCls;
             
             // Last Visit Info
             document.getElementById('dossier-last-dept').textContent = p.dept && p.dept !== '-' ? p.dept : 'N/A';
@@ -110,6 +116,7 @@
                                     <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">${appt.date}</span>
                                 </div>
                                 <h4 class="text-sm font-bold text-slate-900">Visit for ${appt.dept} with ${appt.doctor_name || '-'}</h4>
+                                ${appt.symptoms ? `<p class="text-xs text-slate-500 mt-0.5"><strong>Reason:</strong> ${appt.symptoms}</p>` : ''}
                             </div>
                             <i id="icon-appt-${idx}" class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
                         </button>
@@ -134,8 +141,9 @@
                                     <h5 class="text-xs font-bold text-slate-500 uppercase mb-3"><i class="fa-solid fa-images"></i> Files / Images</h5>
                                     <div class="grid grid-cols-2 gap-2">
                                         ${appt.files && appt.files.length > 0 ? appt.files.map(f => {
-                                            const ext = f.file_path.split('.').pop().toLowerCase();
-                                            const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                                            const fileName = f.file_name || f.file_path || '';
+                                            const ext = (fileName.includes('.') ? fileName.split('?')[0].split('.').pop() : '').toLowerCase();
+                                            const isImg = (f.mime_type && f.mime_type.startsWith('image/')) || ['jpg','jpeg','png','gif','webp','svg'].includes(ext);
                                             return `
                                                 <a href="${f.file_path}" target="_blank" class="block border border-slate-200 rounded flex flex-col p-1 hover:border-blue-300">
                                                     ${isImg ? `<img src="${f.file_path}" class="w-full h-20 object-cover rounded mb-1" />` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded mb-1"><i class="fa-solid fa-file-pdf text-rose-400 text-2xl"></i></div>`}
@@ -158,11 +166,16 @@
                                         ${appt.medicines && appt.medicines.length > 0 ? appt.medicines.map(m => `
                                             <div class="bg-slate-50 border border-slate-200 rounded p-2 text-xs">
                                                 <div class="font-bold text-slate-800">${m.name}</div>
-                                                <div class="text-slate-600">${m.dose} • ${m.freq}</div>
+                                                <div class="text-slate-600">${m.dose} • ${m.freq} ${m.duration ? '• ' + m.duration : ''}</div>
                                                 ${m.note ? `<div class="text-slate-500 mt-1 italic">${m.note}</div>` : ''}
                                             </div>
                                         `).join('') : '<span class="text-xs text-slate-400 italic">No medicines</span>'}
                                     </div>
+
+                                    ${appt.tests_ordered ? `
+                                        <h5 class="text-xs font-bold text-amber-700 uppercase mb-2"><i class="fa-solid fa-flask-vial"></i> Ordered Tests</h5>
+                                        <div class="p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-900 mb-4 font-semibold">${appt.tests_ordered}</div>
+                                    ` : ''}
 
                                     <h5 class="text-xs font-bold text-slate-500 uppercase mb-3"><i class="fa-solid fa-notes-medical"></i> Doctor's Notes</h5>
                                     <div class="text-xs text-slate-700 bg-amber-50 p-3 rounded border border-amber-100">
@@ -181,8 +194,9 @@
             const filesList = document.getElementById('dossier-files-list');
             if (p.files && p.files.length > 0) {
                 filesList.innerHTML = p.files.map(f => {
-                    const ext = f.file_path.split('.').pop().toLowerCase();
-                    const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                    const fileName = f.file_name || f.file_path || '';
+                    const ext = (fileName.includes('.') ? fileName.split('?')[0].split('.').pop() : '').toLowerCase();
+                    const isImg = (f.mime_type && f.mime_type.startsWith('image/')) || ['jpg','jpeg','png','gif','webp','svg'].includes(ext);
                     const icon = isImg ? 'fa-image text-emerald-500' : 'fa-file-pdf text-rose-500';
                     return `
                         <a href="${f.file_path}" target="_blank" class="block border border-slate-200 rounded-xl p-3 bg-white hover:border-blue-300 hover:shadow-md transition group">

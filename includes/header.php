@@ -42,58 +42,86 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
   <aside class="w-64 glass-sidebar flex flex-col hidden md:flex shrink-0 shadow-sm z-20 relative">
     <!-- Brand -->
     <div class="h-20 flex items-center px-5 shrink-0 border-b border-slate-200/60">
-      <a href="dashboard.php" class="flex items-center space-x-3 min-w-0 group w-full">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl shadow-md shrink-0 transition-transform duration-300 group-hover:scale-105">
-            <i class="fa-solid fa-staff-snake"></i>
-        </div>
-        <div class="min-w-0">
-          <h1 class="font-extrabold text-slate-900 text-sm leading-tight tracking-tight truncate"><?php echo htmlspecialchars($hospital_name); ?></h1>
-          <p class="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Clinical OS</p>
-        </div>
+      <a href="dashboard.php" class="flex items-center justify-center group w-full py-2">
+        <img src="images/Logo.png" alt="Hospital Logo" class="max-h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105" onerror="this.style.display='none'">
       </a>
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar font-medium">
-      <a href="dashboard.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-chart-pie w-6 text-center <?php echo $current_page == 'dashboard.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Dashboard</span>
-      </a>
-
-      <a href="index.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-user-plus w-6 text-center <?php echo $current_page == 'index.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Reception Desk</span>
-      </a>
-
-      <a href="book.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'book.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-calendar-check w-6 text-center <?php echo $current_page == 'book.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Book Appointment</span>
-      </a>
+    <nav class="flex-1 px-3 py-4 space-y-5 overflow-y-auto custom-scrollbar font-medium">
       
-      <a href="queue.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'queue.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-bars-staggered w-6 text-center <?php echo $current_page == 'queue.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Live Pipeline</span>
-      </a>
+      <!-- Group 1 -->
+      <div>
+        <div class="px-3 mb-2 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">Overview</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1">
+          <a href="dashboard.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-chart-pie w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Dashboard</span>
+          </a>
+          <a href="queue.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'queue.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-bars-staggered w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Live Pipeline</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="patients.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'patients.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-address-book w-6 text-center <?php echo $current_page == 'patients.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Patient Directory</span>
-      </a>
+      <!-- Group 2 -->
+      <div>
+        <div class="px-3 mb-2 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">Front Desk</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1">
+          <a href="index.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-user-plus w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Reception Desk</span>
+          </a>
+          <a href="book.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'book.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-calendar-check w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Book Appointment</span>
+          </a>
+          <a href="patients.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'patients.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-address-book w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Patient Directory</span>
+          </a>
+          <a href="history.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'history.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-file-medical w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Medical Records</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="doctors.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'doctors.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-user-doctor w-6 text-center <?php echo $current_page == 'doctors.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Medical Staff</span>
-      </a>
+      <!-- Group 3 -->
+      <div>
+        <div class="px-3 mb-2 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">Staff & Facilities</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1">
+          <a href="doctors.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'doctors.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-user-doctor w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Doctors & Slots</span>
+          </a>
+          <a href="staff.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'staff.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-clipboard-user w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Staff & Attendance</span>
+          </a>
+          <a href="beds.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'beds.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-bed-pulse w-6 text-center  text-blue-600"></i>
+            <span class="text-sm">Bed Ward</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="beds.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'beds.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-bed-pulse w-6 text-center <?php echo $current_page == 'beds.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Bed Ward</span>
-      </a>
+      <!-- Group 4 -->
+      <div>
+        <div class="px-3 mb-2 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">System & Data</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1">
+          <a href="backup.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'backup.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-database w-6 text-center text-blue-600"></i>
+            <span class="text-sm">Database Backup</span>
+          </a>
+          <a href="restore.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'restore.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-rotate-left w-6 text-center text-emerald-600"></i>
+            <span class="text-sm">Load / Restore Data</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="history.php" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-600 <?php echo $current_page == 'history.php' ? 'active' : ''; ?>">
-        <i class="fa-solid fa-file-medical w-6 text-center <?php echo $current_page == 'history.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm">Medical Records</span>
-      </a>
     </nav>
 
     <!-- User badge bottom -->
@@ -110,14 +138,8 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
   <aside id="mobile-nav-drawer" class="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col shadow-2xl md:hidden">
     <!-- Drawer Header -->
     <div class="h-20 flex items-center justify-between px-5 border-b border-slate-100 shrink-0">
-      <div class="flex items-center space-x-3 min-w-0">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
-            <i class="fa-solid fa-staff-snake"></i>
-        </div>
-        <div class="min-w-0">
-          <h1 class="font-extrabold text-slate-900 text-xs leading-tight tracking-tight truncate"><?php echo htmlspecialchars($hospital_name); ?></h1>
-          <p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Clinical OS</p>
-        </div>
+      <div class="flex items-center min-w-0">
+        <img src="images/Logo.png" alt="Hospital Logo" class="max-h-10 w-auto object-contain" onerror="this.style.display='none'">
       </div>
       <button onclick="toggleMobileNav(false)" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition shrink-0">
         <i class="fa-solid fa-xmark text-lg"></i>
@@ -125,46 +147,79 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
     </div>
 
     <!-- Drawer Links -->
-    <nav class="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-      <a href="dashboard.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'dashboard.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-chart-pie w-5 text-center <?php echo $current_page == 'dashboard.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Dashboard</span>
-      </a>
-
-      <a href="index.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'index.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-user-plus w-5 text-center <?php echo $current_page == 'index.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Reception Desk</span>
-      </a>
-
-      <a href="book.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'book.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-calendar-check w-5 text-center <?php echo $current_page == 'book.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Book Appointment</span>
-      </a>
+    <nav class="flex-1 px-4 py-4 space-y-6 overflow-y-auto custom-scrollbar">
       
-      <a href="queue.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'queue.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-bars-staggered w-5 text-center <?php echo $current_page == 'queue.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Live Pipeline</span>
-      </a>
+      <!-- Group 1 -->
+      <div>
+        <div class="px-4 mb-3 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">Overview</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1.5">
+          <a href="dashboard.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'dashboard.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-chart-pie w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Dashboard</span>
+          </a>
+          <a href="queue.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'queue.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-bars-staggered w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Live Pipeline</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="patients.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'patients.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-address-book w-5 text-center <?php echo $current_page == 'patients.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Patient Directory</span>
-      </a>
+      <!-- Group 2 -->
+      <div>
+        <div class="px-4 mb-3 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">Front Desk</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1.5">
+          <a href="index.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'index.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-user-plus w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Reception Desk</span>
+          </a>
+          <a href="book.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'book.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-calendar-check w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Book Appointment</span>
+          </a>
+          <a href="patients.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'patients.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-address-book w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Patient Directory</span>
+          </a>
+          <a href="history.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'history.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-file-medical w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Medical Records</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="doctors.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'doctors.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-user-doctor w-5 text-center <?php echo $current_page == 'doctors.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Medical Staff & Slots</span>
-      </a>
+      <!-- Group 3 -->
+      <div>
+        <div class="px-4 mb-3 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">Staff & Facilities</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1.5">
+          <a href="doctors.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'doctors.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-user-doctor w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Doctors & Slots</span>
+          </a>
+          <a href="staff.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'staff.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-clipboard-user w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Staff & Attendance</span>
+          </a>
+          <a href="beds.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'beds.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-bed-pulse w-5 text-center  text-blue-600"></i>
+            <span class="text-sm font-semibold">Bed Ward</span>
+          </a>
+        </div>
+      </div>
 
-      <a href="beds.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'beds.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-bed-pulse w-5 text-center <?php echo $current_page == 'beds.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Bed Ward</span>
-      </a>
-
-      <a href="history.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'history.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
-        <i class="fa-solid fa-file-medical w-5 text-center <?php echo $current_page == 'history.php' ? 'text-blue-600' : ''; ?>"></i>
-        <span class="text-sm font-semibold">Medical Records</span>
-      </a>
+      <!-- Group 4 -->
+      <div>
+        <div class="px-4 mb-3 flex items-center"><span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md shadow-sm">System & Data</span><div class="h-px bg-slate-100 flex-1 ml-3"></div></div>
+        <div class="space-y-1.5">
+          <a href="backup.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'backup.php' ? 'active bg-blue-50 text-blue-700' : ''; ?>">
+            <i class="fa-solid fa-database w-5 text-center text-blue-600"></i>
+            <span class="text-sm font-semibold">Database Backup</span>
+          </a>
+          <a href="restore.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-700 hover:text-slate-900 <?php echo $current_page == 'restore.php' ? 'active bg-emerald-50 text-emerald-700' : ''; ?>">
+            <i class="fa-solid fa-rotate-left w-5 text-center text-emerald-600"></i>
+            <span class="text-sm font-semibold">Load / Restore Data</span>
+          </a>
+        </div>
+      </div>
     </nav>
 
     <!-- Drawer Footer -->
@@ -184,9 +239,8 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
         <button onclick="toggleMobileNav(true)" aria-label="Open Navigation Menu" class="w-10 h-10 rounded-xl bg-slate-100 active:bg-slate-200 text-slate-700 flex items-center justify-center transition shadow-sm shrink-0">
           <i class="fa-solid fa-bars text-lg"></i>
         </button>
-        <div class="flex items-center gap-2 min-w-0">
-          <img src="images/Logo.png" alt="Hospital Logo" class="h-8 w-auto max-w-[80px] object-contain shrink-0">
-          <h2 class="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight truncate max-w-[140px] sm:max-w-[170px]"><?php echo htmlspecialchars($hospital_name); ?></h2>
+        <div class="flex items-center min-w-0">
+          <img src="images/Logo.png" alt="Hospital Logo" class="max-h-8 w-auto object-contain shrink-0" onerror="this.style.display='none'">
         </div>
       </div>
       <div class="flex items-center gap-2">

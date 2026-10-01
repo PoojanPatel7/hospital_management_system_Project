@@ -16,11 +16,12 @@ if ($method === 'GET') {
         $query = "
             SELECT a.*, 
                    p.name, p.surname, p.father_name, p.blood_group, p.phone, p.gender, p.age, p.demographics, p.emergency_contact_name, p.emergency_contact_phone,
-                   d.name as doctor_name
+                   d.name as doctor_name,
+                   (SELECT department_id FROM doctor_categories dc WHERE dc.doctor_id = a.doctor_id LIMIT 1) as dept_id
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
             LEFT JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.stage BETWEEN 1 AND 4 AND (a.hospital_id = ? OR a.hospital_id IS NULL)
+            WHERE a.stage BETWEEN 1 AND 4 AND a.date <= CURDATE() AND (a.hospital_id = ? OR a.hospital_id IS NULL)
             ORDER BY a.created_at ASC
         ";
         $stmt = $conn->prepare($query);
@@ -47,7 +48,7 @@ if ($method === 'GET') {
                 'emergency_contact_name' => $row['emergency_contact_name'] ?? '',
                 'emergency_contact_phone' => $row['emergency_contact_phone'] ?? '',
                 'type' => $row['type'],
-                'dept' => $row['dept'] ?? 'General',
+                'dept' => $row['dept_id'] ?? 'General',
                 'doctor' => $row['doctor_name'] ?? 'Unassigned',
                 'doctor_id' => $row['doctor_id'] ?? '',
                 'date' => $row['date'],
@@ -71,7 +72,8 @@ if ($method === 'GET') {
         $query = "
             SELECT a.*, 
                    p.name, p.surname, p.father_name, p.phone, p.blood_group, p.gender, p.age, p.demographics,
-                   d.name as doctor_name
+                   d.name as doctor_name,
+                   (SELECT department_id FROM doctor_categories dc WHERE dc.doctor_id = a.doctor_id LIMIT 1) as dept_id
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
             LEFT JOIN doctors d ON a.doctor_id = d.id
@@ -115,7 +117,7 @@ else if ($method === 'POST') {
                 $patient_id = $pRow['patient_id'];
             }
         }
-        
+
         $stmt = $conn->prepare("UPDATE appointments SET status = ?, stage = ? WHERE id = ?");
         $stmt->bind_param("sii", $new_status, $new_stage, $appointment_id);
         
@@ -206,8 +208,10 @@ else if ($method === 'POST') {
     
             $hospital_id = $_SESSION['hospital_id'] ?? 0;
             $slotPlaceholder = $input['slot'] ?? 'Walk-in';
-            $stmt = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, status, stage, hospital_id) VALUES (?, ?, ?, CURDATE(), ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssssii", $input['patient_id'], $input['doctor_id'], $input['type'], $slotPlaceholder, $input['symptoms'], $status, $stage, $hospital_id);
+            $datePlaceholder = !empty($input['date']) ? $input['date'] : date('Y-m-d');
+        $status = ($datePlaceholder === date('Y-m-d')) ? (($stage === 2) ? 'Available at Hospital' : 'Checked-In') : 'Pre-Booked';
+        $stmt = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, status, stage, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssssssii", $input['patient_id'], $input['doctor_id'], $input['type'], $datePlaceholder, $slotPlaceholder, $input['symptoms'], $status, $stage, $hospital_id);
             $stmt->execute();
             
             $appointment_id = $conn->insert_id;
@@ -323,3 +327,6 @@ else if ($method === 'POST') {
     }
 }
 ?>
+
+
+

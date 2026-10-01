@@ -20,54 +20,54 @@
             </div>
 
             <form id="register-form" onsubmit="handleRegistrationSubmit(event)" class="space-y-6">
-                <!-- Inputs with Floating labels -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div class="relative group">
-                        <input type="text" id="reg-name" required class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="First Name">
-                        <label for="reg-name" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">First Name *</label>
+                <!-- Inputs with Floating labels on border -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
+                    <div class="relative">
+                        <input type="text" id="reg-name" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-name" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">First Name <span class="text-rose-500">*</span></label>
                     </div>
-                    <div class="relative group">
-                        <input type="text" id="reg-surname" required class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="Surname">
-                        <label for="reg-surname" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">Surname *</label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div class="relative group">
-                        <input type="text" id="reg-father" required class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="Father's Full Name">
-                        <label for="reg-father" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">Father's Full Name *</label>
-                    </div>
-                    <div class="relative group">
-                        <input type="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" id="reg-phone" class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="Phone Number">
-                        <label for="reg-phone" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">Phone Number</label>
+                    <div class="relative">
+                        <input type="text" id="reg-surname" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-surname" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Surname <span class="text-rose-500">*</span></label>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
+                    <div class="relative">
+                        <input type="text" id="reg-father" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-father" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Father's Full Name <span class="text-rose-500">*</span></label>
+                    </div>
+                    <div class="relative">
+                        <input type="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" id="reg-phone" class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-phone" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Phone Number</label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-2">
                     <!-- Custom Gender Dropdown -->
-                    <div class="relative group" id="gender-container">
+                    <div class="relative" id="gender-container">
                         <input type="text" id="reg-gender" required class="opacity-0 absolute w-0 h-0 top-1/2 left-1/2">
-                        <button type="button" onclick="toggleDropdown('gender')" class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-4 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all text-left relative z-10" id="gender-btn">
+                        <button type="button" onclick="toggleDropdown('gender')" class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none text-left relative z-10 shadow-sm flex items-center justify-between" id="gender-btn">
                             <span id="gender-display" class="block truncate opacity-0 transition-opacity">Select</span>
+                            <i id="gender-icon" class="fa-solid fa-chevron-down text-sm transition-transform duration-300 text-slate-400"></i>
                         </button>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-slate-400 z-20"><i class="fa-solid fa-chevron-down text-sm transition-transform duration-300" id="gender-icon"></i></div>
-                        <label id="gender-label" class="absolute left-5 top-4 text-sm font-medium tracking-wider text-slate-400 transition-all pointer-events-none z-20" style="transition: all 0.2s ease-out;">Gender *</label>
+                        <label id="gender-label" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-100 top-1/2 z-20 origin-[0] bg-white px-2 left-3 pointer-events-none">Gender <span class="text-rose-500">*</span></label>
 
                         <div id="gender-dropdown" class="hidden absolute top-[calc(100%+0.5rem)] left-0 w-full bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-2 transform opacity-0 scale-95 transition-all duration-200 origin-top">
-                            <div onclick="selectOption('gender', 'Male', this.innerHTML)" class="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><i class="fa-solid fa-mars text-blue-500 mr-2 w-4"></i> Male</div>
-                            <div onclick="selectOption('gender', 'Female', this.innerHTML)" class="px-4 py-2.5 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><i class="fa-solid fa-venus text-rose-500 mr-2 w-4"></i> Female</div>
-                            <div onclick="selectOption('gender', 'Other', this.innerHTML)" class="px-4 py-2.5 hover:bg-purple-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><i class="fa-solid fa-transgender text-purple-500 mr-2 w-4"></i> Other</div>
+                            <div onclick="selectOption('gender', 'Male', this.innerHTML)" class="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-slate-700 font-bold mx-2 rounded-xl transition-colors flex items-center"><i class="fa-solid fa-mars text-blue-500 mr-2 w-4"></i> Male</div>
+                            <div onclick="selectOption('gender', 'Female', this.innerHTML)" class="px-4 py-2.5 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold mx-2 rounded-xl transition-colors flex items-center"><i class="fa-solid fa-venus text-rose-500 mr-2 w-4"></i> Female</div>
+                            <div onclick="selectOption('gender', 'Other', this.innerHTML)" class="px-4 py-2.5 hover:bg-purple-50 cursor-pointer text-slate-700 font-bold mx-2 rounded-xl transition-colors flex items-center"><i class="fa-solid fa-transgender text-purple-500 mr-2 w-4"></i> Other</div>
                         </div>
                     </div>
                     
                     <!-- Custom Blood Group Dropdown -->
-                    <div class="relative group" id="blood-container">
+                    <div class="relative" id="blood-container">
                         <input type="text" id="reg-blood" required class="opacity-0 absolute w-0 h-0 top-1/2 left-1/2">
-                        <button type="button" onclick="toggleDropdown('blood')" class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-4 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all text-left relative z-10" id="blood-btn">
+                        <button type="button" onclick="toggleDropdown('blood')" class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none text-left relative z-10 shadow-sm flex items-center justify-between" id="blood-btn">
                             <span id="blood-display" class="block truncate opacity-0 transition-opacity">Select</span>
+                            <i id="blood-icon" class="fa-solid fa-chevron-down text-sm transition-transform duration-300 text-slate-400"></i>
                         </button>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-slate-400 z-20"><i class="fa-solid fa-chevron-down text-sm transition-transform duration-300" id="blood-icon"></i></div>
-                        <label id="blood-label" class="absolute left-5 top-4 text-sm font-medium tracking-wider text-slate-400 transition-all pointer-events-none z-20" style="transition: all 0.2s ease-out;">Blood Group *</label>
+                        <label id="blood-label" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-100 top-1/2 z-20 origin-[0] bg-white px-2 left-3 pointer-events-none">Blood Group <span class="text-rose-500">*</span></label>
 
                         <div id="blood-dropdown" class="hidden absolute top-[calc(100%+0.5rem)] left-0 w-full bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-2 transform opacity-0 scale-95 transition-all duration-200 origin-top max-h-56 overflow-y-auto custom-scrollbar">
                             <div onclick="selectOption('blood', 'A+', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">A+</span> Positive</div>
@@ -82,20 +82,20 @@
                         </div>
                     </div>
 
-                    <div class="relative group">
-                        <input type="number" id="reg-age" required class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="Age">
-                        <label for="reg-age" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">Age *</label>
+                    <div class="relative mt-2">
+                        <input type="number" id="reg-age" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-age" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Age <span class="text-rose-500">*</span></label>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-5 border-t border-slate-100">
-                    <div class="relative group">
-                        <input type="text" id="reg-em-name" required class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="Emergency Contact Name">
-                        <label for="reg-em-name" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">Emerg. Contact Name *</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2 pt-5 border-t border-slate-100">
+                    <div class="relative">
+                        <input type="text" id="reg-em-name" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-em-name" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Emerg. Contact Name <span class="text-rose-500">*</span></label>
                     </div>
-                    <div class="relative group">
-                        <input type="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" id="reg-em-phone" required class="peer w-full h-[3.5rem] bg-slate-50 border border-slate-200 text-slate-900 text-base font-semibold rounded-2xl px-5 pt-5 pb-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent transition-all placeholder-transparent" placeholder="Emergency Contact Mobile">
-                        <label for="reg-em-phone" class="absolute left-5 top-2 text-[10px] uppercase font-bold tracking-wider text-slate-400 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-4 peer-placeholder-shown:normal-case peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:font-bold peer-focus:uppercase peer-focus:text-blue-600 cursor-text">Emerg. Contact Mobile *</label>
+                    <div class="relative">
+                        <input type="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" id="reg-em-phone" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
+                        <label for="reg-em-phone" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Emerg. Contact Mobile <span class="text-rose-500">*</span></label>
                     </div>
                 </div>
 
@@ -163,10 +163,8 @@
       display.classList.remove('opacity-0');
       
       const label = document.getElementById(id + '-label');
-      label.style.top = '0.5rem';
-      label.style.fontSize = '10px';
-      label.style.fontWeight = 'bold';
-      label.style.textTransform = 'uppercase';
+      label.classList.remove('scale-100', 'top-1/2');
+      label.classList.add('scale-75', 'top-0', 'text-blue-600');
       
       closeDropdown(id);
   }
