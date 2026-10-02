@@ -81,7 +81,7 @@ switch ($action) {
         $isTraining = false;
         if (file_exists($logFile)) {
             $logContent = file_get_contents($logFile);
-            if (strpos($logContent, 'TRAINING_IN_PROGRESS') !== false) {
+            if (strpos($logContent, 'TRAINING_IN_PROGRESS') !== false && strpos($logContent, 'COMPLETED') === false) {
                 $isTraining = true;
             }
         }

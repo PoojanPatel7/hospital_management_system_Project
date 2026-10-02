@@ -548,7 +548,7 @@ function fetchTelemetryStatus() {
                 document.getElementById('kpi-adapter').textContent = `${data.lora_size_mb} MB`;
             }
             if (data.hyperparameters) {
-                document.getElementById('kpi-steps').textContent = `${data.hyperparameters.total_steps.toLocaleString()} / 1,950`;
+                document.getElementById('kpi-steps').textContent = `${data.hyperparameters.total_steps.toLocaleString()} / ${data.hyperparameters.total_steps.toLocaleString()}`;
                 document.getElementById('kpi-loss').textContent = data.hyperparameters.final_loss;
             }
         })
