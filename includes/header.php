@@ -199,6 +199,13 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
             <i class="fa-solid fa-brain w-6 text-center text-indigo-600"></i>
             <span class="text-sm">AI Chat History &amp; Logs</span>
           </a>
+          <a href="ai_training_dashboard.php" class="nav-item flex items-center justify-between px-3 py-2 text-slate-600 <?php echo $current_page == 'ai_training_dashboard.php' ? 'active' : ''; ?>">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-microchip w-6 text-center text-indigo-600"></i>
+              <span class="text-sm">AI Training &amp; GPU Lab</span>
+            </div>
+            <span class="text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-200">LIVE</span>
+          </a>
         </div>
       </div>
 
@@ -387,6 +394,13 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
           <a href="ai_logs.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-700 <?php echo $current_page == 'ai_logs.php' ? 'active' : ''; ?>">
             <i class="fa-solid fa-brain w-5 text-center text-indigo-600"></i>
             <span class="text-sm font-semibold">AI Logs &amp; History</span>
+          </a>
+          <a href="ai_training_dashboard.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center justify-between px-3 py-2.5 text-slate-700 <?php echo $current_page == 'ai_training_dashboard.php' ? 'active' : ''; ?>">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-microchip w-5 text-center text-indigo-600"></i>
+              <span class="text-sm font-semibold">AI Training &amp; GPU Lab</span>
+            </div>
+            <span class="text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-200">LIVE</span>
           </a>
         </div>
       </div>

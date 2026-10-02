@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Local GPU Fine-Tuning Script for BHOOMA HMS AI
 ==============================================
 Optimized specifically for NVIDIA GeForce RTX 4060 (8GB VRAM) and Windows.
@@ -27,24 +27,24 @@ if hasattr(sys.stdout, 'reconfigure'):
 import torch
 
 def verify_gpu():
-    print("=" * 65)
-    print("🏥 BHOOMA HMS: Local GPU Training Environment Check")
-    print("=" * 65)
+    print("=" * 65, flush=True)
+    print("🏥 BHOOMA HMS: Local GPU Training Environment Check", flush=True)
+    print("=" * 65, flush=True)
     if not torch.cuda.is_available():
-        print("[ERROR] CUDA is not available. Please ensure NVIDIA drivers are installed.")
+        print("[ERROR] CUDA is not available. Please ensure NVIDIA drivers are installed.", flush=True)
         sys.exit(1)
     
     gpu_name = torch.cuda.get_device_name(0)
     total_mem = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-    print(f"✅ GPU Detected : {gpu_name}")
-    print(f"✅ VRAM Available: {total_mem:.2f} GB")
-    print(f"✅ CUDA Version  : {torch.version.cuda}")
-    print(f"✅ Cache Root    : {os.environ['HF_HOME']}")
-    print("=" * 65)
+    print(f"✅ GPU Detected : {gpu_name}", flush=True)
+    print(f"✅ VRAM Available: {total_mem:.2f} GB", flush=True)
+    print(f"✅ CUDA Version  : {torch.version.cuda}", flush=True)
+    print(f"✅ Cache Root    : {os.environ['HF_HOME']}", flush=True)
+    print("=" * 65, flush=True)
     return True
 
 def run_fine_tuning(
-    base_model_name="Qwen/Qwen2.5-3B-Instruct",
+    base_model_name="Qwen/Qwen2.5-1.5B-Instruct",
     dataset_file="hms_training_chatml.jsonl",
     output_dir="./hms_lora_weights",
     epochs=3,
@@ -55,10 +55,11 @@ def run_fine_tuning(
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
-        TrainingArguments
+        TrainingArguments,
+        Trainer,
+        DataCollatorForLanguageModeling
     )
     from peft import LoraConfig, get_peft_model, TaskType
-    from trl import SFTTrainer
     from datasets import load_dataset
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -66,10 +67,10 @@ def run_fine_tuning(
     output_path = os.path.join(base_dir, output_dir)
 
     if not os.path.exists(dataset_path):
-        print(f"[ERROR] Dataset {dataset_path} not found. Run dataset_generator.py first.")
+        print(f"[ERROR] Dataset {dataset_path} not found. Run dataset_generator.py first.", flush=True)
         sys.exit(1)
 
-    print(f"\n[1/4] Loading Tokenizer and Base Model: {base_model_name}...")
+    print(f"\n[1/4] Loading Tokenizer and Base Model: {base_model_name}...", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(
         base_model_name,
         trust_remote_code=True,
@@ -80,7 +81,7 @@ def run_fine_tuning(
 
     # Load in float16 for RTX 4060 (8GB VRAM)
     compute_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    print(f"  Using compute dtype: {compute_dtype}")
+    print(f"  Using compute dtype: {compute_dtype}", flush=True)
 
     model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
@@ -90,7 +91,7 @@ def run_fine_tuning(
         cache_dir=os.environ["HF_HOME"]
     )
 
-    print("\n[2/4] Setting Up LoRA Adapter Configuration...")
+    print("\n[2/4] Setting Up LoRA Adapter Configuration...", flush=True)
     peft_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         r=16,
@@ -102,18 +103,18 @@ def run_fine_tuning(
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
-    print(f"\n[3/4] Loading Dataset from {dataset_path}...")
+    print(f"\n[3/4] Loading and Tokenizing Dataset from {dataset_path}...", flush=True)
     dataset = load_dataset("json", data_files=dataset_path, split="train")
-    print(f"  Loaded {len(dataset)} training examples.")
+    print(f"  Loaded {len(dataset)} training examples.", flush=True)
 
-    def format_chatml(batch):
-        formatted_texts = []
+    def format_and_tokenize(batch):
+        texts = []
         for msgs in batch["messages"]:
             text = tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=False)
-            formatted_texts.append(text)
-        return {"text": formatted_texts}
+            texts.append(text)
+        return tokenizer(texts, truncation=True, max_length=512, padding="max_length")
 
-    dataset = dataset.map(format_chatml, batched=True)
+    tokenized_dataset = dataset.map(format_and_tokenize, batched=True, remove_columns=["messages"])
 
     training_args = TrainingArguments(
         output_dir=output_path,
@@ -126,32 +127,34 @@ def run_fine_tuning(
         fp16=(compute_dtype == torch.float16),
         bf16=(compute_dtype == torch.bfloat16),
         optim="adamw_torch",
-        warmup_ratio=0.05,
+        warmup_steps=10,
         lr_scheduler_type="cosine",
         report_to="none"
     )
 
-    trainer = SFTTrainer(
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+    trainer = Trainer(
         model=model,
-        train_dataset=dataset,
-        dataset_text_field="text",
-        max_seq_length=1024,
-        tokenizer=tokenizer,
-        args=training_args
+        train_dataset=tokenized_dataset,
+        args=training_args,
+        data_collator=data_collator
     )
 
-    print("\n[4/4] 🚀 Starting Local GPU Training on NVIDIA RTX 4060...")
+    print("\n[4/4] 🚀 Starting Local GPU Training on NVIDIA RTX 4060...", flush=True)
     trainer.train()
 
-    print(f"\n✅ Training Complete! Saving LoRA weights to: {output_path}")
+    print(f"\n✅ Training Complete! Saving LoRA weights to: {output_path}", flush=True)
     trainer.model.save_pretrained(output_path)
     tokenizer.save_pretrained(output_path)
 
-    print("\n" + "=" * 65)
-    print("🎉 LOCAL MODEL TRAINING COMPLETED SUCCESSFULLY!")
-    print("Weights are saved in:", output_path)
-    print("=" * 65)
+    print("\n" + "=" * 65, flush=True)
+    print("🎉 LOCAL MODEL TRAINING COMPLETED SUCCESSFULLY!", flush=True)
+    print("Weights are saved in:", output_path, flush=True)
+    print("DONE", flush=True)
+    print("=" * 65, flush=True)
 
 if __name__ == "__main__":
     verify_gpu()
-    run_fine_tuning()
+    chosen_model = sys.argv[1] if len(sys.argv) > 1 else "Qwen/Qwen2.5-1.5B-Instruct"
+    run_fine_tuning(base_model_name=chosen_model)
