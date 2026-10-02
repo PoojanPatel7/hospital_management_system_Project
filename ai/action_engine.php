@@ -605,7 +605,7 @@ function buildBulkAttendanceAction($conn, $hospitalId, $lower) {
     return [
         'type' => 'action',
         'plan' => [
-            'action_type' => 'INSERT_UPDATE',
+            'action_type' => 'UPDATE',
             'table' => 'staff_attendance',
             'description' => "Mark all $cnt active staff members as '$targetStatus' for today ($today)",
             'sql' => $sql,
@@ -627,7 +627,7 @@ function buildIndividualAttendanceAction($conn, $hospitalId, $staff, $status) {
     return [
         'type' => 'action',
         'plan' => [
-            'action_type' => 'INSERT_UPDATE',
+            'action_type' => 'UPDATE',
             'table' => 'staff_attendance',
             'description' => "Mark employee $staffName ({$staff['staff_code']}) as '$status' for today",
             'sql' => $sql,

@@ -696,65 +696,67 @@ const BhoomaAI = {
             
             if (!response.ok) throw new Error('Network response was not ok');
             
-            // Handle SSE Stream
+            // Handle SSE Stream with robust chunk-boundary handling
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
             let aiMsgId = null;
             let aiMsgContent = '';
             let isFirstChunk = true;
+            let sseBuffer = '';
             
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
                 
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
+                sseBuffer += decoder.decode(value, { stream: true });
+                const events = sseBuffer.split('\n');
+                // Keep the last partial line in buffer (may be incomplete)
+                sseBuffer = events.pop() || '';
                 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '').trim();
-                        if (!dataStr) continue;
-                        if (dataStr === '[DONE]') continue;
+                for (const line of events) {
+                    const trimmed = line.trim();
+                    if (!trimmed || !trimmed.startsWith('data: ')) continue;
+                    const dataStr = trimmed.substring(6).trim();
+                    if (!dataStr || dataStr === '[DONE]') continue;
+                    
+                    try {
+                        const data = JSON.parse(dataStr);
                         
-                        try {
-                            const data = JSON.parse(dataStr);
-                            
-                            if (data.type === 'chunk') {
-                                if (isFirstChunk) {
-                                    aiMsgId = this.appendMessage('assistant', '');
-                                    isFirstChunk = false;
-                                }
-                                aiMsgContent += data.content;
-                                const msgEl = document.querySelector(`#${aiMsgId} .content-box`);
-                                if (msgEl) {
-                                    msgEl.innerHTML = this.formatMarkdown(aiMsgContent);
-                                    this.scrollToBottom();
-                                }
-                            } 
-                            else if (data.type === 'data') {
-                                this.renderDataTable(data.content || data.results, data.sql);
+                        if (data.type === 'chunk') {
+                            if (isFirstChunk) {
+                                aiMsgId = this.appendMessage('assistant', '');
+                                isFirstChunk = false;
                             }
-                            else if (data.type === 'action') {
-                                this.renderActionCard(data.action_id, data.content);
+                            aiMsgContent += data.content;
+                            const msgEl = document.querySelector(`#${aiMsgId} .content-box`);
+                            if (msgEl) {
+                                msgEl.innerHTML = this.formatMarkdown(aiMsgContent);
+                                this.scrollToBottom();
                             }
-                            else if (data.type === 'form') {
-                                this.renderInChatForm(data.form_type, data);
-                            }
-                            else if (data.type === 'suggestions') {
-                                this.renderInlineSuggestions(data.suggestions);
-                            }
-                            else if (data.type === 'done') {
-                                if (data.conversation_id) {
-                                    this.conversationId = data.conversation_id;
-                                    localStorage.setItem('bhooma_ai_conv', this.conversationId);
-                                }
-                            }
-                            else if (data.type === 'error') {
-                                this.appendMessage('assistant', '⚠️ ' + data.message);
-                            }
-                        } catch (e) {
-                            console.error('Error parsing SSE data:', e, dataStr);
+                        } 
+                        else if (data.type === 'data') {
+                            this.renderDataTable(data.results || data.content, data.summary);
                         }
+                        else if (data.type === 'action') {
+                            this.renderActionCard(data.action_id, data.content);
+                        }
+                        else if (data.type === 'form') {
+                            this.renderInChatForm(data.form_type, data);
+                        }
+                        else if (data.type === 'suggestions') {
+                            this.renderInlineSuggestions(data.suggestions);
+                        }
+                        else if (data.type === 'done') {
+                            if (data.conversation_id) {
+                                this.conversationId = data.conversation_id;
+                                localStorage.setItem('bhooma_ai_conv', this.conversationId);
+                            }
+                        }
+                        else if (data.type === 'error') {
+                            this.appendMessage('assistant', '⚠️ ' + data.message);
+                        }
+                    } catch (e) {
+                        console.warn('SSE parse skip:', e.message, dataStr?.substring(0, 80));
                     }
                 }
             }
@@ -769,8 +771,28 @@ const BhoomaAI = {
         }
     },
     
-    renderDataTable(dataArr) {
-        if (!dataArr || !dataArr.length) return;
+    renderDataTable(dataArr, summary) {
+        if (!dataArr) return;
+        
+        // Handle empty results
+        if (!dataArr.length || dataArr.length === 0) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex items-start max-w-[95%]';
+            wrapper.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-slate-400 to-slate-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                    <i class="fa-solid fa-circle-info"></i>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm w-full">
+                    <div class="text-xs text-slate-500 flex items-center gap-2">
+                        <i class="fa-solid fa-inbox text-slate-400"></i>
+                        <span class="font-semibold">${summary || 'No matching records found in the hospital database.'}</span>
+                    </div>
+                </div>
+            `;
+            this.dom.messages.appendChild(wrapper);
+            this.scrollToBottom();
+            return;
+        }
         const columns = Object.keys(dataArr[0]);
         
         let visualHTML = '';

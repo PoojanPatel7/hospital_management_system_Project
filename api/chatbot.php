@@ -217,9 +217,17 @@ switch ($action) {
                 break;
             }
 
-            // Check if a read SQL query was generated
+            // Check if a read SQL query was generated (in ```sql blocks or bare)
+            $rawSql = null;
             if (preg_match('/```sql\s*(.*?)\s*```/is', $intentContent, $matches)) {
                 $rawSql = trim($matches[1]);
+            } elseif (preg_match('/^\s*(SELECT\s+.+)/is', trim($intentContent), $matches)) {
+                // Fallback: bare SELECT without code fence
+                $rawSql = trim($matches[1]);
+                $rawSql = rtrim($rawSql, ";");
+            }
+            
+            if ($rawSql !== null) {
                 $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($staffRole) : [];
                 $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($rawSql, $hospitalId, $allowedTables) : ['valid' => true, 'sql' => $rawSql];
                 
@@ -227,16 +235,22 @@ switch ($action) {
                     $sqlToExecute = $sanitizeResult['sql'];
                     try {
                         $res = $conn->query($sqlToExecute);
-                        if ($res) {
+                        if ($res && $res instanceof mysqli_result) {
                             $dbResults = [];
                             while ($r = $res->fetch_assoc()) {
                                 unset($r['password']);
                                 $dbResults[] = $r;
                             }
                             $sqlExecuted = $sqlToExecute;
+                        } elseif ($res === false) {
+                            // MySQL query error — log it and set informative result
+                            $mysqlError = $conn->error ?? 'Unknown query error';
+                            error_log("HMS AI SQL Error: $mysqlError | SQL: $sqlToExecute");
+                            $dbResults = null;
                         }
                     } catch (Exception $e) {
-                        $dbResults = ['note' => 'No direct matching record found.'];
+                        error_log("HMS AI SQL Exception: " . $e->getMessage());
+                        $dbResults = null;
                     }
                 }
             }
@@ -308,9 +322,12 @@ switch ($action) {
 
         $synthesisUserContent = "User Message: \"$message\"\n\n";
         if ($dbResults !== null) {
-            $synthesisUserContent .= "FACTUAL HOSPITAL DATABASE DATA RETRIEVED:\n" . json_encode($dbResults, JSON_UNESCAPED_UNICODE) . "\n\n";
-            $synthesisUserContent .= "Provide a clear, warm, and professional answer based on this data. Use bold headings, bullet points, and appropriate emojis. NEVER output SQL code or mention table names.\n";
+            $resultCount = is_array($dbResults) ? count($dbResults) : 0;
+            $synthesisUserContent .= "MODE: DATA DISPLAY (NOT an action — DO NOT mention confirm/action cards)\n";
+            $synthesisUserContent .= "FACTUAL HOSPITAL DATABASE DATA RETRIEVED ($resultCount record(s)):\n" . json_encode($dbResults, JSON_UNESCAPED_UNICODE) . "\n\n";
+            $synthesisUserContent .= "INSTRUCTION: Present this data clearly and warmly. Summarize the key fields in bullet points with bold labels. The data table is shown automatically below your text. DO NOT say 'click Confirm', 'action card', or anything about buttons. Simply narrate the data.\n";
         } elseif ($pendingAction !== null) {
+            $synthesisUserContent .= "MODE: ACTION PENDING CONFIRMATION\n";
             $synthesisUserContent .= "AN ACTION HAS BEEN PREPARED AND IS PENDING USER CONFIRMATION:\n";
             $synthesisUserContent .= "Description: " . $pendingAction['description'] . "\n\n";
             $synthesisUserContent .= "CRITICAL INSTRUCTION: You MUST NOT say 'I have marked them' or 'Done'. You MUST warmly explain the action that was prepared and instruct the user to click the Confirm button on the card below to execute it in the hospital database.\n";
@@ -343,14 +360,24 @@ switch ($action) {
             flush();
         }
 
-        // Send structured visual data card if results contain rows
-        if (is_array($dbResults) && !empty($dbResults) && !isset($dbResults['note'])) {
-            echo "data: " . json_encode([
-                'type' => 'data', 
-                'results' => $dbResults, 
-                'summary' => count($dbResults) . ' record(s) found.'
-            ]) . "\n\n";
-            flush();
+        // Send structured visual data card if results were retrieved
+        if (is_array($dbResults)) {
+            if (!empty($dbResults) && !isset($dbResults['note'])) {
+                echo "data: " . json_encode([
+                    'type' => 'data', 
+                    'results' => $dbResults, 
+                    'summary' => count($dbResults) . ' record(s) found.'
+                ]) . "\n\n";
+                flush();
+            } elseif (empty($dbResults) && $sqlExecuted !== null) {
+                // Valid query executed but returned 0 rows
+                echo "data: " . json_encode([
+                    'type' => 'data',
+                    'results' => [],
+                    'summary' => 'No matching records found.'
+                ]) . "\n\n";
+                flush();
+            }
         }
 
         // Send action card if action was initiated

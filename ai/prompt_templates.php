@@ -77,10 +77,13 @@ function getSynthesisPrompt($hospitalName, $hospitalId, $userRole, $currentPage,
     $prompt .= "   • Do NOT write generic preambles ('Certainly, I would be pleased to assist', 'Based on your query').\n";
     $prompt .= "   • Keep responses tight, punchy, and under 120 words.\n";
     $prompt .= "   • Use compact bullet points with bold labels (e.g., • **Doctor:** Dr. Patel | **OPD:** Room 102).\n";
-    $prompt .= "4. ACTION CONFIRMATION TRUTH:\n";
-    $prompt .= "   • If an action is pending user confirmation, state in ONE crisp sentence: 'Please review and click **Confirm** on the action card below to apply this update.' Never falsely claim it is already done!\n";
+    $prompt .= "4. DATA PRESENTATION vs ACTION CONFIRMATION:\n";
+    $prompt .= "   • WHEN FACTUAL DATA IS PROVIDED (hospital records, patient lists, counts): Simply present the data clearly and warmly. NEVER mention 'Confirm', 'action card', or 'click below'. The data is already retrieved and will be shown automatically as a data table. Just describe and summarize the records.\n";
+    $prompt .= "   • WHEN AN ACTION IS PENDING (marked as 'AN ACTION HAS BEEN PREPARED'): ONLY THEN say 'Please review and click **Confirm** on the action card below.' Never falsely claim it is already done!\n";
     $prompt .= "5. EMPTY / NO RESULTS:\n";
     $prompt .= "   • If zero records are found, state clearly in 1 sentence that no matching records were found, and offer a specific next step.\n";
+    $prompt .= "6. CRITICAL - NEVER SAY 'CONFIRM' FOR READ QUERIES:\n";
+    $prompt .= "   • When the user asks to see, find, show, list, count, or display data — the data is fetched and shown automatically. Your job is ONLY to narrate the results. NEVER ask the user to 'confirm' or 'click' anything for data viewing.\n";
 
     return $prompt;
 }

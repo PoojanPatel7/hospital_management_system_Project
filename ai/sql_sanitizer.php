@@ -61,15 +61,23 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
     
     // Auto-inject WHERE hospital_id = $hospitalId if not present
     if (stripos($sql, 'hospital_id') === false) {
+        // Detect the primary table alias for JOINed queries to avoid ambiguous column errors
+        $hIdCol = 'hospital_id';
+        if (preg_match('/FROM\s+`?([a-zA-Z0-9_]+)`?\s+(?:AS\s+)?([a-zA-Z0-9_]+)?/i', $sql, $aliasM)) {
+            if (stripos($sql, 'JOIN') !== false) {
+                $tblAlias = !empty($aliasM[2]) ? $aliasM[2] : $aliasM[1];
+                $hIdCol = "$tblAlias.hospital_id";
+            }
+        }
         if (stripos($sql, 'WHERE') === false) {
-            $insertStr = " WHERE hospital_id = $hospitalId ";
+            $insertStr = " WHERE $hIdCol = $hospitalId ";
             if (preg_match('/\s(GROUP BY|ORDER BY|LIMIT)\s/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
                 $sql = substr_replace($sql, $insertStr, $matches[0][1], 0);
             } else {
                 $sql .= $insertStr;
             }
         } else {
-            $sql = preg_replace('/\sWHERE\s/i', " WHERE hospital_id = $hospitalId AND ", $sql, 1);
+            $sql = preg_replace('/\sWHERE\s/i', " WHERE $hIdCol = $hospitalId AND ", $sql, 1);
         }
     }
     
