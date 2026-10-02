@@ -1,7 +1,7 @@
 <?php
 // ai/config.php
 define('OLLAMA_URL', 'http://localhost:11434');
-define('DEFAULT_MODEL', 'qwen2.5:3b');
+define('DEFAULT_MODEL', 'hms-ai:latest');
 define('MAX_TOKENS', 2048);
 define('TEMPERATURE', 0.3);
 define('CONTEXT_WINDOW', 8192);
