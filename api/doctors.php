@@ -338,7 +338,7 @@ if ($action === 'save_doctor_day_schedules') {
 }
 
 if ($action === 'get_doctor_schedule') {
-    $hospital_id = $_SESSION['hospital_id'] ?? 0;
+    $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
     $date = $_GET['date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
         $date = date('Y-m-d');
@@ -496,5 +496,151 @@ if ($action === 'get_doctor_schedule') {
         'doctors' => $doctors,
         'appointments' => $dateAppointments
     ]);
+}
+
+if ($action === 'get_appointments_filtered') {
+    $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
+    $doc_id = $_GET['doctor_id'] ?? '';
+    $date = $_GET['date'] ?? '';
+    $date_from = $_GET['date_from'] ?? '';
+    $date_to = $_GET['date_to'] ?? '';
+    $status = $_GET['status'] ?? '';
+    $type = $_GET['type'] ?? '';
+    $stage = $_GET['stage'] ?? '';
+    $search = trim($_GET['search'] ?? '');
+
+    $where = ["(a.hospital_id = ? OR a.hospital_id IS NULL)"];
+    $params = [$hospital_id];
+    $types = "i";
+
+    if (!empty($doc_id) && $doc_id !== 'all') {
+        $where[] = "a.doctor_id = ?";
+        $params[] = $doc_id;
+        $types .= "s";
+    }
+
+    if (!empty($date) && $date !== 'all') {
+        $where[] = "a.date = ?";
+        $params[] = $date;
+        $types .= "s";
+    } elseif (!empty($date_from) && !empty($date_to)) {
+        $where[] = "a.date BETWEEN ? AND ?";
+        $params[] = $date_from;
+        $params[] = $date_to;
+        $types .= "ss";
+    } elseif (!empty($date_from)) {
+        $where[] = "a.date >= ?";
+        $params[] = $date_from;
+        $types .= "s";
+    }
+
+    if (!empty($status) && $status !== 'all') {
+        $where[] = "a.status = ?";
+        $params[] = $status;
+        $types .= "s";
+    }
+
+    if (!empty($type) && $type !== 'all') {
+        $where[] = "a.type = ?";
+        $params[] = $type;
+        $types .= "s";
+    }
+
+    if ($stage !== '' && $stage !== 'all') {
+        $where[] = "a.stage = ?";
+        $params[] = (int)$stage;
+        $types .= "i";
+    }
+
+    if (!empty($search)) {
+        $sTerm = "%" . $search . "%";
+        $where[] = "(p.name LIKE ? OR p.surname LIKE ? OR p.phone LIKE ? OR p.id LIKE ? OR a.symptoms LIKE ? OR d.name LIKE ?)";
+        $params[] = $sTerm;
+        $params[] = $sTerm;
+        $params[] = $sTerm;
+        $params[] = $sTerm;
+        $params[] = $sTerm;
+        $params[] = $sTerm;
+        $types .= "ssssss";
+    }
+
+    $whereClause = implode(" AND ", $where);
+    $query = "
+        SELECT a.id, a.id as appointment_id, a.patient_id, a.doctor_id, a.type, a.date, a.slot, a.symptoms, a.allergies, a.status, a.stage, a.created_at,
+               p.name as patient_name, p.surname as patient_surname, p.phone as patient_phone, p.blood_group, p.gender, p.age, p.father_name,
+               d.name as doctor_name, d.phone as doctor_phone,
+               (SELECT GROUP_CONCAT(dep.name SEPARATOR ', ') FROM doctor_categories dc JOIN departments dep ON dc.department_id = dep.id WHERE dc.doctor_id = a.doctor_id) as doctor_specialties
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        LEFT JOIN doctors d ON a.doctor_id = d.id
+        WHERE $whereClause
+        ORDER BY a.date DESC, a.slot ASC, a.created_at DESC
+    ";
+
+    $stmt = $conn->prepare($query);
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    $appointments = [];
+    $tokenIdx = 1;
+    $summary = [
+        'total' => 0,
+        'waiting' => 0,
+        'consulting' => 0,
+        'completed' => 0,
+        'cancelled' => 0
+    ];
+
+    while ($row = $res->fetch_assoc()) {
+        $row['token_no'] = $tokenIdx++;
+        $row['appointment_code'] = sprintf("APP-%04d", (int)$row['id']);
+        
+        $st = $row['status'];
+        $stageNum = (int)$row['stage'];
+        $summary['total']++;
+
+        if ($st === 'Cancelled') {
+            $summary['cancelled']++;
+        } elseif ($stageNum >= 5 || strpos($st, 'Discharged') !== false) {
+            $summary['completed']++;
+        } elseif ($stageNum === 4 || strpos($st, 'Consulting') !== false) {
+            $summary['consulting']++;
+        } else {
+            $summary['waiting']++;
+        }
+
+        $appointments[] = $row;
+    }
+
+    jsonResponse([
+        'status' => 'success',
+        'count' => count($appointments),
+        'summary' => $summary,
+        'appointments' => $appointments
+    ]);
+}
+
+if ($action === 'cancel_appointment') {
+    $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
+    $appt_id = (int)($input['appointment_id'] ?? ($_GET['id'] ?? 0));
+    $reason = $input['reason'] ?? 'Cancelled by staff';
+
+    if (!$appt_id) {
+        jsonResponse(['status' => 'error', 'message' => 'Appointment ID required']);
+    }
+
+    $stmt = $conn->prepare("UPDATE appointments SET status = 'Cancelled', stage = 0 WHERE id = ? AND (hospital_id = ? OR hospital_id IS NULL)");
+    $stmt->bind_param("ii", $appt_id, $hospital_id);
+    if ($stmt->execute()) {
+        $time_now = date('h:i A');
+        $desc = "Appointment cancelled. Reason: " . $reason;
+        $conn->query("INSERT INTO timeline_events (appointment_id, event_time, event_description) VALUES ($appt_id, '$time_now', '$desc')");
+        jsonResponse(['status' => 'success', 'message' => 'Appointment marked as Cancelled']);
+    } else {
+        jsonResponse(['status' => 'error', 'message' => 'Could not cancel appointment']);
+    }
 }
 ?>

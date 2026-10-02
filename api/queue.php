@@ -11,7 +11,7 @@ if ($method === 'GET') {
         $res = $conn->query("SELECT line_running FROM system_state WHERE id = 1");
         $line_running = $res->fetch_assoc()['line_running'] ?? 1;
         
-        $hospital_id = $_SESSION['hospital_id'] ?? 0;
+        $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
         // Get active appointments (stages 1 to 4)
         $query = "
             SELECT a.*, 
@@ -21,7 +21,11 @@ if ($method === 'GET') {
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
             LEFT JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.stage BETWEEN 1 AND 4 AND a.date <= CURDATE() AND (a.hospital_id = ? OR a.hospital_id IS NULL)
+            WHERE a.stage BETWEEN 1 AND 4 
+              AND a.status != 'Pre-Booked'
+              AND a.status NOT IN ('Cancelled', 'Discharged (Normal Medicine)', 'Discharged from Bed')
+              AND (a.date <= CURDATE() OR a.stage >= 1)
+              AND (a.hospital_id = ? OR a.hospital_id IS NULL)
             ORDER BY a.created_at ASC
         ";
         $stmt = $conn->prepare($query);
@@ -66,7 +70,7 @@ if ($method === 'GET') {
         ]);
     }
     else if ($action === 'get_advance_appointments') {
-        $hospital_id = $_SESSION['hospital_id'] ?? 0;
+        $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
         $date = $_GET['date'] ?? '';
         
         $query = "
@@ -78,13 +82,15 @@ if ($method === 'GET') {
             JOIN patients p ON a.patient_id = p.id
             LEFT JOIN doctors d ON a.doctor_id = d.id
             WHERE (a.hospital_id = ? OR a.hospital_id IS NULL)
+              AND a.status NOT IN ('Cancelled', 'Discharged (Normal Medicine)', 'Discharged from Bed')
+              AND a.stage != 5
         ";
         if ($date) {
             $query .= " AND a.date = ? ORDER BY a.slot ASC, a.created_at ASC";
             $stmt = $conn->prepare($query);
             $stmt->bind_param("is", $hospital_id, $date);
         } else {
-            $query .= " AND a.date >= CURDATE() ORDER BY a.date ASC, a.slot ASC";
+            $query .= " AND (a.date > CURDATE() OR (a.date = CURDATE() AND (a.status = 'Pre-Booked' OR a.stage = 0))) ORDER BY a.date ASC, a.slot ASC";
             $stmt = $conn->prepare($query);
             $stmt->bind_param("i", $hospital_id);
         }
@@ -138,23 +144,58 @@ else if ($method === 'POST') {
             jsonResponse(['status' => 'error', 'message' => 'Appointment ID required']);
         }
         
-        $pRes = $conn->query("SELECT patient_id FROM appointments WHERE id = $appointment_id");
+        $pRes = $conn->query("SELECT patient_id, date, slot FROM appointments WHERE id = $appointment_id");
         $pid = '';
+        $date = '';
+        $slot = '';
         if ($pRow = $pRes->fetch_assoc()) {
             $pid = $pRow['patient_id'];
+            $date = $pRow['date'];
+            $slot = $pRow['slot'];
         }
         
-        $stmt = $conn->prepare("UPDATE appointments SET status = 'Available at Hospital', stage = 2 WHERE id = ?");
+        $stmt = $conn->prepare("UPDATE appointments SET status = 'Checked-In', stage = 1 WHERE id = ?");
         $stmt->bind_param("i", $appointment_id);
         if ($stmt->execute()) {
             $time_now = date('h:i A');
-            $desc = "Pre-booked patient arrived at hospital and checked in.";
+            $desc = "Pre-booked patient arrived at hospital and checked in at desk (Date: $date, Slot: $slot).";
             if ($pid) {
                 $tStmt = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
                 $tStmt->bind_param("isss", $appointment_id, $pid, $time_now, $desc);
                 $tStmt->execute();
             }
             jsonResponse(['status' => 'success', 'message' => 'Patient checked in successfully!']);
+        } else {
+            jsonResponse(['status' => 'error', 'message' => $conn->error]);
+        }
+    }
+    else if ($action === 'undo_check_in') {
+        $appointment_id = (int)($data['appointment_id'] ?? 0);
+        if (!$appointment_id) {
+            jsonResponse(['status' => 'error', 'message' => 'Appointment ID required']);
+        }
+        
+        $pRes = $conn->query("SELECT patient_id, date, slot FROM appointments WHERE id = $appointment_id");
+        $pid = '';
+        $date = '';
+        $slot = '';
+        if ($pRow = $pRes->fetch_assoc()) {
+            $pid = $pRow['patient_id'];
+            $date = $pRow['date'];
+            $slot = $pRow['slot'];
+        }
+        
+        $stmt = $conn->prepare("UPDATE appointments SET status = 'Pre-Booked', stage = 0 WHERE id = ?");
+        $stmt->bind_param("i", $appointment_id);
+        if ($stmt->execute()) {
+            $time_now = date('h:i A');
+            $desc = "Check-in undone. Reverted to Pre-Booked status (Date: $date, Slot: $slot).";
+            if ($pid) {
+                $tStmt = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
+                $tStmt->bind_param("isss", $appointment_id, $pid, $time_now, $desc);
+                $tStmt->execute();
+            }
+            jsonResponse(['status' => 'success', 'message' => 'Appointment reverted back to Pre-Booked status.']);
         } else {
             jsonResponse(['status' => 'error', 'message' => $conn->error]);
         }
@@ -203,26 +244,52 @@ else if ($method === 'POST') {
         if (!$input) { echo json_encode(['status' => 'error', 'message' => 'Invalid input']); exit; }
         
         try {
-            $stage = ($input['type'] === 'Emergency Case') ? 2 : 1;
-            $status = ($stage === 2) ? 'Available at Hospital' : 'Checked-In';
-    
-            $hospital_id = $_SESSION['hospital_id'] ?? 0;
-            $slotPlaceholder = $input['slot'] ?? 'Walk-in';
+            $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
+            $slotPlaceholder = $input['slot'] ?? '';
             $datePlaceholder = !empty($input['date']) ? $input['date'] : date('Y-m-d');
-        $status = ($datePlaceholder === date('Y-m-d')) ? (($stage === 2) ? 'Available at Hospital' : 'Checked-In') : 'Pre-Booked';
-        $stmt = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, status, stage, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("sssssssii", $input['patient_id'], $input['doctor_id'], $input['type'], $datePlaceholder, $slotPlaceholder, $input['symptoms'], $status, $stage, $hospital_id);
+            $type = $input['type'] ?? 'General Consultation';
+            $isEmergency = ($type === 'Emergency Case');
+            
+            // Determine if this is a pre-booked / advance appointment
+            $isPreBooked = false;
+            if ($datePlaceholder > date('Y-m-d')) {
+                // Any future date is pre-booked
+                $isPreBooked = true;
+            } else if (!empty($slotPlaceholder) && $slotPlaceholder !== 'Walk-in' && $slotPlaceholder !== 'Immediate Walk-In') {
+                // If booked with a specific scheduled slot, it is pre-booked for future time
+                $isPreBooked = true;
+            }
+            
+            if ($isEmergency) {
+                $stage = 2;
+                $status = 'Available at Hospital';
+            } else if ($isPreBooked) {
+                $stage = 0;
+                $status = 'Pre-Booked';
+            } else {
+                $stage = 1;
+                $status = 'Checked-In';
+            }
+            
+            if (empty($slotPlaceholder)) {
+                $slotPlaceholder = $isPreBooked ? '09:00 AM' : 'Walk-in';
+            }
+            
+            $stmt = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, status, stage, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssssssii", $input['patient_id'], $input['doctor_id'], $type, $datePlaceholder, $slotPlaceholder, $input['symptoms'], $status, $stage, $hospital_id);
             $stmt->execute();
             
             $appointment_id = $conn->insert_id;
     
             $stmtTL = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
             $time_now = date('h:i A');
-            $desc = "Patient arrived and was added to the queue.";
+            $desc = $isPreBooked 
+                ? "Pre-booked appointment scheduled for date $datePlaceholder at $slotPlaceholder." 
+                : "Patient arrived and was added to the queue.";
             $stmtTL->bind_param("isss", $appointment_id, $input['patient_id'], $time_now, $desc);
             $stmtTL->execute();
     
-            echo json_encode(['status' => 'success']);
+            echo json_encode(['status' => 'success', 'appointment_id' => $appointment_id, 'is_prebooked' => $isPreBooked]);
         } catch (Exception $e) {
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
@@ -232,7 +299,7 @@ else if ($method === 'POST') {
         if (!$input) { echo json_encode(['status' => 'error', 'message' => 'Invalid input']); exit; }
         
         try {
-            $hospital_id = $_SESSION['hospital_id'] ?? 0;
+            $hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
             $patient_id = $input['patient_id'] ?? '';
             $doctor_id = $input['doctor_id'] ?? '';
             $date = $input['date'] ?? date('Y-m-d');
@@ -245,10 +312,9 @@ else if ($method === 'POST') {
                 exit;
             }
             
-            $isToday = ($date === date('Y-m-d'));
-            $stage = 1;
-            $status = $isToday ? ($type === 'Emergency Case' ? 'Available at Hospital' : 'Checked-In') : 'Pre-Booked';
-            if ($isToday && $type === 'Emergency Case') $stage = 2;
+            $isEmergency = ($type === 'Emergency Case');
+            $stage = $isEmergency ? 2 : 0;
+            $status = $isEmergency ? 'Available at Hospital' : 'Pre-Booked';
             
             $stmt = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, status, stage, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param("sssssssii", $patient_id, $doctor_id, $type, $date, $slot, $symptoms, $status, $stage, $hospital_id);
@@ -258,11 +324,11 @@ else if ($method === 'POST') {
             
             $stmtTL = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
             $time_now = date('h:i A');
-            $desc = "Advance appointment booked for date $date at $slot ($type).";
+            $desc = "Advance appointment pre-booked for date $date at $slot ($type).";
             $stmtTL->bind_param("isss", $appointment_id, $patient_id, $time_now, $desc);
             $stmtTL->execute();
             
-            echo json_encode(['status' => 'success', 'appointment_id' => $appointment_id, 'message' => 'Advance appointment scheduled successfully.']);
+            echo json_encode(['status' => 'success', 'appointment_id' => $appointment_id, 'is_prebooked' => true, 'message' => 'Advance appointment scheduled successfully.']);
         } catch (Exception $e) {
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }

@@ -64,29 +64,58 @@
 
   <!-- Advance & Pre-Booked Appointments Collapsible Banner -->
   <div class="bg-white rounded-2xl border border-indigo-100 p-4 shadow-sm">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <!-- Title & Icon -->
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base shadow-sm">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shadow-sm shrink-0">
           <i class="fa-solid fa-calendar-check"></i>
         </div>
         <div>
-          <h4 class="font-bold text-slate-900 text-sm">Advance & Pre-Booked Appointments</h4>
-          <p class="text-[11px] text-slate-500">Upcoming scheduled appointments with doctors by date and time slot.</p>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h4 class="font-extrabold text-slate-900 text-sm">Advance & Pre-Booked Appointments</h4>
+            <span id="advance-count-badge-header" class="text-[10px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200">0</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5">Filter upcoming appointments for today or pick any specific date to view doctor schedules.</p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button onclick="toggleAdvanceScheduleView()" id="btn-toggle-advance-view" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+
+      <!-- Filters & Action Buttons -->
+      <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <!-- Date Filters (Pills) -->
+        <div class="flex items-center bg-slate-50 border border-slate-200/90 rounded-xl p-1 gap-1">
+          <button type="button" id="btn-adv-filter-upcoming" onclick="setAdvanceDateFilter('upcoming')" class="text-xs px-2.5 py-1.5 rounded-lg transition bg-indigo-600 text-white font-bold shadow-xs">
+            <i class="fa-solid fa-calendar-days text-[10px] mr-1"></i>All Upcoming
+          </button>
+          <button type="button" id="btn-adv-filter-today" onclick="setAdvanceDateFilter('today')" class="text-xs px-2.5 py-1.5 rounded-lg transition bg-transparent hover:bg-slate-200/60 text-slate-700 font-semibold">
+            <i class="fa-solid fa-sun text-[10px] mr-1 text-amber-500"></i>Today
+          </button>
+          <div class="relative flex items-center pl-1 border-l border-slate-200">
+            <input type="date" id="adv-custom-date" onchange="handleAdvanceDatePick(this.value)" class="text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/50 transition cursor-pointer" title="Pick specific date">
+            <button type="button" id="adv-clear-date-btn" onclick="clearAdvanceCustomDate()" title="Reset to upcoming" class="hidden text-slate-400 hover:text-rose-600 text-xs px-1.5 py-1 transition">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Toggle View Accordion -->
+        <button onclick="toggleAdvanceScheduleView()" id="btn-toggle-advance-view" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-200 shrink-0">
           <i class="fa-solid fa-chevron-down text-[10px]" id="advance-chevron"></i>
-          <span id="advance-view-label">View Pre-Booked (<span id="advance-count-badge">0</span>)</span>
+          <span id="advance-view-label">View (<span id="advance-count-badge">0</span>)</span>
         </button>
-        <button onclick="openDirectBook()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200">
-          + Schedule New
+
+        <!-- Book Consultation / Schedule New -->
+        <button onclick="openDirectBook()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded-xl transition shadow-xs flex items-center gap-1.5 shrink-0">
+          <i class="fa-solid fa-plus text-[10px]"></i> Schedule New
         </button>
       </div>
     </div>
 
     <!-- Pre-Booked Appointments List (Collapsible) -->
     <div id="advance-schedule-container" class="hidden mt-4 pt-3 border-t border-slate-100">
+      <div class="flex items-center justify-between mb-3 text-xs">
+        <span id="advance-filter-summary" class="font-medium text-slate-600">Showing: <strong class="text-slate-900">All Upcoming Pre-Booked Appointments</strong></span>
+        <span id="advance-filter-count-label" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md">0 appointments</span>
+      </div>
       <div id="advance-schedule-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <!-- Loaded via JS -->
       </div>
@@ -1311,6 +1340,8 @@
   let allHospitalDoctors = [];
   let advanceAppointments = [];
   let advanceViewOpen = false;
+  let advanceFilterMode = 'upcoming'; // 'upcoming' | 'today' | 'custom'
+  let advanceCustomDate = '';
 
   // Stage sliders and view mode states
   let stageSliderIndices = { 1: 0, 2: 0, 3: 0, 4: 0 };
@@ -1380,16 +1411,110 @@
       } catch (e) {}
   }
   
+  function setAdvanceDateFilter(mode) {
+      advanceFilterMode = mode;
+      const dateInput = document.getElementById('adv-custom-date');
+      if (mode === 'today') {
+          const todayStr = new Date().toISOString().substring(0, 10);
+          advanceCustomDate = todayStr;
+          if (dateInput) dateInput.value = todayStr;
+      } else if (mode === 'upcoming') {
+          advanceCustomDate = '';
+          if (dateInput) dateInput.value = '';
+      }
+      updateAdvanceFilterUI();
+      if (!advanceViewOpen) {
+          toggleAdvanceScheduleView();
+      } else {
+          fetchAdvanceAppointments();
+      }
+  }
+
+  function handleAdvanceDatePick(val) {
+      if (!val) {
+          setAdvanceDateFilter('upcoming');
+          return;
+      }
+      advanceFilterMode = 'custom';
+      advanceCustomDate = val;
+      updateAdvanceFilterUI();
+      if (!advanceViewOpen) {
+          toggleAdvanceScheduleView();
+      } else {
+          fetchAdvanceAppointments();
+      }
+  }
+
+  function clearAdvanceCustomDate() {
+      setAdvanceDateFilter('upcoming');
+  }
+
+  function updateAdvanceFilterUI() {
+      const btnUpcoming = document.getElementById('btn-adv-filter-upcoming');
+      const btnToday = document.getElementById('btn-adv-filter-today');
+      const clearBtn = document.getElementById('adv-clear-date-btn');
+      const dateInput = document.getElementById('adv-custom-date');
+
+      const activeBtnClass = "text-xs px-2.5 py-1.5 rounded-lg transition bg-indigo-600 text-white font-bold shadow-xs";
+      const inactiveBtnClass = "text-xs px-2.5 py-1.5 rounded-lg transition bg-transparent hover:bg-slate-200/60 text-slate-700 font-semibold";
+
+      if (btnUpcoming) {
+          btnUpcoming.className = (advanceFilterMode === 'upcoming') ? activeBtnClass : inactiveBtnClass;
+      }
+      if (btnToday) {
+          btnToday.className = (advanceFilterMode === 'today') ? activeBtnClass : inactiveBtnClass;
+      }
+      if (dateInput) {
+          if (advanceFilterMode === 'custom') {
+              dateInput.classList.add('ring-2', 'ring-indigo-500', 'border-indigo-400');
+          } else {
+              dateInput.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-400');
+          }
+      }
+      if (clearBtn) {
+          if (advanceFilterMode === 'custom' || advanceFilterMode === 'today') {
+              clearBtn.classList.remove('hidden');
+          } else {
+              clearBtn.classList.add('hidden');
+          }
+      }
+  }
+
   async function fetchAdvanceAppointments() {
       try {
-          const res = await fetch('api/queue.php?action=get_advance_appointments');
+          let url = 'api/queue.php?action=get_advance_appointments';
+          if ((advanceFilterMode === 'today' || advanceFilterMode === 'custom') && advanceCustomDate) {
+              url += '&date=' + encodeURIComponent(advanceCustomDate);
+          }
+          const res = await fetch(url);
           const data = await res.json();
           if (data.status === 'success') {
-              advanceAppointments = data.appointments;
-              document.getElementById('advance-count-badge').textContent = advanceAppointments.length;
+              advanceAppointments = data.appointments || [];
+              const countBadge = document.getElementById('advance-count-badge');
+              if (countBadge) countBadge.textContent = advanceAppointments.length;
+              const headerBadge = document.getElementById('advance-count-badge-header');
+              if (headerBadge) headerBadge.textContent = advanceAppointments.length;
+
+              const sumEl = document.getElementById('advance-filter-summary');
+              const countLabel = document.getElementById('advance-filter-count-label');
+              if (sumEl) {
+                  if (advanceFilterMode === 'today') {
+                      sumEl.innerHTML = `Showing: <strong class="text-slate-900">Today's Appointments (${advanceCustomDate})</strong>`;
+                  } else if (advanceFilterMode === 'custom') {
+                      sumEl.innerHTML = `Showing: <strong class="text-slate-900">Appointments for Date: ${advanceCustomDate}</strong>`;
+                  } else {
+                      sumEl.innerHTML = `Showing: <strong class="text-slate-900">All Upcoming Pre-Booked Appointments</strong>`;
+                  }
+              }
+              if (countLabel) {
+                  countLabel.textContent = `${advanceAppointments.length} appointment${advanceAppointments.length === 1 ? '' : 's'}`;
+              }
+
               renderAdvanceAppointments();
           }
-      } catch (e) {}
+      } catch (e) {
+          console.error("fetchAdvanceAppointments error:", e);
+      }
   }
 
   function toggleAdvanceScheduleView() {
@@ -1399,7 +1524,7 @@
       if (advanceViewOpen) {
           container.classList.remove('hidden');
           chevron.className = "fa-solid fa-chevron-up text-[10px]";
-          renderAdvanceAppointments();
+          fetchAdvanceAppointments();
       } else {
           container.classList.add('hidden');
           chevron.className = "fa-solid fa-chevron-down text-[10px]";
@@ -1411,7 +1536,16 @@
       if (!container) return;
       container.innerHTML = '';
       if (advanceAppointments.length === 0) {
-          container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400 text-xs">No upcoming pre-booked appointments found. Click "+ Schedule New" to book ahead.</div>`;
+          let emptyText = "No upcoming pre-booked appointments found. Click '+ Schedule New' to book ahead.";
+          if (advanceFilterMode === 'today') {
+              emptyText = `No appointments scheduled for Today (${advanceCustomDate}). Click "+ Schedule New" to schedule one.`;
+          } else if (advanceFilterMode === 'custom') {
+              emptyText = `No appointments scheduled for ${advanceCustomDate}. Click "+ Schedule New" to schedule one.`;
+          }
+          container.innerHTML = `<div class="col-span-full text-center py-8 px-4 bg-slate-50/80 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
+              <i class="fa-regular fa-calendar-xmark text-2xl text-slate-300 mb-2 block"></i>
+              <span class="font-bold text-slate-600 block mb-0.5">${emptyText}</span>
+          </div>`;
           return;
       }
       advanceAppointments.forEach(a => {
@@ -1429,9 +1563,12 @@
               symptoms: a.symptoms || '',
               date: a.date,
               slot: a.slot,
-              stage: a.stage || 1,
+              stage: a.stage || 0,
               status: a.status || 'Pre-Booked'
           }));
+
+          const isPreBooked = (a.status === 'Pre-Booked' || a.stage === 0);
+          const isCheckedIn = (a.status === 'Checked-In' || a.stage === 1 || a.status === 'Available at Hospital' || a.stage === 2);
 
           const card = document.createElement('div');
           card.className = "bg-slate-50 hover:bg-white rounded-xl p-3.5 border border-slate-200 transition shadow-sm flex flex-col justify-between";
@@ -1468,11 +1605,12 @@
               </div>
             </div>
             <div class="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-between gap-1">
-              <span class="text-[10px] font-semibold text-slate-500 truncate">${a.status}</span>
+              <span class="text-[10px] font-semibold ${isPreBooked ? 'text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded' : 'text-slate-500'} truncate">${a.status}</span>
               <div class="flex items-center gap-1 shrink-0">
                 <button onclick="openEditAppointmentModal('${aStr}')" class="w-6 h-6 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] transition shadow-sm" title="Edit Pre-Booked Appointment"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="confirmDeleteAppointment(${a.id}, '${escapeJsQueue(a.name)} ${escapeJsQueue(a.surname)}', '${apptCode}')" class="w-6 h-6 rounded-md bg-white border border-slate-200 hover:bg-rose-50 text-rose-600 flex items-center justify-center text-[10px] transition shadow-sm" title="Cancel/Delete Pre-Booked Appointment"><i class="fa-solid fa-trash-can"></i></button>
-                ${a.stage === 1 ? `<button onclick="checkInAdvancePatient(${a.id})" class="text-[10px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2 py-1 rounded-lg transition shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Check-In</button>` : ''}
+                ${isPreBooked ? `<button onclick="checkInAdvancePatient(${a.id})" class="text-[10px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2.5 py-1 rounded-lg transition shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Check-In</button>` : ''}
+                ${isCheckedIn ? `<button onclick="undoCheckInToPreBookedById(${a.id})" class="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2 py-1 rounded-lg transition shadow-sm flex items-center gap-1" title="Undo Check-In and revert to Pre-Booked"><i class="fa-solid fa-rotate-left"></i> Undo</button>` : ''}
               </div>
             </div>
           `;
@@ -1482,24 +1620,99 @@
 
   async function checkInAdvancePatient(appointmentId) {
       try {
-          const res = await fetch('api/queue.php?action=update_status', {
+          const res = await fetch('api/queue.php?action=check_in_advance', {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({
-                  appointment_id: appointmentId,
-                  patient_id: '',
-                  status: 'Available at Hospital',
-                  stage: 2,
-                  event_desc: 'Pre-booked patient arrived at hospital and checked in.'
+                  appointment_id: appointmentId
               })
           });
           const data = await res.json();
           if (data.status === 'success') {
-              showToast('Checked In', 'Pre-booked appointment moved to Available at Hospital.');
+              showToast('Checked In', 'Pre-booked patient checked into Stage 1 (Checked-In).');
               fetchAdvanceAppointments();
               fetchQueuePipeline();
+          } else {
+              showToast('Error', data.message || 'Check-in failed', 'error');
           }
-      } catch (e) {}
+      } catch (e) {
+          showToast('Error', 'Network error during check-in', 'error');
+      }
+  }
+
+  async function undoCheckInToPreBooked(pStr) {
+      const p = typeof pStr === 'string' ? JSON.parse(decodeURIComponent(pStr)) : pStr;
+      const apptId = p.appointment_id || p.id;
+      const name = `${p.name || ''} ${p.surname || ''}`.trim() || 'Patient';
+      const apptCode = p.appointment_code || ('APP-' + String(apptId).padStart(4, '0'));
+      
+      openConfirmModal(
+          'Undo Check-In?',
+          `Revert <strong>${name}</strong> (${apptCode}) back to <strong>Pre-Booked</strong> status?<br><span class="text-xs text-slate-500 mt-1 block">This will remove the patient from Stage 1 (Checked-In) in the live pipeline and return them to the Advance & Pre-Booked schedule.</span>`,
+          '',
+          async () => {
+              try {
+                  const res = await fetch('api/queue.php?action=undo_check_in', {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify({ appointment_id: apptId })
+                  });
+                  const data = await res.json();
+                  if (data.status === 'success') {
+                      showToast('Check-In Undone', 'Appointment reverted back to Pre-Booked and removed from pipeline.');
+                      fetchQueuePipeline();
+                      fetchAdvanceAppointments();
+                  } else {
+                      showToast('Error', data.message || 'Failed to undo check-in', 'error');
+                  }
+              } catch (e) {
+                  showToast('Error', 'Network error during undo', 'error');
+              }
+          },
+          'warning'
+      );
+  }
+
+  async function undoCheckInToPreBookedById(appointmentId) {
+      const appt = advanceAppointments.find(a => a.id == appointmentId) || {};
+      const name = `${appt.name || ''} ${appt.surname || ''}`.trim() || 'Patient';
+      const apptCode = appt.appointment_code || ('APP-' + String(appointmentId).padStart(4, '0'));
+
+      openConfirmModal(
+          'Undo Check-In?',
+          `Revert <strong>${name}</strong> (${apptCode}) back to <strong>Pre-Booked</strong> status?<br><span class="text-xs text-slate-500 mt-1 block">This will update the appointment status back to Pre-Booked and remove them from the live pipeline.</span>`,
+          '',
+          async () => {
+              try {
+                  const res = await fetch('api/queue.php?action=undo_check_in', {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify({ appointment_id: appointmentId })
+                  });
+                  const data = await res.json();
+                  if (data.status === 'success') {
+                      showToast('Check-In Undone', 'Appointment reverted back to Pre-Booked.');
+                      fetchAdvanceAppointments();
+                      fetchQueuePipeline();
+                  } else {
+                      showToast('Error', data.message || 'Failed to undo check-in', 'error');
+                  }
+              } catch (e) {
+                  showToast('Error', 'Network error during undo', 'error');
+              }
+          },
+          'warning'
+      );
+  }
+
+  function isFutureOrPrebookedAppointment(p) {
+      if (!p) return false;
+      const today = new Date().toISOString().substring(0, 10);
+      if (p.date && p.date > today) return true;
+      if (p.slot && p.slot !== 'Walk-in' && p.slot !== 'Immediate Walk-In') {
+          return true;
+      }
+      return false;
   }
 
   let selectedAdvPatient = null;
@@ -1887,6 +2100,13 @@ const btnToggle = document.getElementById('btn-toggle-line');
         <div class="text-slate-700 flex items-start gap-1.5"><i class="fa-solid fa-stethoscope text-slate-400 mt-0.5"></i> <span class="truncate"><strong>Reason:</strong> ${p.symptoms}</span></div>
       </div>
 
+      ${(stageNum === 1 && isFutureOrPrebookedAppointment(p)) ? `
+        <div class="bg-amber-50/90 border border-amber-200 text-amber-900 text-[10px] font-semibold px-2.5 py-1.5 rounded-xl flex items-center justify-between gap-1">
+          <span class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-amber-600"></i> Scheduled Slot: <strong>${p.slot || 'N/A'}</strong> ${p.date ? '(' + p.date + ')' : ''}</span>
+          <span class="text-[9px] font-extrabold uppercase bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded">Future Slot</span>
+        </div>
+      ` : ''}
+
       <!-- Quick Action: Full Patient Dossier -->
       <button type="button" onclick="openPatientDossier('${p.id}')" class="w-full bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 font-bold py-1.5 px-3 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5 shadow-sm" title="View complete patient clinical history, files, and dossier">
         <i class="fa-solid fa-folder-medical text-emerald-600"></i> View Patient Dossier & Info
@@ -1906,7 +2126,9 @@ const btnToggle = document.getElementById('btn-toggle-line');
     const pStr = encodeURIComponent(JSON.stringify(p));
     let html = '';
     if (stage === 1) {
-      html += `<button onclick="promptQueueStatusMove('${pStr}', 'Available at Hospital', 2, 'Patient arrived at hospital desk.')" class="text-[10px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2 py-1 rounded">Mark Arrived</button>`;
+      const isFutureOrPre = isFutureOrPrebookedAppointment(p);
+      html += `<button onclick="undoCheckInToPreBooked('${pStr}')" class="text-[10px] ${isFutureOrPre ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'} border font-bold px-2 py-1 rounded flex items-center gap-1 shadow-sm transition" title="Undo check-in and revert status back to Pre-Booked (removes from pipeline)"><i class="fa-solid fa-rotate-left"></i> Undo</button>`;
+      html += `<button onclick="promptQueueStatusMove('${pStr}', 'Available at Hospital', 2, 'Patient arrived at hospital desk.')" class="text-[10px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2 py-1 rounded flex items-center gap-1 shadow-sm">Mark Arrived</button>`;
     } else if (stage === 2) {
       html += `<button onclick="promptQueueStatusMove('${pStr}', 'Checked-In', 1, 'Reverted to checked-in.')" class="text-[10px] bg-slate-200 text-slate-700 font-bold px-2 py-1 rounded"><i class="fa-solid fa-rotate-left"></i></button>`;
       html += `<button onclick="attemptMoveToWaiting('${pStr}')" class="text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded">Send to Waiting</button>`;
@@ -1968,8 +2190,8 @@ const btnToggle = document.getElementById('btn-toggle-line');
     document.getElementById('confirm-move-dept').textContent = p.dept || 'General';
     document.getElementById('confirm-move-symptoms').textContent = p.symptoms || 'General Consultation';
 
-    document.getElementById('confirm-move-current-stage').textContent = `Stage ${p.stage}: ${p.status}`;
-    document.getElementById('confirm-move-target').textContent = `Stage ${new_stage}: ${new_status}`;
+    document.getElementById('confirm-move-current-stage').textContent = p.stage === 0 ? `Advance Schedule: ${p.status}` : `Stage ${p.stage}: ${p.status}`;
+    document.getElementById('confirm-move-target').textContent = new_stage === 0 ? `Advance Schedule: ${new_status}` : `Stage ${new_stage}: ${new_status}`;
 
     // Link dossier button
     const dossierBtn = document.getElementById('confirm-move-dossier-btn');
@@ -2006,6 +2228,7 @@ const btnToggle = document.getElementById('btn-toggle-line');
         showToast('Queue Updated', `Status changed to ${pendingMoveArgs.status}`);
         closeConfirmMoveModal();
         fetchQueuePipeline();
+        fetchAdvanceAppointments();
     } catch (e) {}
   });
 

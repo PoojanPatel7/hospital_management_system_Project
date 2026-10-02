@@ -169,8 +169,8 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $slot = $data['slot'] ?? '09:00 AM';
         $symptoms = $data['symptoms'] ?? '';
         $allergies = $data['allergies'] ?? 'None recorded';
-        $status = ($date === date('Y-m-d')) ? 'Pending Confirmation' : 'Pre-Booked';
-        $stage = 1;
+        $status = 'Pre-Booked';
+        $stage = 0;
         $hospital_id = $_SESSION['hospital_id'] ?? 0;
         
         $stmt = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, allergies, status, stage, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");

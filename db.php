@@ -212,6 +212,90 @@ $conn->query("CREATE TABLE IF NOT EXISTS staff_attendance (
     UNIQUE KEY unique_staff_day (staff_id, date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+// AI Conversations table
+$conn->query("CREATE TABLE IF NOT EXISTS ai_conversations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    user_type ENUM('admin', 'staff') NOT NULL DEFAULT 'admin',
+    user_id VARCHAR(100) NOT NULL,
+    user_role VARCHAR(100) DEFAULT 'Admin',
+    title VARCHAR(255) DEFAULT 'New Chat',
+    model_used VARCHAR(100) DEFAULT 'qwen3:4b',
+    page_context VARCHAR(100) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_hospital_user (hospital_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("CREATE TABLE IF NOT EXISTS ai_chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    role ENUM('user', 'assistant', 'system') NOT NULL,
+    content TEXT NOT NULL,
+    tokens_used INT DEFAULT 0,
+    sql_executed TEXT DEFAULT NULL,
+    response_time_ms INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE,
+    KEY idx_conversation (conversation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("CREATE TABLE IF NOT EXISTS ai_pending_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    message_id INT NOT NULL,
+    hospital_id INT NOT NULL,
+    action_type ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL,
+    target_table VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    sql_query TEXT NOT NULL,
+    sql_params TEXT DEFAULT NULL,
+    validation_data TEXT DEFAULT NULL,
+    status ENUM('pending', 'confirmed', 'cancelled', 'expired', 'executed', 'failed') DEFAULT 'pending',
+    confirmed_at TIMESTAMP NULL,
+    executed_at TIMESTAMP NULL,
+    error_message TEXT DEFAULT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_status (status),
+    KEY idx_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("CREATE TABLE IF NOT EXISTS ai_action_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    user_id VARCHAR(100) NOT NULL,
+    user_role VARCHAR(100) NOT NULL,
+    action_id INT DEFAULT NULL,
+    action_type VARCHAR(20) NOT NULL,
+    target_table VARCHAR(100) NOT NULL,
+    sql_executed TEXT NOT NULL,
+    rows_affected INT DEFAULT 0,
+    success TINYINT(1) DEFAULT 1,
+    error_message TEXT DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_hospital (hospital_id),
+    KEY idx_user (user_id),
+    KEY idx_date (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("CREATE TABLE IF NOT EXISTS ai_config (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL UNIQUE,
+    enabled TINYINT(1) DEFAULT 1,
+    model_name VARCHAR(100) DEFAULT 'qwen3:4b',
+    ollama_url VARCHAR(255) DEFAULT 'http://localhost:11434',
+    max_tokens INT DEFAULT 2048,
+    temperature DECIMAL(3,2) DEFAULT 0.30,
+    context_window INT DEFAULT 8192,
+    rate_limit_per_minute INT DEFAULT 30,
+    allowed_tables TEXT DEFAULT NULL,
+    system_prompt_override TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // Seed realistic hospital staff if table empty
 $staffCount = 0;
 $sCheck = $conn->query("SELECT COUNT(*) AS c FROM staff");

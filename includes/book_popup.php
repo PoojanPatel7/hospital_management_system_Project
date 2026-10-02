@@ -23,7 +23,7 @@
                 <div class="mb-6 flex-1 flex flex-col min-h-0">
                     <div class="flex items-center justify-between mb-3 shrink-0">
                         <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                            <i class="fa-solid fa-bars-staggered text-indigo-500"></i> Today's Live Pipeline
+                            <i class="fa-solid fa-bars-staggered text-indigo-500"></i> <span id="pipeline-heading-label">Today's Live Pipeline</span>
                         </h4>
                         <span id="right-panel-pipeline-count" class="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">0</span>
                     </div>
@@ -49,7 +49,7 @@
                 <!-- Available Slots -->
                 <div>
                     <h4 class="text-xs font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
-                        <i class="fa-regular fa-clock text-indigo-500"></i> Available Slots Today
+                        <i class="fa-regular fa-clock text-indigo-500"></i> <span id="slots-heading-label">Available Slots Today</span>
                     </h4>
                     <div id="right-panel-slots" class="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap gap-2 shadow-sm">
                         <!-- Filled by JS -->
@@ -550,6 +550,16 @@
     }
 
     async function fetchScheduleForDate(dateStr, updatePipeline = true) {
+        const todayStr = new Date().toISOString().substring(0, 10);
+        const pipeHead = document.getElementById('pipeline-heading-label');
+        const slotHead = document.getElementById('slots-heading-label');
+        if (pipeHead) {
+            pipeHead.textContent = (dateStr === todayStr) ? "Today's Live Pipeline" : `Schedule (${dateStr})`;
+        }
+        if (slotHead) {
+            slotHead.textContent = (dateStr === todayStr) ? "Available Slots Today" : `Available Slots (${dateStr})`;
+        }
+
         if (updatePipeline) {
             // Loading state for right panel
             document.getElementById('right-panel-pipeline').innerHTML = `
@@ -583,24 +593,23 @@
                 }
 
                 if (updatePipeline) {
-                    // Render Live Pipeline
                     // Render Live Pipeline with selected date's appointments
-                      const docQueue = (data.appointments || []).filter(a => a.doctor_id == currentDoctorId);
-                      document.getElementById('right-panel-pipeline-count').textContent = docQueue.length;
-                      
-                      if (docQueue.length === 0) {
-                          document.getElementById('right-panel-pipeline').innerHTML = ` 
-                              <tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs bg-white rounded-b-xl border-dashed">
-                                  <i class="fa-regular fa-calendar-check text-slate-300 text-2xl mb-2 block"></i>
-                                  <span class="font-bold">No appointments for this date.</span><br>
-                                  Schedule is clear.
+                    const docQueue = (data.appointments || []).filter(a => a.doctor_id == currentDoctorId);
+                    document.getElementById('right-panel-pipeline-count').textContent = docQueue.length;
+                    
+                    if (docQueue.length === 0) {
+                        document.getElementById('right-panel-pipeline').innerHTML = ` 
+                            <tr><td colspan="5" class="text-center py-8 text-slate-500 text-xs bg-white rounded-b-xl border-dashed">
+                                <i class="fa-regular fa-calendar-check text-slate-300 text-2xl mb-2 block"></i>
+                                <span class="font-bold">No appointments for this date.</span><br>
+                                Schedule is clear.
                             </td></tr>
                         `;
                     } else {
                         const html = docQueue.map((q, idx) => {
                             const isEmergency = q.type === 'Emergency Case';
                             const aId = q.appointment_id || q.id || 0;
-                              const apptCode = q.appointment_code || ('APP-' + String(aId).padStart(4, '0'));
+                            const apptCode = q.appointment_code || ('APP-' + String(aId).padStart(4, '0'));
                             
                             let statusColor = "bg-amber-100 text-amber-700 border-amber-200";
                             if (q.status === 'Waiting for Reports') statusColor = "bg-amber-100 text-amber-800 border-amber-300";
@@ -608,6 +617,11 @@
                             else if (q.stage === 3) statusColor = "bg-blue-100 text-blue-700 border-blue-200";
                             else if (q.stage === 2) statusColor = "bg-emerald-100 text-emerald-700 border-emerald-200";
                             else if (q.stage === 1) statusColor = "bg-indigo-100 text-indigo-700 border-indigo-200";
+
+                            const isPre = (q.stage === 0 || q.status === 'Pre-Booked');
+                            const stageBadge = isPre 
+                                ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200"><i class="fa-regular fa-calendar-check text-[9px]"></i> Pre-Booked</span>`
+                                : `Stage ${q.stage}: <span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded border ${statusColor}">${q.status}</span>`;
 
                             return `
                             <tr class="hover:bg-slate-50 transition border-b ${isEmergency ? 'bg-rose-50/70 border-l-4 border-l-rose-600 font-medium' : ''}">
@@ -618,7 +632,7 @@
                                     </div>
                                 </td>
                                 <td class="py-3 px-4 font-bold text-slate-700 text-[11px]">
-                                    Stage ${q.stage}: <span class="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded border ${statusColor}">${q.status}</span>
+                                    ${stageBadge}
                                 </td>
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-slate-900 text-xs flex items-center gap-1 group">
@@ -861,10 +875,17 @@
             });
             const data = await res.json();
             if (data.status === 'success') {
-                showToast('Booked', 'Patient added to the live pipeline successfully!');
-                setTimeout(() => window.location.href = 'queue.php', 1500);
+                const msg = data.is_prebooked ? 'Advance appointment pre-booked successfully!' : 'Patient added to the live pipeline successfully!';
+                showToast('Booked Successfully', msg);
+                if (window.location.pathname.endsWith('queue.php')) {
+                    document.getElementById('modal-book-direct').classList.add('hidden');
+                    if (typeof fetchQueuePipeline === 'function') fetchQueuePipeline();
+                    if (typeof fetchAdvanceAppointments === 'function') fetchAdvanceAppointments();
+                } else {
+                    setTimeout(() => window.location.href = 'queue.php', 1200);
+                }
             } else {
-                showToast('Error', data.message, 'error');
+                showToast('Error', data.message || 'Booking failed', 'error');
             }
         } catch (err) { console.error(err); }
     }
