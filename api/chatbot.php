@@ -11,6 +11,8 @@ require_once __DIR__ . '/../db.php';
 @require_once __DIR__ . '/../ai/sql_sanitizer.php';
 @require_once __DIR__ . '/../ai/security_guard.php';
 @require_once __DIR__ . '/../ai/prompt_templates.php';
+@require_once __DIR__ . '/../ai/system_knowledge.php';
+@require_once __DIR__ . '/../ai/action_engine.php';
 
 if (!isset($_SESSION['hospital_id'])) {
     http_response_code(401);
@@ -108,68 +110,132 @@ switch ($action) {
         }
 
         // ========================================================
-        // PHASE 1: SILENT SERVER-SIDE INTENT & SQL EXTRACTION
+        // PRE-PROCESSING: ANALYZE ACTION INTENT & AMBIGUITY
         // ========================================================
-        $phase1Prompt = function_exists('getQueryGenerationPrompt')
-            ? getQueryGenerationPrompt($hospitalName, $hospitalId, $staffRole, $pageContext, $dateTime, $schema, $todayStats)
-            : "Generate SQL query for $message";
-
-        $phase1Messages = [
-            ['role' => 'system', 'content' => $phase1Prompt],
-            ['role' => 'user', 'content' => $message]
-        ];
-
-        $dbResults = null;
         $pendingAction = null;
+        $dbResults = null;
         $sqlExecuted = null;
 
-        $intentResp = function_exists('ollamaChat') ? ollamaChat($model, $phase1Messages, '', false, ['temperature' => 0.1, 'num_predict' => 200]) : null;
-        $intentContent = $intentResp['message']['content'] ?? '';
+        if (function_exists('analyzeActionIntent')) {
+            $actionAnalysis = analyzeActionIntent($conn, $hospitalId, $message);
+            if ($actionAnalysis !== null) {
+                if ($actionAnalysis['type'] === 'clarification') {
+                    // Send clarification question back immediately (Ask back to gather all info!)
+                    $clarifyText = $actionAnalysis['question'];
+                    echo "data: " . json_encode(['type' => 'chunk', 'content' => $clarifyText]) . "\n\n";
+                    flush();
 
-        // Check if a read SQL query was generated
-        if (preg_match('/```sql\s*(.*?)\s*```/is', $intentContent, $matches)) {
-            $rawSql = trim($matches[1]);
-            $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($staffRole) : [];
-            $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($rawSql, $hospitalId, $allowedTables) : ['valid' => true, 'sql' => $rawSql];
-            
-            if ($sanitizeResult['valid']) {
-                $sqlToExecute = $sanitizeResult['sql'];
-                try {
-                    $res = $conn->query($sqlToExecute);
-                    if ($res) {
-                        $dbResults = [];
-                        while ($r = $res->fetch_assoc()) {
-                            unset($r['password']);
-                            $dbResults[] = $r;
-                        }
-                        $sqlExecuted = $sqlToExecute;
+                    if (!empty($actionAnalysis['suggestions'])) {
+                        echo "data: " . json_encode(['type' => 'suggestions', 'suggestions' => $actionAnalysis['suggestions']]) . "\n\n";
+                        flush();
                     }
-                } catch (Exception $e) {
-                    $dbResults = ['note' => 'No direct matching record found.'];
+
+                    // Save assistant message to conversation history
+                    $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
+                    $stmt->bind_param("is", $conversationId, $clarifyText);
+                    $stmt->execute();
+
+                    echo "data: " . json_encode(['type' => 'done', 'conversation_id' => $conversationId]) . "\n\n";
+                    flush();
+                    break;
+                } elseif ($actionAnalysis['type'] === 'action') {
+                    // Verified action plan ready
+                    $actPlan = $actionAnalysis['plan'];
+                    $aType = $actPlan['action_type'] ?? 'UPDATE';
+                    $aTable = $actPlan['table'] ?? 'unknown';
+                    $aDesc = $actPlan['description'] ?? 'Hospital operation';
+                    $aSql = $actPlan['sql'] ?? '';
+                    $aParams = isset($actPlan['params']) ? json_encode($actPlan['params']) : null;
+                    $lastMsgId = 0;
+
+                    $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
+                    $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
+                    $stmt->execute();
+                    $pendingAction = [
+                        'action_id' => $stmt->insert_id,
+                        'details' => $actPlan,
+                        'description' => $aDesc
+                    ];
                 }
             }
         }
 
-        // Check if a write action plan was generated
-        if (preg_match('/```json\s*(.*?)\s*```/is', $intentContent, $matches)) {
-            $jsonStr = trim($matches[1]);
-            $json = json_decode($jsonStr, true);
-            if ($json && isset($json['action_type'])) {
-                $aType = $json['action_type'] ?? 'UPDATE';
-                $aTable = $json['table'] ?? 'unknown';
-                $aDesc = $json['description'] ?? 'AI-generated action';
-                $aSql = $json['sql'] ?? '';
-                $aParams = isset($json['params']) ? json_encode($json['params']) : null;
-                $lastMsgId = $conn->insert_id ?: 0;
-                
-                $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
-                $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
+        // ========================================================
+        // PHASE 1: SILENT SERVER-SIDE INTENT & SQL EXTRACTION
+        // ========================================================
+        if ($pendingAction === null) {
+            $phase1Prompt = function_exists('getQueryGenerationPrompt')
+                ? getQueryGenerationPrompt($hospitalName, $hospitalId, $staffRole, $pageContext, $dateTime, $schema, $todayStats)
+                : "Generate SQL query for $message";
+
+            $phase1Messages = [
+                ['role' => 'system', 'content' => $phase1Prompt],
+                ['role' => 'user', 'content' => $message]
+            ];
+
+            $intentResp = function_exists('ollamaChat') ? ollamaChat($model, $phase1Messages, '', false, ['temperature' => 0.1, 'num_predict' => 200]) : null;
+            $intentContent = $intentResp['message']['content'] ?? '';
+
+            // Check if model asked for clarification
+            if (preg_match('/^CLARIFY:\s*(.*)/is', trim($intentContent), $mClarify)) {
+                $clarifyText = trim($mClarify[1]);
+                echo "data: " . json_encode(['type' => 'chunk', 'content' => $clarifyText]) . "\n\n";
+                flush();
+
+                $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
+                $stmt->bind_param("is", $conversationId, $clarifyText);
                 $stmt->execute();
-                $pendingAction = [
-                    'action_id' => $stmt->insert_id,
-                    'details' => $json,
-                    'description' => $aDesc
-                ];
+
+                echo "data: " . json_encode(['type' => 'done', 'conversation_id' => $conversationId]) . "\n\n";
+                flush();
+                break;
+            }
+
+            // Check if a read SQL query was generated
+            if (preg_match('/```sql\s*(.*?)\s*```/is', $intentContent, $matches)) {
+                $rawSql = trim($matches[1]);
+                $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($staffRole) : [];
+                $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($rawSql, $hospitalId, $allowedTables) : ['valid' => true, 'sql' => $rawSql];
+                
+                if ($sanitizeResult['valid']) {
+                    $sqlToExecute = $sanitizeResult['sql'];
+                    try {
+                        $res = $conn->query($sqlToExecute);
+                        if ($res) {
+                            $dbResults = [];
+                            while ($r = $res->fetch_assoc()) {
+                                unset($r['password']);
+                                $dbResults[] = $r;
+                            }
+                            $sqlExecuted = $sqlToExecute;
+                        }
+                    } catch (Exception $e) {
+                        $dbResults = ['note' => 'No direct matching record found.'];
+                    }
+                }
+            }
+
+            // Check if a write action plan was generated by model
+            if (preg_match('/```json\s*(.*?)\s*```/is', $intentContent, $matches)) {
+                $jsonStr = trim($matches[1]);
+                $json = json_decode($jsonStr, true);
+                if ($json && isset($json['action_type'])) {
+                    $aType = $json['action_type'] ?? 'UPDATE';
+                    $aTable = $json['table'] ?? 'unknown';
+                    $aDesc = $json['description'] ?? 'AI-generated action';
+                    $aSql = $json['sql'] ?? '';
+                    $aParams = isset($json['params']) ? json_encode($json['params']) : null;
+                    $lastMsgId = 0;
+                    
+                    $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
+                    $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
+                    $stmt->execute();
+                    $pendingAction = [
+                        'action_id' => $stmt->insert_id,
+                        'details' => $json,
+                        'description' => $aDesc
+                    ];
+                }
             }
         }
 
@@ -185,8 +251,9 @@ switch ($action) {
             $synthesisUserContent .= "FACTUAL HOSPITAL DATABASE DATA RETRIEVED:\n" . json_encode($dbResults, JSON_UNESCAPED_UNICODE) . "\n\n";
             $synthesisUserContent .= "Provide a clear, warm, and professional answer based on this data. Use bold headings, bullet points, and appropriate emojis. NEVER output SQL code or mention table names.\n";
         } elseif ($pendingAction !== null) {
-            $synthesisUserContent .= "An action has been prepared: " . $pendingAction['description'] . "\n";
-            $synthesisUserContent .= "Warmly summarize what will happen and advise the user to confirm using the card below.\n";
+            $synthesisUserContent .= "AN ACTION HAS BEEN PREPARED AND IS PENDING USER CONFIRMATION:\n";
+            $synthesisUserContent .= "Description: " . $pendingAction['description'] . "\n\n";
+            $synthesisUserContent .= "CRITICAL INSTRUCTION: You MUST NOT say 'I have marked them' or 'Done'. You MUST warmly explain the action that was prepared and instruct the user to click the Confirm button on the card below to execute it in the hospital database.\n";
         } else {
             $synthesisUserContent .= "Answer the user in a helpful, friendly, and professional healthcare manner.\n";
         }
@@ -263,8 +330,19 @@ switch ($action) {
         
         if (!empty($sql)) {
             try {
-                $conn->query($sql);
-                $affected = $conn->affected_rows;
+                if (strpos($sql, ';') !== false) {
+                    $conn->multi_query($sql);
+                    $affected = 0;
+                    do {
+                        if ($result = $conn->store_result()) {
+                            $result->free();
+                        }
+                        $affected += max(0, $conn->affected_rows);
+                    } while ($conn->more_results() && $conn->next_result());
+                } else {
+                    $conn->query($sql);
+                    $affected = $conn->affected_rows;
+                }
                 
                 $stmt = $conn->prepare("UPDATE ai_pending_actions SET status = 'executed', executed_at = NOW() WHERE id = ?");
                 $stmt->bind_param("i", $actionId);

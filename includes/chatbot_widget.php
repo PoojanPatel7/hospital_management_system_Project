@@ -517,6 +517,9 @@ const BhoomaAI = {
                             else if (data.type === 'action') {
                                 this.renderActionCard(data.action_id, data.content);
                             }
+                            else if (data.type === 'suggestions') {
+                                this.renderInlineSuggestions(data.suggestions);
+                            }
                             else if (data.type === 'done') {
                                 if (data.conversation_id) {
                                     this.conversationId = data.conversation_id;
@@ -628,6 +631,26 @@ const BhoomaAI = {
                 </div>
             </div>
         `;
+        this.dom.messages.appendChild(wrapper);
+        this.scrollToBottom();
+    },
+    
+    renderInlineSuggestions(suggestions) {
+        if (!suggestions || !suggestions.length) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex flex-wrap gap-1.5 ml-8 mt-1 mb-2';
+        suggestions.forEach(text => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-medium transition-colors shadow-2xs cursor-pointer';
+            btn.innerHTML = `<i class="fa-regular fa-paper-plane mr-1 text-[10px]"></i> \${text}`;
+            btn.onclick = () => {
+                this.dom.input.value = text;
+                this.autoResize(this.dom.input);
+                this.handleSend();
+            };
+            wrapper.appendChild(btn);
+        });
         this.dom.messages.appendChild(wrapper);
         this.scrollToBottom();
     },
