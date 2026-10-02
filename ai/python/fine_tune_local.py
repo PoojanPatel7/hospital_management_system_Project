@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Local GPU Fine-Tuning Script for BHOOMA HMS AI
 ==============================================
 Optimized specifically for NVIDIA GeForce RTX 4060 (8GB VRAM) and Windows.
