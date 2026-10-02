@@ -195,6 +195,10 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
             <i class="fa-solid fa-rotate-left w-6 text-center text-rose-600"></i>
             <span class="text-sm">Load / Restore Data</span>
           </a>
+          <a href="ai_logs.php" class="nav-item flex items-center gap-3 px-3 py-2 text-slate-600 <?php echo $current_page == 'ai_logs.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-brain w-6 text-center text-indigo-600"></i>
+            <span class="text-sm">AI Chat History &amp; Logs</span>
+          </a>
         </div>
       </div>
 
@@ -379,6 +383,10 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
           <a href="restore.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-700 <?php echo $current_page == 'restore.php' ? 'active' : ''; ?>">
             <i class="fa-solid fa-rotate-left w-5 text-center text-rose-600"></i>
             <span class="text-sm font-semibold">Load / Restore Data</span>
+          </a>
+          <a href="ai_logs.php" onclick="toggleMobileNav(false)" class="nav-item flex items-center gap-3 px-3 py-2.5 text-slate-700 <?php echo $current_page == 'ai_logs.php' ? 'active' : ''; ?>">
+            <i class="fa-solid fa-brain w-5 text-center text-indigo-600"></i>
+            <span class="text-sm font-semibold">AI Logs &amp; History</span>
           </a>
         </div>
       </div>

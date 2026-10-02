@@ -141,7 +141,12 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     </div>
 
     <!-- Input Area -->
-    <div class="border-t border-slate-200 bg-white p-3">
+    <div class="border-t border-slate-200 bg-white p-3 relative">
+        <!-- Live As-You-Type Suggestions Floating Popup -->
+        <div id="bhooma-ai-live-suggestions" class="absolute bottom-full left-3 right-3 mb-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-xl overflow-hidden hidden z-50 divide-y divide-slate-100 max-h-56 overflow-y-auto bhooma-scrollbar">
+            <!-- populated dynamically by JS as you type -->
+        </div>
+
         <div class="relative flex items-end bg-slate-50 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
             <textarea id="bhooma-ai-input" rows="1" 
                 class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[100px] text-sm p-3 bhooma-scrollbar" 
@@ -168,6 +173,48 @@ const BhoomaAI = {
     suggestions: <?php echo $chatbot_suggestions; ?>,
     apiUrl: 'api/chatbot.php',
     
+    liveIndex: -1,
+    activeSuggestions: [],
+    liveDebounceTimer: null,
+    liveDictionary: [
+        // Staff & Attendance
+        { text: "Who is present today in staff?", cat: "Staff", icon: "fa-users", color: "bg-blue-100 text-blue-700" },
+        { text: "Show absent staff members today", cat: "Staff", icon: "fa-user-xmark", color: "bg-rose-100 text-rose-700" },
+        { text: "Mark all staff members present today", cat: "Attendance", icon: "fa-clipboard-check", color: "bg-emerald-100 text-emerald-700" },
+        { text: "Mark attendance present for staff", cat: "Attendance", icon: "fa-user-check", color: "bg-emerald-100 text-emerald-700" },
+        { text: "List all staff members and designations", cat: "Staff", icon: "fa-id-badge", color: "bg-blue-100 text-blue-700" },
+        { text: "Check today's staff attendance overview", cat: "Attendance", icon: "fa-calendar-day", color: "bg-teal-100 text-teal-700" },
+        
+        // Beds & Ward
+        { text: "Show available beds by ward", cat: "Beds", icon: "fa-bed", color: "bg-indigo-100 text-indigo-700" },
+        { text: "How many beds are currently occupied?", cat: "Beds", icon: "fa-bed-pulse", color: "bg-amber-100 text-amber-700" },
+        { text: "List all ICU beds and status", cat: "Beds", icon: "fa-heart-pulse", color: "bg-rose-100 text-rose-700" },
+        { text: "Discharge patient and free bed", cat: "Beds", icon: "fa-door-open", color: "bg-emerald-100 text-emerald-700" },
+        { text: "Assign bed to patient", cat: "Beds", icon: "fa-user-plus", color: "bg-indigo-100 text-indigo-700" },
+
+        // Appointments & Doctors
+        { text: "Show appointments scheduled for today", cat: "Appointments", icon: "fa-calendar-check", color: "bg-purple-100 text-purple-700" },
+        { text: "List upcoming appointments this week", cat: "Appointments", icon: "fa-calendar-days", color: "bg-purple-100 text-purple-700" },
+        { text: "List active doctors and their specialties", cat: "Doctors", icon: "fa-user-doctor", color: "bg-cyan-100 text-cyan-700" },
+        { text: "Which doctors are available today?", cat: "Doctors", icon: "fa-stethoscope", color: "bg-cyan-100 text-cyan-700" },
+        { text: "Book an appointment for patient", cat: "Appointments", icon: "fa-calendar-plus", color: "bg-purple-100 text-purple-700" },
+        { text: "Cancel appointment for patient", cat: "Appointments", icon: "fa-calendar-xmark", color: "bg-rose-100 text-rose-700" },
+
+        // Patients & Queue
+        { text: "Search patient by name or phone", cat: "Patients", icon: "fa-hospital-user", color: "bg-emerald-100 text-emerald-700" },
+        { text: "How many patients are registered total?", cat: "Patients", icon: "fa-users-line", color: "bg-emerald-100 text-emerald-700" },
+        { text: "Show current OPD patient queue", cat: "Queue", icon: "fa-clock", color: "bg-amber-100 text-amber-700" },
+        { text: "Register a new patient", cat: "Patients", icon: "fa-user-plus", color: "bg-emerald-100 text-emerald-700" },
+
+        // Prescriptions & Medical
+        { text: "View recent prescriptions issued", cat: "Pharmacy", icon: "fa-pills", color: "bg-teal-100 text-teal-700" },
+        { text: "Search diagnoses for patient", cat: "Clinical", icon: "fa-notes-medical", color: "bg-blue-100 text-blue-700" },
+
+        // Analytics & Hospital Overview
+        { text: "Hospital overview dashboard metrics", cat: "Analytics", icon: "fa-chart-pie", color: "bg-indigo-100 text-indigo-700" },
+        { text: "How many patients visited today?", cat: "Analytics", icon: "fa-chart-line", color: "bg-indigo-100 text-indigo-700" }
+    ],
+
     init() {
         this.cacheDOM();
 
@@ -198,6 +245,7 @@ const BhoomaAI = {
             input: document.getElementById('bhooma-ai-input'),
             send: document.getElementById('bhooma-ai-send'),
             suggestions: document.getElementById('bhooma-ai-suggestions'),
+            liveSuggestions: document.getElementById('bhooma-ai-live-suggestions'),
             badge: document.getElementById('bhooma-ai-badge'),
             statusDot: document.getElementById('bhooma-ai-status-dot'),
             statusText: document.getElementById('bhooma-ai-status-text'),
@@ -239,8 +287,36 @@ const BhoomaAI = {
         
         if (this.dom.input) {
             this.dom.input.onkeydown = (e) => {
+                // Handle live suggestions navigation with keyboard
+                if (this.dom.liveSuggestions && !this.dom.liveSuggestions.classList.contains('hidden') && this.activeSuggestions.length > 0) {
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        this.liveIndex = (this.liveIndex + 1) % this.activeSuggestions.length;
+                        this.highlightLiveSuggestion();
+                        return;
+                    }
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        this.liveIndex = (this.liveIndex - 1 + this.activeSuggestions.length) % this.activeSuggestions.length;
+                        this.highlightLiveSuggestion();
+                        return;
+                    }
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                        if (this.liveIndex >= 0 && this.liveIndex < this.activeSuggestions.length) {
+                            e.preventDefault();
+                            this.selectLiveSuggestion(this.liveIndex);
+                            return;
+                        }
+                    }
+                    if (e.key === 'Escape') {
+                        this.hideLiveSuggestions();
+                        return;
+                    }
+                }
+
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
+                    this.hideLiveSuggestions();
                     this.handleSend();
                 }
             };
@@ -248,9 +324,17 @@ const BhoomaAI = {
             this.dom.input.oninput = () => {
                 this.autoResize(this.dom.input);
                 this.updateCounter();
+                this.handleLiveInput();
             };
         }
         
+        // Hide live suggestions if clicked outside
+        document.addEventListener('click', (e) => {
+            if (this.dom.liveSuggestions && !this.dom.liveSuggestions.contains(e.target) && e.target !== this.dom.input) {
+                this.hideLiveSuggestions();
+            }
+        });
+
         // Ctrl+K or Ctrl+/ shortcut
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === '/')) {
@@ -340,6 +424,121 @@ const BhoomaAI = {
             };
             this.dom.suggestions.appendChild(btn);
         });
+    },
+
+    handleLiveInput() {
+        clearTimeout(this.liveDebounceTimer);
+        const val = (this.dom.input ? this.dom.input.value : '').trim();
+        if (!val || val.length < 1) {
+            this.hideLiveSuggestions();
+            return;
+        }
+        
+        this.liveDebounceTimer = setTimeout(() => {
+            this.renderLiveSuggestions(val);
+        }, 120);
+    },
+
+    renderLiveSuggestions(query) {
+        if (!this.dom.liveSuggestions) return;
+        const q = query.toLowerCase();
+        const tokens = q.split(/\s+/).filter(Boolean);
+        
+        const matches = this.liveDictionary.map(item => {
+            const txt = item.text.toLowerCase();
+            const cat = item.cat.toLowerCase();
+            let score = 0;
+            
+            if (txt.startsWith(q)) score += 100;
+            else if (txt.includes(q)) score += 60;
+            else if (cat.includes(q)) score += 40;
+            
+            tokens.forEach(tok => {
+                if (txt.includes(tok)) score += 20;
+                if (cat.includes(tok)) score += 15;
+            });
+            
+            return { item, score };
+        })
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5)
+        .map(x => x.item);
+        
+        if (matches.length === 0) {
+            this.hideLiveSuggestions();
+            return;
+        }
+        
+        this.activeSuggestions = matches;
+        this.liveIndex = -1;
+        
+        let html = '';
+        matches.forEach((sug, idx) => {
+            let displayText = sug.text;
+            try {
+                const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                displayText = displayText.replace(re, '<span class="text-indigo-600 font-bold">$1</span>');
+            } catch(e) {}
+            
+            html += `
+                <div class="bhooma-live-item px-3 py-2 cursor-pointer flex items-center justify-between transition-colors group text-left hover:bg-slate-50" data-index="${idx}">
+                    <div class="flex items-center space-x-2.5 overflow-hidden">
+                        <span class="w-6 h-6 rounded-lg ${sug.color} flex items-center justify-center text-[11px] shrink-0">
+                            <i class="fa-solid ${sug.icon}"></i>
+                        </span>
+                        <span class="text-xs text-slate-700 font-medium truncate">${displayText}</span>
+                    </div>
+                    <span class="text-[9px] text-slate-400 uppercase font-bold tracking-wider shrink-0 ml-2 group-hover:text-indigo-600 transition-colors">${sug.cat}</span>
+                </div>
+            `;
+        });
+        
+        this.dom.liveSuggestions.innerHTML = html;
+        this.dom.liveSuggestions.classList.remove('hidden');
+        
+        const itemEls = this.dom.liveSuggestions.querySelectorAll('.bhooma-live-item');
+        itemEls.forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation();
+                const idx = parseInt(el.dataset.index, 10);
+                this.selectLiveSuggestion(idx);
+            };
+        });
+    },
+
+    highlightLiveSuggestion() {
+        if (!this.dom.liveSuggestions) return;
+        const items = this.dom.liveSuggestions.querySelectorAll('.bhooma-live-item');
+        items.forEach((el, idx) => {
+            if (idx === this.liveIndex) {
+                el.classList.add('bg-indigo-50', 'border-l-4', 'border-indigo-600', 'pl-2');
+                el.classList.remove('hover:bg-slate-50');
+                el.scrollIntoView({ block: 'nearest' });
+            } else {
+                el.classList.remove('bg-indigo-50', 'border-l-4', 'border-indigo-600', 'pl-2');
+                el.classList.add('hover:bg-slate-50');
+            }
+        });
+    },
+
+    selectLiveSuggestion(index) {
+        if (index >= 0 && index < this.activeSuggestions.length) {
+            const item = this.activeSuggestions[index];
+            this.dom.input.value = item.text;
+            this.hideLiveSuggestions();
+            this.autoResize(this.dom.input);
+            this.handleSend();
+        }
+    },
+
+    hideLiveSuggestions() {
+        if (this.dom.liveSuggestions) {
+            this.dom.liveSuggestions.classList.add('hidden');
+            this.dom.liveSuggestions.innerHTML = '';
+        }
+        this.liveIndex = -1;
+        this.activeSuggestions = [];
     },
     
     autoResize(el) {
@@ -449,6 +648,7 @@ const BhoomaAI = {
         }
         
         this.dom.input.value = '';
+        this.hideLiveSuggestions();
         this.autoResize(this.dom.input);
         if (this.dom.suggestions) this.dom.suggestions.classList.add('hidden');
         this.updateCounter();

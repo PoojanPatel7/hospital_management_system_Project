@@ -1,97 +1,185 @@
 <?php
 // ai/system_knowledge.php
-// Comprehensive Knowledge Base of all Pages, Features, and Workflows of the Hospital Management System
+// Master Knowledge Base: Complete Relational Map, All 21 Tables, Foreign Keys, UI Terminology vs DB Columns, and Page Mappings
 
 function getHospitalSystemKnowledge() {
     return <<<KNOWLEDGE
-=== HOSPITAL MANAGEMENT SYSTEM - ARCHITECTURE & PAGE SPECIFICATIONS ===
+=== BHOOMA HOSPITAL MANAGEMENT SYSTEM - COMPLETE MASTER RELATIONAL ARCHITECTURE ===
 
-1. DASHBOARD (dashboard.php)
-- Purpose: Executive & operational command center for hospital administration and clinical staff.
-- Core Metrics: Today's registered patients, today's appointments, real-time active queue count, bed occupancy (available vs occupied), on-duty doctors, staff attendance rate.
-- Features: Live KPI summary cards, quick navigation shortcuts, today's appointment roster, emergency intake trigger.
-- Tables: patients, appointments, beds, doctors, staff, staff_attendance.
+--- 1. DATABASE ENTITY-RELATIONSHIP MAP (ALL 21 TABLES & CONNECTIONS) ---
 
-2. PATIENTS & PROFILES (patients.php & patient_profile.php)
-- Purpose: Comprehensive patient identity, medical dossier, and registration lifecycle.
-- Patient ID / MRN Format: Unique Medical Record Number (e.g., 'CP-2026-001').
-- Fields: id, name, surname, father_name, phone, demographics, gender, blood_group, age, emergency_contact_name, emergency_contact_phone.
-- Duplicate Detection: Checked against LOWER(name) + LOWER(surname) + LOWER(father_name).
-- Patient Profile (patient_profile.php): Full clinical timeline, vital signs, appointment history, past diagnoses, active prescriptions, attached diagnostic reports (patient_files), chronological events (timeline_events).
-- Tables: patients, patient_files, timeline_events, appointments, diagnoses, prescriptions.
+1. HOSPITALS (hospitals)
+   - Primary Key: `id` (int)
+   - Fields: `name`, `username` (unique), `password` (hashed), `created_at`.
+   - Relationships & Connections:
+     • Master multi-tenant parent table.
+     • Every operational table references `hospital_id` to enforce strict hospital isolation:
+       - patients.hospital_id -> hospitals.id
+       - doctors.hospital_id -> hospitals.id
+       - staff.hospital_id -> hospitals.id
+       - beds.hospital_id -> hospitals.id
+       - appointments.hospital_id -> hospitals.id
+       - staff_attendance.hospital_id -> hospitals.id
+       - ai_conversations.hospital_id -> hospitals.id
+       - ai_action_log.hospital_id -> hospitals.id
+   - Used In: login.php, register_hospital.php, about.php, all API endpoints.
 
-3. DOCTORS & SCHEDULING (doctors.php & doctor_slots.php)
-- Purpose: Medical specialist directory, credentialing, and schedule/slot management.
-- Doctor ID Format: Unique identifier (e.g., 'doc-6a9a8604e31bd').
-- Fields: id, name, phone, department_id, experience, degree, hospital_id (Note: NO created_at column).
-- Departments & Specialties: Linked via `doctor_categories` and `departments` (Cardiology, Orthopedics, Pediatrics, General Medicine, Neurology, ICU).
-- Weekly Scheduling (doctor_slots.php): Configured in `doctor_day_schedules` (available days, start/end times, slot duration in mins, max patients per slot, break times). Specific booking slots in `doctor_slots`.
-- Tables: doctors, departments, doctor_categories, doctor_day_schedules, doctor_slots.
+2. PATIENTS (patients)
+   - Primary Key: `id` (varchar, format: 'CP-YYYY-XXX', e.g. 'CP-2026-001') -> Called 'MRN' / 'Patient ID' in UI.
+   - Fields: `name`, `surname`, `father_name`, `phone`, `demographics` (e.g. '35 Y, Male, O+'), `gender`, `blood_group`, `age`, `emergency_contact_name`, `emergency_contact_phone`, `hospital_id`, `created_at`.
+   - Relationships & Connections:
+     • One-to-Many with appointments: appointments.patient_id = patients.id
+     • One-to-Many with timeline_events: timeline_events.patient_id = patients.id
+     • One-to-Many with patient_files: patient_files.patient_id = patients.id
+     • One-to-One with beds: beds.patient_id = patients.id (when patient is admitted)
+   - Used In: patients.php, patient_profile.php, queue.php, book.php, beds.php, history.php.
 
-4. APPOINTMENT BOOKING (book.php & appointments.php)
-- Purpose: Scheduling outpatient (OPD) and emergency consultations.
-- Types: 'General Consultation', 'Follow-up', 'Emergency Case', 'Health Checkup'.
-- Stages:
-  • Stage 0: Pre-Booked (advance appointment for future date/time)
-  • Stage 1: Checked-In (patient arrived at front desk)
-  • Stage 2: Available at Hospital / Triage
-  • Stage 3: In Consultation (with doctor)
-  • Stage 4: Pharmacy / Billing (post-consultation)
-  • Stage 5: Inpatient Admission / Bed / Discharged
-- Statuses: 'Pre-Booked', 'Checked-In', 'Available at Hospital', 'In Consultation', 'Pharmacy / Billing', 'Discharged (Normal Medicine)', 'Discharged from Bed', 'Cancelled'.
-- Key Column: `date` (NOT `appointment_date`).
-- Tables: appointments, patients, doctors, timeline_events.
+3. DOCTORS (doctors)
+   - Primary Key: `id` (varchar, format: 'doc-XXXXXX', e.g. 'doc-6a9a8604e31bd') -> Doctor ID.
+   - Fields: `name`, `department_id` (optional legacy FK), `experience`, `degree`, `phone`, `hospital_id`.
+   - CRITICAL CAVEAT: Does NOT have `created_at` or `specialty` directly on doctors table.
+   - Relationships & Connections:
+     • Many-to-Many with departments via `doctor_categories`:
+       doctors.id = doctor_categories.doctor_id AND doctor_categories.department_id = departments.id
+     • One-to-Many with doctor_day_schedules: doctor_day_schedules.doctor_id = doctors.id
+     • One-to-Many with doctor_slots: doctor_slots.doctor_id = doctors.id
+     • One-to-Many with appointments: appointments.doctor_id = doctors.id
+   - Used In: doctors.php, doctor_slots.php, book.php, queue.php, dashboard.php.
 
-5. QUEUE MANAGEMENT (queue.php)
-- Purpose: Live real-time outpatient flow Kanban & token queue.
-- Token System: Sequential daily token numbers (1, 2, 3...).
-- Pipeline: 5 stages (Waiting/Checked-In -> Triage -> Doctor Consultation -> Pharmacy -> Billing/Done).
-- Walk-In Intake: Instant registration directly into Stage 2 ('Available at Hospital').
-- Advance Check-In: Converts Stage 0 ('Pre-Booked') to Stage 1 ('Checked-In') when patient arrives.
-- System State: Line pause/resume tracked in `system_state.line_running`.
-- Tables: appointments, patients, doctors, system_state, timeline_events.
+4. DEPARTMENTS (departments)
+   - Primary Key: `id` (varchar, e.g. 'dep-cardio', 'dep-ortho')
+   - Fields: `name` (e.g. 'Cardiology', 'Neurology', 'General Medicine'), `icon` (FontAwesome class), `hospital_id`.
+   - Relationships:
+     • Linked to doctors through junction table `doctor_categories`.
+   - Used In: doctors.php, book.php, about.php.
 
-6. BED & INPATIENT MANAGEMENT (beds.php)
-- Purpose: Ward, room, and bed admission, occupancy tracking, and discharge.
-- Wards/Wings: 'ICU', 'General Ward Floor', 'Semi-Private', 'Deluxe Private', 'Emergency Trauma'.
-- Bed Statuses: Strictly 'Available' or 'Occupied'.
-- Allotment: Bed assigned to `patient_id` in `beds`, synchronized with `appointments.bed_number` and `stage = 5`.
-- Discharge Workflow:
-  1. Set `beds.status = 'Available'` and `beds.patient_id = NULL` for the bed number.
-  2. Set `appointments.status = 'Discharged from Bed'` and `appointments.bed_number = NULL`.
-  3. Insert discharge entry into `timeline_events`.
-- Tables: beds, patients, appointments, timeline_events.
+5. DOCTOR CATEGORIES (doctor_categories)
+   - Composite Primary Key: (`doctor_id`, `department_id`)
+   - Purpose: Junction table linking doctors to medical specialties and departments.
+   - Used In: doctors.php, book.php, queue.php (subquery for doctor's dept).
 
-7. STAFF & ATTENDANCE MANAGEMENT (staff.php & api/staff.php)
-- Purpose: Human resources roster and daily/monthly employee attendance tracking.
-- Staff Fields: id, hospital_id, staff_code (e.g., 'STF-101'), first_name, last_name, role, department, shift, status ('Active'/'Inactive'), phone, email, qualification, salary.
-- Roles: Nurse, Doctor, Receptionist, Lab Tech, RMO, Admin, Housekeeping, Security.
-- Daily Attendance Table (`staff_attendance`):
-  • MUST use table `staff_attendance` (NEVER update a non-existent column in `staff`!).
-  • Fields: hospital_id, staff_id, date, status, check_in_time, check_out_time, working_hours, notes, marked_by.
-  • Valid Statuses: Strictly 'Present', 'Absent', 'Late', 'Half Day', 'On Leave'.
-  • Standard Working Hours: Present = 8.0 hrs (08:00 check-in), Late = 7.5 hrs, Half Day = 4.0 hrs, Absent/Leave = 0 hrs.
-  • Constraint: UNIQUE key on (hospital_id, staff_id, date) -> Use `ON DUPLICATE KEY UPDATE`.
-- Bulk Operations: Mark all active staff for today/date in 1 click.
-- Monthly Sheet: Computes total days, present days, late days, half days, total hours, and attendance rate %.
-- Tables: staff, staff_attendance.
+6. DOCTOR DAY SCHEDULES (doctor_day_schedules)
+   - Primary Key: `id` (int)
+   - Fields: `doctor_id`, `day_of_week` ('Monday'..'Sunday'), `is_available` (1/0), `start_time` (e.g. '09:00'), `end_time` (e.g. '17:00'), `duration_minutes` (e.g. 15), `break_start`, `break_end`, `custom_slots`.
+   - Used In: doctor_slots.php, book.php (to calculate available consultation slots).
 
-8. MEDICAL HISTORY & CONSULTATIONS (history.php & consultation.php)
-- Purpose: Longitudinal patient electronic health records (EHR).
-- Doctor Notes: Saved in `appointments.doctor_notes`.
-- Prescriptions (`prescriptions`): medicine_name, dosage, frequency, duration, instructions, appointment_id.
-- Diagnoses (`diagnoses`): description, appointment_id.
-- Reports (`patient_files`): title, file_path, file_name, mime_type, file_size, record_date, appointment_id.
-- Tables: appointments, prescriptions, diagnoses, patient_files, patients, doctors.
+7. DOCTOR SLOTS (doctor_slots)
+   - Primary Key: `id` (int)
+   - Fields: `doctor_id`, `time_slot` (e.g. '09:00 AM', '10:30 AM').
+   - Used In: doctor_slots.php, book.php.
 
-9. BACKUP & RESTORE (backup.php & restore.php)
-- Purpose: Automated and manual SQL database dumps and system restoration.
-- Features: Generate .sql backup, secure download, auto-backup intervals, database restore.
-- Directory: /backups with .htaccess protection.
+8. APPOINTMENTS (appointments)
+   - Primary Key: `id` (int, auto_increment) -> Displayed as 'APP-0001' in UI.
+   - CRITICAL CAVEAT: Column for appointment date is `date` (NOT `appointment_date`).
+   - Fields: `patient_id` (FK to patients.id), `doctor_id` (FK to doctors.id), `type` ('General Consultation', 'Follow-up', 'Emergency Case', 'Health Checkup'), `date` (YYYY-MM-DD), `slot` (e.g. '09:30 AM', 'Immediate Walk-In'), `symptoms`, `allergies`, `status`, `stage` (0 to 5), `bed_number` (FK to beds.bed_number), `doctor_notes`, `hospital_id`, `created_at`.
+   - Stages Lifecycle:
+     • Stage 0: Pre-Booked (advance appointment)
+     • Stage 1: Checked-In (patient arrived at hospital desk)
+     • Stage 2: Available at Hospital / Triage
+     • Stage 3: In Consultation (with doctor)
+     • Stage 4: Pharmacy / Billing
+     • Stage 5: Inpatient Bed Admission / Discharged
+   - Relationships:
+     • appointments.patient_id = patients.id
+     • appointments.doctor_id = doctors.id
+     • One-to-Many with prescriptions: prescriptions.appointment_id = appointments.id
+     • One-to-Many with diagnoses: diagnoses.appointment_id = appointments.id
+     • One-to-Many with timeline_events: timeline_events.appointment_id = appointments.id
+     • One-to-Many with patient_files: patient_files.appointment_id = appointments.id
+   - Used In: appointments.php, book.php, queue.php, consultation.php, history.php, dashboard.php.
 
-10. HOSPITAL SETTINGS (about.php & register_hospital.php)
-- Purpose: Multi-hospital multi-tenancy configuration and facility profile.
-- Fields: hospital name, code, address, contact numbers, emergency hotline, bed capacity.
-- Table: hospitals.
+9. BEDS (beds)
+   - Primary Key: `id` (varchar, e.g. 'bed-1718293041')
+   - Fields: `bed_number` (varchar, unique, e.g. 'Bed 101', 'ICU-01'), `type` ('ICU', 'General', 'Private', 'Semi-Private'), `wing` ('General Ward Floor', 'ICU Wing', 'Deluxe Wing'), `status` ('Available' or 'Occupied'), `patient_id` (FK to patients.id), `hospital_id`.
+   - Relationships:
+     • beds.patient_id = patients.id
+     • Synchronized with appointments.bed_number at Stage 5.
+   - Discharge Flow: Sets `status = 'Available'`, `patient_id = NULL`, and sets `appointments.status = 'Discharged from Bed'`.
+   - Used In: beds.php, queue.php, dashboard.php.
+
+10. STAFF (staff)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id`, `staff_code` (e.g. 'STF-101'), `first_name`, `last_name`, `email`, `phone`, `role` ('Senior Staff Nurse', 'Head Pharmacist', 'Chief Medical Lab Technician', 'Front Desk Officer / Receptionist', 'Resident Medical Officer (RMO)', 'Housekeeping', 'Security'), `department`, `gender`, `date_of_birth`, `joining_date`, `shift` ('Morning (08:00 - 16:00)', 'Evening (16:00 - 00:00)', 'Night (00:00 - 08:00)'), `status` ('Active'/'Inactive'), `qualification`, `salary`, `blood_group`, `emergency_contact`, `address`, `is_user`, `username`, `password`, `created_at`.
+    - Relationships:
+      • One-to-Many with staff_attendance: staff_attendance.staff_id = staff.id
+    - CRITICAL CAVEAT: Attendance is NEVER stored as a column in `staff`. It is ALWAYS in `staff_attendance`.
+    - Used In: staff.php, dashboard.php.
+
+11. STAFF ATTENDANCE (staff_attendance)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id`, `staff_id` (FK to staff.id), `date` (YYYY-MM-DD), `status` (ENUM: 'Present', 'Absent', 'Late', 'Half Day', 'On Leave'), `check_in_time` (time), `check_out_time` (time), `working_hours` (decimal, e.g. 8.00 for Present, 7.50 for Late, 4.00 for Half Day, 0.00 for Absent/Leave), `notes`, `marked_by`, `created_at`, `updated_at`.
+    - Unique Constraint: (`hospital_id`, `staff_id`, `date`) -> Use `ON DUPLICATE KEY UPDATE`.
+    - Used In: staff.php, dashboard.php.
+
+12. PRESCRIPTIONS (prescriptions)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `appointment_id` (FK to appointments.id), `medicine_name` (e.g. 'Paracetamol 500mg', 'Amoxicillin'), `dosage` (e.g. '1 tablet'), `frequency` (e.g. 'TDS (3 times a day)', 'BD (2 times a day)'), `duration` (e.g. '5 days'), `instructions` (e.g. 'Take after food').
+    - Relationships: prescriptions.appointment_id = appointments.id.
+    - Used In: consultation.php, history.php, patient_profile.php.
+
+13. DIAGNOSES (diagnoses)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `appointment_id` (FK to appointments.id), `description` (e.g. 'Acute Bronchitis', 'Type 2 Diabetes Mellitus').
+    - Used In: consultation.php, history.php, patient_profile.php.
+
+14. PATIENT FILES (patient_files)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `patient_id` (FK to patients.id), `appointment_id` (FK to appointments.id), `title` (e.g. 'Chest X-Ray PA View', 'Complete Blood Count Report'), `file_path`, `record_date`, `file_data` (longblob), `file_name`, `mime_type`, `file_size`, `created_at`.
+    - Used In: consultation.php, patient_profile.php.
+
+15. TIMELINE EVENTS (timeline_events)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `appointment_id` (FK to appointments.id), `patient_id` (FK to patients.id), `event_time` (e.g. '10:30 AM'), `event_description`, `created_at`.
+    - Purpose: Immutable chronological audit trail of patient milestones (Check-in, Triage, Doctor Consultation, Bed Admission, Discharge).
+    - Used In: queue.php, patient_profile.php, beds.php.
+
+16. SYSTEM STATE (system_state)
+    - Primary Key: `id` (int) -> Single row configuration.
+    - Fields: `line_running` (tinyint: 1 = Queue Running, 0 = Queue Paused).
+    - Used In: queue.php (allows front desk to pause/resume ticket intake).
+
+17. AI CONVERSATIONS (ai_conversations)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id`, `user_type` ('admin'/'staff'), `user_id` (username or staff code), `user_role`, `title`, `model_used`, `page_context` (e.g. 'dashboard.php', 'beds.php'), `created_at`, `updated_at`.
+    - Used In: api/chatbot.php, ai_logs.php.
+
+18. AI CHAT MESSAGES (ai_chat_messages)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `conversation_id` (FK to ai_conversations.id), `role` ('user'/'assistant'/'system'), `content`, `tokens_used`, `sql_executed`, `response_time_ms`, `created_at`.
+    - Used In: api/chatbot.php, ai_logs.php.
+
+19. AI PENDING ACTIONS (ai_pending_actions)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `conversation_id`, `message_id`, `hospital_id`, `action_type` ('INSERT'/'UPDATE'/'DELETE'), `target_table`, `description`, `sql_query`, `sql_params`, `validation_data`, `status` ('pending', 'confirmed', 'cancelled', 'expired', 'executed', 'failed'), `confirmed_at`, `executed_at`, `error_message`, `expires_at`, `created_at`.
+    - Used In: api/chatbot.php, includes/chatbot_widget.php, ai_logs.php.
+
+20. AI ACTION LOG (ai_action_log)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id`, `user_id`, `user_role`, `action_id`, `action_type`, `target_table`, `sql_executed`, `rows_affected`, `success` (1/0), `error_message`, `ip_address`, `created_at`.
+    - Purpose: Immutable security audit log of every database write performed by the AI.
+    - Used In: api/chatbot.php, ai_logs.php.
+
+21. AI CONFIG (ai_config)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id` (unique), `enabled`, `model_name`, `ollama_url`, `max_tokens`, `temperature`, `context_window`, `rate_limit_per_minute`, `allowed_tables`, `system_prompt_override`.
+    - Used In: ai/config.php, ai_logs.php.
+
+--- 2. UI TERMINOLOGY TO DATABASE FIELD TRANSLATION ---
+• UI "Patient MRN" / "Patient Code" -> patients.id
+• UI "Appointment Date" -> appointments.date (NOT appointment_date)
+• UI "Specialty" / "Department" -> departments.name (JOIN doctor_categories ON departments.id = doctor_categories.department_id)
+• UI "Doctor Experience" -> doctors.experience
+• UI "Doctor Degree / Qualifications" -> doctors.degree
+• UI "Doctor Contact" -> doctors.phone
+• UI "Bed Status" -> beds.status ('Available' or 'Occupied')
+• UI "Bed Wing / Ward" -> beds.wing / beds.type
+• UI "Staff Attendance" -> staff_attendance.status (NEVER staff table)
+• UI "Hours Worked" -> staff_attendance.working_hours
+• UI "Check-In Time" -> staff_attendance.check_in_time
+• UI "Queue Ticket" / "Token Number" -> Computed dynamically by appointment sequence today in queue.php
+• UI "Consultation Notes" -> appointments.doctor_notes
+• UI "Lab Reports / Documents" -> patient_files
+• UI "Prescribed Medicines" -> prescriptions.medicine_name, dosage, frequency, duration
+• UI "Clinical Diagnosis" -> diagnoses.description
 KNOWLEDGE;
 }
