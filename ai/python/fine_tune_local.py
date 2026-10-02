@@ -47,7 +47,7 @@ def run_fine_tuning(
     base_model_name="Qwen/Qwen2.5-1.5B-Instruct",
     dataset_file="hms_training_chatml.jsonl",
     output_dir="./hms_lora_weights",
-    epochs=3,
+    epochs=22,
     batch_size=1,
     grad_accum=4,
     lr=2e-4

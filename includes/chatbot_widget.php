@@ -835,18 +835,30 @@ const BhoomaAI = {
     },
     
     renderActionCard(actionId, details) {
+        const isDelete = typeof details === 'string' && (details.toLowerCase().includes('delete') || details.toLowerCase().includes('cancel'));
+        const badgeColor = isDelete ? 'bg-rose-500' : 'bg-amber-400';
+        const cardBg = isDelete ? 'bg-rose-50 border-2 border-rose-300' : 'bg-amber-50 border-2 border-amber-200';
+        const titleText = isDelete ? '⚠️ Confirm Deletion / Cancellation' : '⚡ Confirm Action';
+        const titleColor = isDelete ? 'text-rose-900' : 'text-amber-800';
+        const detailColor = isDelete ? 'text-rose-800' : 'text-amber-700';
+        const confirmBtnClass = isDelete ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-500 hover:bg-emerald-600';
+        const confirmBtnText = isDelete ? '<i class="fa-solid fa-trash-can mr-1"></i> Confirm Delete' : '<i class="fa-solid fa-check mr-1"></i> Confirm';
+
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-start max-w-[85%] mt-2 mb-2';
         wrapper.innerHTML = `
-            <div class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
-                <i class="fa-solid fa-triangle-exclamation"></i>
+            <div class="w-6 h-6 rounded-full ${badgeColor} flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                <i class="fa-solid ${isDelete ? 'fa-triangle-exclamation' : 'fa-bolt'}"></i>
             </div>
-            <div class="bg-amber-50 border-2 border-amber-200 py-3 px-4 rounded-xl shadow-sm w-full" id="action-card-${actionId}">
-                <h4 class="font-bold text-amber-800 text-sm mb-1">Confirm Action</h4>
-                <p class="text-xs text-amber-700 mb-3">${details}</p>
+            <div class="${cardBg} py-3 px-4 rounded-xl shadow-sm w-full" id="action-card-${actionId}">
+                <div class="flex items-center justify-between mb-1">
+                    <h4 class="font-bold ${titleColor} text-sm">${titleText}</h4>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isDelete ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}">Requires Approval</span>
+                </div>
+                <p class="text-xs ${detailColor} mb-3 leading-relaxed">${details}</p>
                 <div class="flex space-x-2">
-                    <button type="button" class="bhooma-confirm-btn bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1 cursor-pointer" data-id="${actionId}">
-                        <i class="fa-solid fa-check mr-1"></i> Confirm
+                    <button type="button" class="bhooma-confirm-btn ${confirmBtnClass} text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1 cursor-pointer" data-id="${actionId}">
+                        ${confirmBtnText}
                     </button>
                     <button type="button" class="bhooma-cancel-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1 cursor-pointer" data-id="${actionId}">
                         Cancel
@@ -878,10 +890,164 @@ const BhoomaAI = {
         const types = opts.types || ['General Consultation', 'Specialist Review', 'Follow-up Consultation', 'Emergency Consultation'];
         const slots = opts.slots || ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '02:00 PM', '02:30 PM', '03:00 PM', '04:00 PM'];
         const todayStr = new Date().toISOString().split('T')[0];
+        const prefill = config.prefill || {};
 
         let formHtml = '';
 
-        if (formType === 'book_appointment') {
+        if (formType === 'update_doctor') {
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-blue-50/40 border border-blue-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-blue-100">
+                        <div class="flex items-center gap-2 text-blue-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-user-doctor"></i>
+                            </span>
+                            <span>Edit Doctor Records</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Live Update</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitDoctorUpdateForm('${formId}');">
+                        <input type="hidden" id="${formId}-doc-id" value="${prefill.id || ''}">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Full Doctor Name *</label>
+                            <input type="text" id="${formId}-doc-name" value="${prefill.name || ''}" required
+                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-blue-500/50">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Degree / Qualifications</label>
+                                <input type="text" id="${formId}-doc-degree" value="${prefill.degree || ''}"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Experience</label>
+                                <input type="text" id="${formId}-doc-exp" value="${prefill.experience || ''}"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/50">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Phone Number</label>
+                            <input type="text" id="${formId}-doc-phone" value="${prefill.phone || ''}"
+                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/50">
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-floppy-disk"></i> <span>Submit Changes</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'update_patient') {
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-emerald-100">
+                        <div class="flex items-center gap-2 text-emerald-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-hospital-user"></i>
+                            </span>
+                            <span>Edit Patient Profile</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wider">${prefill.id || 'PAT'}</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitPatientUpdateForm('${formId}');">
+                        <input type="hidden" id="${formId}-pat-id" value="${prefill.id || ''}">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">First Name *</label>
+                                <input type="text" id="${formId}-pat-name" value="${prefill.name || ''}" required
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Surname</label>
+                                <input type="text" id="${formId}-pat-surname" value="${prefill.surname || ''}"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500/50">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Phone</label>
+                                <input type="text" id="${formId}-pat-phone" value="${prefill.phone || ''}"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Blood Group</label>
+                                <input type="text" id="${formId}-pat-bg" value="${prefill.blood_group || ''}" placeholder="e.g. B+, O-"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500/50">
+                            </div>
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-floppy-disk"></i> <span>Submit Changes</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'update_bed') {
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-amber-50/40 border border-amber-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-amber-100">
+                        <div class="flex items-center gap-2 text-amber-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-amber-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-bed"></i>
+                            </span>
+                            <span>Edit Bed Settings</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Bed ${prefill.bed_number || ''}</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitBedUpdateForm('${formId}');">
+                        <input type="hidden" id="${formId}-bed-num" value="${prefill.bed_number || ''}">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Ward Type</label>
+                                <input type="text" id="${formId}-bed-type" value="${prefill.type || 'General Ward'}"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-amber-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Wing</label>
+                                <input type="text" id="${formId}-bed-wing" value="${prefill.wing || 'Wing A'}"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-amber-500/50">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Status</label>
+                            <select id="${formId}-bed-status" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-amber-500/50">
+                                <option value="Available" ${prefill.status === 'Available' ? 'selected' : ''}>Available</option>
+                                <option value="Occupied" ${prefill.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+                                <option value="Maintenance" ${prefill.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+                            </select>
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-floppy-disk"></i> <span>Submit Changes</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'book_appointment') {
             let docOptions = '<option value="">-- Choose Specialist Doctor --</option>';
             doctors.forEach(d => {
                 docOptions += `<option value="${d.id}">${d.name} (${d.department})</option>`;
@@ -1022,6 +1188,187 @@ const BhoomaAI = {
                         <div class="flex items-center gap-2 pt-1">
                             <button type="submit" id="${formId}-submit" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
                                 <i class="fa-solid fa-bed"></i> <span>Confirm Inpatient Admission</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'add_patient') {
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-teal-50/40 border border-teal-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-teal-100">
+                        <div class="flex items-center gap-2 text-teal-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-user-plus"></i>
+                            </span>
+                            <span>Register New Patient</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full uppercase tracking-wider">New Record</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitPatientAddForm('${formId}');">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">First Name *</label>
+                                <input type="text" id="${formId}-addpat-name" value="${prefill.name || ''}" required placeholder="First name"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-teal-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Surname</label>
+                                <input type="text" id="${formId}-addpat-surname" value="${prefill.surname || ''}" placeholder="Surname"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-teal-500/50">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Gender *</label>
+                                <select id="${formId}-addpat-gender" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-teal-500/50">
+                                    <option value="Male" ${prefill.gender === 'Male' ? 'selected' : ''}>Male</option>
+                                    <option value="Female" ${prefill.gender === 'Female' ? 'selected' : ''}>Female</option>
+                                    <option value="Other" ${prefill.gender === 'Other' ? 'selected' : ''}>Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Blood Group *</label>
+                                <select id="${formId}-addpat-bg" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-teal-500/50">
+                                    <option value="A+" ${prefill.blood_group === 'A+' ? 'selected' : ''}>A+</option>
+                                    <option value="A-" ${prefill.blood_group === 'A-' ? 'selected' : ''}>A-</option>
+                                    <option value="B+" ${prefill.blood_group === 'B+' ? 'selected' : ''}>B+</option>
+                                    <option value="B-" ${prefill.blood_group === 'B-' ? 'selected' : ''}>B-</option>
+                                    <option value="AB+" ${prefill.blood_group === 'AB+' ? 'selected' : ''}>AB+</option>
+                                    <option value="AB-" ${prefill.blood_group === 'AB-' ? 'selected' : ''}>AB-</option>
+                                    <option value="O+" ${prefill.blood_group === 'O+' ? 'selected' : ''}>O+</option>
+                                    <option value="O-" ${prefill.blood_group === 'O-' ? 'selected' : ''}>O-</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Age *</label>
+                                <input type="number" id="${formId}-addpat-age" value="${prefill.age || '30'}" required min="0" max="120"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-teal-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Phone Number</label>
+                                <input type="text" id="${formId}-addpat-phone" value="${prefill.phone || ''}" placeholder="+91 98..."
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-teal-500/50">
+                            </div>
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-user-check"></i> <span>Register Patient</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'add_doctor') {
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-sky-50/40 border border-sky-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-sky-100">
+                        <div class="flex items-center gap-2 text-sky-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-user-doctor"></i>
+                            </span>
+                            <span>Onboard New Doctor</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full uppercase tracking-wider">New Specialist</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitDoctorAddForm('${formId}');">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Doctor Full Name *</label>
+                            <input type="text" id="${formId}-adddoc-name" value="${prefill.name || 'Dr. '}" required placeholder="Dr. Firstname Lastname"
+                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Department</label>
+                                <input type="text" id="${formId}-adddoc-dept" value="${prefill.department || 'General Medicine'}" placeholder="Cardiology, Ortho..."
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Degree / Qualification</label>
+                                <input type="text" id="${formId}-adddoc-degree" value="${prefill.degree || 'MBBS, MD'}" placeholder="MBBS, MS..."
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Experience</label>
+                                <input type="text" id="${formId}-adddoc-exp" value="${prefill.experience || '5 Years'}" placeholder="Years of exp"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Phone Number</label>
+                                <input type="text" id="${formId}-adddoc-phone" value="${prefill.phone || ''}" placeholder="+91 98..."
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50">
+                            </div>
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-stethoscope"></i> <span>Add Doctor to System</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'add_bed') {
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-violet-50/40 border border-violet-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-violet-100">
+                        <div class="flex items-center gap-2 text-violet-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-violet-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-bed"></i>
+                            </span>
+                            <span>Create New Bed / Room</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Inventory</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitBedAddForm('${formId}');">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Bed Number *</label>
+                            <input type="text" id="${formId}-addbed-num" value="${prefill.bed_number || ''}" required placeholder="e.g. ICU-11, GEN-126"
+                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-violet-500/50">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Ward Type</label>
+                                <select id="${formId}-addbed-type" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-violet-500/50">
+                                    <option value="ICU">ICU</option>
+                                    <option value="General Ward" selected>General Ward</option>
+                                    <option value="Private">Private</option>
+                                    <option value="Semi-Private">Semi-Private</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Wing</label>
+                                <input type="text" id="${formId}-addbed-wing" value="${prefill.wing || 'North Wing'}" placeholder="North Wing, Critical Care..."
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-violet-500/50">
+                            </div>
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-plus-circle"></i> <span>Add Bed to Inventory</span>
                             </button>
                             <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
                                 Cancel
@@ -1232,6 +1579,332 @@ const BhoomaAI = {
             btn.disabled = false;
             btn.innerHTML = `<i class="fa-solid fa-bed"></i> Confirm Inpatient Admission`;
             errEl.textContent = 'Server connection error. Please try again.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitDoctorUpdateForm(formId) {
+        const idEl = document.getElementById(`${formId}-doc-id`);
+        const nameEl = document.getElementById(`${formId}-doc-name`);
+        const degEl = document.getElementById(`${formId}-doc-degree`);
+        const expEl = document.getElementById(`${formId}-doc-exp`);
+        const phEl = document.getElementById(`${formId}-doc-phone`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        if (!nameEl.value.trim()) {
+            errEl.textContent = 'Please enter a valid doctor name.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'update_doctor_form');
+            formData.append('doctor_id', idEl.value);
+            formData.append('name', nameEl.value.trim());
+            formData.append('degree', degEl.value.trim());
+            formData.append('experience', expEl.value.trim());
+            formData.append('phone', phEl.value.trim());
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 w-full font-semibold">
+                            ✅ ${data.message}
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **${nameEl.value.trim()}** profile updated in database.`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Submit Changes</span>`;
+                errEl.textContent = data.message || 'Failed to update doctor.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            errEl.textContent = 'Network error while saving changes.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitPatientUpdateForm(formId) {
+        const idEl = document.getElementById(`${formId}-pat-id`);
+        const nameEl = document.getElementById(`${formId}-pat-name`);
+        const surEl = document.getElementById(`${formId}-pat-surname`);
+        const phEl = document.getElementById(`${formId}-pat-phone`);
+        const bgEl = document.getElementById(`${formId}-pat-bg`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        if (!nameEl.value.trim()) {
+            errEl.textContent = 'First name is required.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'update_patient_form');
+            formData.append('patient_id', idEl.value);
+            formData.append('name', nameEl.value.trim());
+            formData.append('surname', surEl.value.trim());
+            formData.append('phone', phEl.value.trim());
+            formData.append('blood_group', bgEl.value.trim());
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 w-full font-semibold">
+                            ✅ ${data.message}
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **${nameEl.value.trim()}** record updated in database.`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Submit Changes</span>`;
+                errEl.textContent = data.message || 'Failed to update patient.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            errEl.textContent = 'Network error.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitBedUpdateForm(formId) {
+        const numEl = document.getElementById(`${formId}-bed-num`);
+        const typeEl = document.getElementById(`${formId}-bed-type`);
+        const wingEl = document.getElementById(`${formId}-bed-wing`);
+        const statEl = document.getElementById(`${formId}-bed-status`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Saving...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'update_bed_form');
+            formData.append('bed_number', numEl.value);
+            formData.append('type', typeEl.value.trim());
+            formData.append('wing', wingEl.value.trim());
+            formData.append('status', statEl.value);
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-bed"></i>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 w-full font-semibold">
+                            ✅ ${data.message}
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ Bed **${numEl.value}** updated to ${typeEl.value} (${statEl.value}).`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Submit Changes</span>`;
+                errEl.textContent = data.message || 'Failed to update bed.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            errEl.textContent = 'Network error.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitPatientAddForm(formId) {
+        const nameEl = document.getElementById(`${formId}-addpat-name`);
+        const surnameEl = document.getElementById(`${formId}-addpat-surname`);
+        const genEl = document.getElementById(`${formId}-addpat-gender`);
+        const bgEl = document.getElementById(`${formId}-addpat-bg`);
+        const ageEl = document.getElementById(`${formId}-addpat-age`);
+        const phEl = document.getElementById(`${formId}-addpat-phone`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        if (!nameEl.value.trim()) {
+            errEl.textContent = 'Please enter patient name.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Registering...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'add_patient_form');
+            formData.append('name', nameEl.value.trim());
+            formData.append('surname', surnameEl.value.trim());
+            formData.append('gender', genEl.value);
+            formData.append('blood_group', bgEl.value);
+            formData.append('age', ageEl.value);
+            formData.append('phone', phEl.value.trim());
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div class="bg-teal-50 border border-teal-200 rounded-xl p-3 text-xs text-teal-900 w-full font-semibold">
+                            ✅ ${data.message}
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **Patient Registered:** ${nameEl.value.trim()} ${surnameEl.value.trim()} (Blood Group: ${bgEl.value}, Gender: ${genEl.value}, MRN: **${data.patient_id}**).`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Register Patient</span>`;
+                errEl.textContent = data.message || 'Failed to register patient.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            errEl.textContent = 'Network error.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitDoctorAddForm(formId) {
+        const nameEl = document.getElementById(`${formId}-adddoc-name`);
+        const deptEl = document.getElementById(`${formId}-adddoc-dept`);
+        const degEl = document.getElementById(`${formId}-adddoc-degree`);
+        const expEl = document.getElementById(`${formId}-adddoc-exp`);
+        const phEl = document.getElementById(`${formId}-adddoc-phone`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        if (!nameEl.value.trim()) {
+            errEl.textContent = 'Please enter doctor name.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Adding Doctor...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'add_doctor_form');
+            formData.append('name', nameEl.value.trim());
+            formData.append('department', deptEl.value.trim());
+            formData.append('degree', degEl.value.trim());
+            formData.append('experience', expEl.value.trim());
+            formData.append('phone', phEl.value.trim());
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-sky-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-stethoscope"></i>
+                        </div>
+                        <div class="bg-sky-50 border border-sky-200 rounded-xl p-3 text-xs text-sky-900 w-full font-semibold">
+                            ✅ ${data.message}
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **Doctor Added:** ${nameEl.value.trim()} (${deptEl.value.trim()} - ${degEl.value.trim()}).`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Add Doctor to System</span>`;
+                errEl.textContent = data.message || 'Failed to add doctor.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            errEl.textContent = 'Network error.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitBedAddForm(formId) {
+        const numEl = document.getElementById(`${formId}-addbed-num`);
+        const typeEl = document.getElementById(`${formId}-addbed-type`);
+        const wingEl = document.getElementById(`${formId}-addbed-wing`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        if (!numEl.value.trim()) {
+            errEl.textContent = 'Please enter bed number.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Creating Bed...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'add_bed_form');
+            formData.append('bed_number', numEl.value.trim());
+            formData.append('type', typeEl.value);
+            formData.append('wing', wingEl.value.trim());
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-violet-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-bed"></i>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-xs text-violet-900 w-full font-semibold">
+                            ✅ ${data.message}
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **Bed Created:** Bed **${numEl.value.trim()}** (${typeEl.value}, ${wingEl.value.trim()}) added as Available.`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Add Bed to Inventory</span>`;
+                errEl.textContent = data.message || 'Failed to create bed.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            errEl.textContent = 'Network error.';
             errEl.classList.remove('hidden');
         }
     },

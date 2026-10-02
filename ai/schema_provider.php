@@ -34,16 +34,16 @@ function getFullSchema($conn) {
 
 function getRelevantSchema($conn, $keywords) {
     $schemaMap = [
-        'patients' => ['patient', 'pateint', 'patiant', 'pecent', 'sick', 'admit', 'ipd', 'opd', 'register', 'blood', 'demographic', 'age', 'gender', 'phone', 'surname', 'contact'],
-        'beds' => ['bed', 'bedd', 'baid', 'ward', 'icu', 'occupied', 'available', 'empty', 'allot', 'room', 'wing', 'admit'],
-        'doctors' => ['doctor', 'docter', 'doctar', 'dr', 'doc', 'surgeon', 'physician', 'specialist', 'experience', 'degree', 'schedule', 'slot', 'opd'],
+        'patients' => ['patient', 'pateint', 'patiant', 'pecent', 'sick', 'admit', 'ipd', 'opd', 'register', 'blood', 'blood group', 'bloodgroup', 'a+', 'a-', 'b+', 'b-', 'ab+', 'ab-', 'o+', 'o-', 'male', 'female', 'men', 'women', 'donor', 'demographic', 'age', 'gender', 'phone', 'surname', 'contact', 'mareez', 'bimar'],
+        'beds' => ['bed', 'bedd', 'baid', 'ward', 'icu', 'occupied', 'available', 'empty', 'allot', 'room', 'wing', 'admit', 'kamra', 'khatiya', 'palang', 'vacant'],
+        'doctors' => ['doctor', 'docter', 'doctar', 'dr', 'doc', 'surgeon', 'physician', 'specialist', 'experience', 'degree', 'schedule', 'slot', 'opd', 'vaidya', 'fees', 'fee'],
         'doctor_day_schedules' => ['schedule', 'timing', 'available', 'day', 'break', 'slot'],
         'doctor_slots' => ['slot', 'time_slot', 'booking_time', 'time'],
         'doctor_categories' => ['category', 'specialty', 'speciality'],
-        'staff' => ['staff', 'staf', 'stff', 'nurse', 'nurce', 'employee', 'worker', 'receptionist', 'duty', 'shift', 'salary'],
-        'staff_attendance' => ['attendance', 'present', 'absent', 'late', 'duty', 'checkin', 'checkout'],
-        'appointments' => ['appointment', 'apointment', 'appoinment', 'book', 'booking', 'consult', 'queue', 'visit', 'token', 'slot'],
-        'prescriptions' => ['prescription', 'prescribtion', 'medicine', 'medisin', 'drug', 'dawa', 'dosage', 'frequency', 'duration'],
+        'staff' => ['staff', 'staf', 'stff', 'nurse', 'nurce', 'employee', 'worker', 'receptionist', 'duty', 'shift', 'salary', 'sister', 'compounder', 'karamchari'],
+        'staff_attendance' => ['attendance', 'present', 'absent', 'late', 'duty', 'checkin', 'checkout', 'haziri'],
+        'appointments' => ['appointment', 'apointment', 'appoinment', 'book', 'booking', 'consult', 'queue', 'visit', 'token', 'slot', 'parchi', 'slip'],
+        'prescriptions' => ['prescription', 'prescribtion', 'medicine', 'medisin', 'drug', 'dawa', 'dosage', 'frequency', 'duration', 'goli', 'tablet', 'dawakhana'],
         'diagnoses' => ['diagnosis', 'diagnose', 'disease', 'illness', 'symptom', 'condition', 'allergies'],
         'departments' => ['department', 'deparment', 'dept', 'specialty', 'wing', 'cardio', 'ortho', 'pediatric', 'icu'],
         'patient_files' => ['file', 'report', 'upload', 'document', 'test', 'scan', 'lab'],

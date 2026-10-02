@@ -26,21 +26,30 @@ function getQueryGenerationPrompt($hospitalName, $hospitalId, $userRole, $curren
     $prompt .= "\n--- DATABASE SCHEMA ---\n";
     $prompt .= $schemaContext . "\n";
     
-    $prompt .= "\n--- STRICT OPERATIONAL RULES ---\n";
-    $prompt .= "1. TYPO & LANGUAGE TOLERANCE: The user may have spelling mistakes, typos, shorthand, or Hinglish (e.g. 'pateint' -> patients, 'docter' -> doctors, 'apointment' -> appointments, 'bedd' -> beds, 'stff' -> staff, 'haziri'/'attdence' -> staff attendance). Always infer their true intent.\n";
-    $prompt .= "2. READ INTENT: If the user wants to read or see information (e.g. count, list, find, check, view status), output ONLY a valid MySQL SELECT query wrapped in ```sql ... ```.\n";
-    $prompt .= "   - ALWAYS filter by `hospital_id = $hospitalId` for every table that has hospital_id.\n";
-    $prompt .= "   - STRICTLY use ONLY columns that actually exist in the schema. Do NOT invent columns like `doctors.created_at` or `patients.email`.\n";
-    $prompt .= "   - Use appropriate JOINs where needed (ALWAYS prefer LEFT JOIN so records with NULL relations are never omitted, e.g. doctors LEFT JOIN departments ON doctors.department_id = departments.id).\n";
-    $prompt .= "   - Output NOTHING ELSE except the ```sql block.\n";
-    $prompt .= "3. WRITE / OPERATIONAL INTENT:\n";
-    $prompt .= "   - If the user asks to perform an action (e.g. mark attendance, book appointment, discharge bed, check in patient) but is MISSING REQUIRED DETAILS or the target is ambiguous (e.g. which employee, which bed number, which appointment slot):\n";
-    $prompt .= "     Output ONLY: CLARIFY: <Friendly question asking back for the missing details and offering choices>\n";
-    $prompt .= "   - If ALL required details are present, output ONLY a JSON action plan wrapped in ```json ... ``` with keys: action_type, table, description, sql, params.\n";
-    $prompt .= "   - IMPORTANT TABLE RULES FOR WRITES:\n";
-    $prompt .= "     • Staff attendance MUST be inserted/updated in `staff_attendance` with columns: hospital_id, staff_id, date, status, check_in_time, working_hours, marked_by. NEVER update a non-existent column in `staff`!\n";
-    $prompt .= "     • Bed discharge MUST set `beds.status = 'Available'`, `beds.patient_id = NULL` and `appointments.status = 'Discharged from Bed'`.\n";
-    $prompt .= "4. NO DATABASE ACTION NEEDED: If the user is just saying hello, asking a general medical question, or asking how the system works, output ONLY:\nNO_SQL\n";
+    $prompt .= "\n--- STRICT OPERATIONAL RULES & INTELLIGENCE ---\n";
+    $prompt .= "1. MULTI-TURN CONVERSATION & PRONOUN RESOLUTION:\n";
+    $prompt .= "   • The conversation history is provided above. Always resolve pronouns and relative references using the previous messages!\n";
+    $prompt .= "   • If the user asks 'delete that doctor', 'remove him', 'delete Dr. [name]', 'cancel that appointment', 'discharge that bed', find the exact doctor, appointment, patient, or bed referenced in the previous assistant or user message.\n";
+    $prompt .= "2. SYNONYM & REGIONAL VOCABULARY MAPPING:\n";
+    $prompt .= "   • 'Room' / 'Cabin' / 'Ward' / 'Bed' -> table `beds`\n";
+    $prompt .= "   • 'Physician' / 'Consultant' / 'Surgeon' / 'Doctor' / 'Vaidya' -> table `doctors`\n";
+    $prompt .= "   • 'Nurse' / 'Sister' / 'Compounder' / 'Staff' / 'Karamchari' -> table `staff`\n";
+    $prompt .= "   • 'Parchi' / 'Token' / 'Slip' / 'Booking' / 'Slot' / 'Appointment' -> table `appointments`\n";
+    $prompt .= "   • 'Dawa' / 'Goli' / 'Tablet' / 'Medicine' / 'Rx' -> table `prescriptions`\n";
+    $prompt .= "   • 'Hisaab' / 'Bill' / 'Fee' / 'Invoice' / 'Payment' -> table `invoices` or `billing`\n";
+    $prompt .= "   • 'Mareez' / 'Patient' / 'Case' -> table `patients`\n";
+    $prompt .= "3. READ INTENT:\n";
+    $prompt .= "   • If the user wants to read or see information, output ONLY a valid MySQL SELECT query wrapped in ```sql ... ```.\n";
+    $prompt .= "   • ALWAYS filter by `hospital_id = $hospitalId` for every table with hospital_id.\n";
+    $prompt .= "   • STRICTLY use existing columns. NEVER invent fake columns.\n";
+    $prompt .= "   • Output NOTHING ELSE except the ```sql block.\n";
+    $prompt .= "4. WRITE / DELETE / OPERATIONAL INTENT:\n";
+    $prompt .= "   • If user wants to DELETE (e.g. 'delete doctor Dr. Ambarish', 'delete that doctor', 'cancel appointment', 'delete bed'):\n";
+    $prompt .= "     Output ONLY a JSON action plan wrapped in ```json ... ``` with keys: action_type ('DELETE' or 'UPDATE'), table, description, sql, params.\n";
+    $prompt .= "     Example: ```json {\"action_type\": \"DELETE\", \"table\": \"doctors\", \"description\": \"Delete Dr. Ambarish from doctors directory\", \"sql\": \"DELETE FROM doctors WHERE id = 1 AND hospital_id = $hospitalId;\"} ```\n";
+    $prompt .= "   • If missing critical details, output ONLY: CLARIFY: <Friendly question asking back for the missing details and offering choices>\n";
+    $prompt .= "5. GENERAL OUTSIDE / CLINICAL QUESTIONS:\n";
+    $prompt .= "   • If user asks general health or medical questions (e.g. symptoms, treatments, first aid), output ONLY:\nNO_SQL\n";
     
     return $prompt;
 }

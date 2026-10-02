@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-HMS AI Master Dataset Generator (Gemini & Claude Style)
-======================================================
-Generates an extensive, professional, high-density fine-tuning dataset (2,500+ examples)
-covering ALL 34 hospital tables, foreign keys, outside commands, and clinical workflows.
+HMS AI Master Dataset Generator (Gemini & Claude Style) - 10,000+ Scale
+=======================================================================
+Generates a massive, elite-grade, high-density fine-tuning dataset (10,000+ examples)
+covering ALL 34 hospital tables, foreign keys, multi-attribute queries, outside commands,
+in-chat interactive forms, Hindi/Hinglish synonyms, and emergency clinical workflows.
 
 Tone & Style:
   - Modeled after Claude 3.5 Sonnet & Gemini 1.5 Pro: Crisp, authoritative, highly structured,
@@ -34,22 +35,27 @@ Rules:
 
 # Hospital Entities
 DOCTORS = [
-    ("doc-1", "Dr. Ambarish A. Panchasara", "Orthopedics", "Surgeon", "+91 98250 11223"),
-    ("doc-2", "Dr. Priya Patel", "Cardiology", "Cardiologist", "+91 98250 22334"),
-    ("doc-3", "Dr. Rajesh Sharma", "Pediatrics", "Pediatrician", "+91 98250 33445"),
-    ("doc-4", "Dr. Neha Verma", "General Medicine", "Physician", "+91 98250 44556"),
-    ("doc-5", "Dr. Suresh Joshi", "Neurology", "Neurologist", "+91 98250 55667")
+    ("doc-1", "Dr. Ambarish A. Panchasara", "Orthopedics", "Surgeon", "+91 98250 11223", 800, "15 Years"),
+    ("doc-2", "Dr. Priya Patel", "Cardiology", "Cardiologist", "+91 98250 22334", 1000, "12 Years"),
+    ("doc-3", "Dr. Rajesh Sharma", "Pediatrics", "Pediatrician", "+91 98250 33445", 600, "8 Years"),
+    ("doc-4", "Dr. Neha Verma", "General Medicine", "Physician", "+91 98250 44556", 500, "10 Years"),
+    ("doc-5", "Dr. Suresh Joshi", "Neurology", "Neurologist", "+91 98250 55667", 1200, "18 Years"),
+    ("doc-6", "Dr. Ananya Desai", "Gynecology", "Obstetrician", "+91 98250 66778", 750, "9 Years"),
+    ("doc-7", "Dr. Vikram Rathod", "Dermatology", "Dermatologist", "+91 98250 77889", 600, "7 Years"),
+    ("doc-8", "Dr. Meera Trivedi", "Radiology", "Radiologist", "+91 98250 88990", 900, "11 Years")
 ]
 
-DEPARTMENTS = ["Cardiology", "Orthopedics", "Pediatrics", "General Medicine", "Neurology", "ICU", "Emergency", "Radiology", "Pathology"]
+DEPARTMENTS = ["Cardiology", "Orthopedics", "Pediatrics", "General Medicine", "Neurology", "Gynecology", "Dermatology", "Radiology", "ICU", "Emergency", "Pathology"]
 
 BED_TYPES = ["ICU", "General Ward", "Private", "Semi-Private"]
 BEDS = [
-    (f"ICU-{i:02d}", "ICU", "Critical Care Wing") for i in range(1, 11)
+    (f"ICU-{i:02d}", "ICU", "Critical Care Wing", 5000) for i in range(1, 15)
 ] + [
-    (f"GEN-{i:03d}", "General Ward", "North Wing") for i in range(101, 125)
+    (f"GEN-{i:03d}", "General Ward", "North Wing", 1200) for i in range(101, 140)
 ] + [
-    (f"PVT-{i:03d}", "Private", "South Wing Deluxe") for i in range(201, 215)
+    (f"PVT-{i:03d}", "Private", "South Wing Deluxe", 3500) for i in range(201, 225)
+] + [
+    (f"SPV-{i:03d}", "Semi-Private", "East Wing", 2200) for i in range(301, 320)
 ]
 
 STAFF_MEMBERS = [
@@ -71,20 +77,129 @@ COMMON_MEDS = [
     ("Pantoprazole 40mg", "1 tablet", "OD (Once daily)", "10 days", "Take early morning on empty stomach"),
     ("Atorvastatin 20mg", "1 tablet", "OD (Night)", "30 days", "Take after dinner"),
     ("Metformin 500mg", "1 tablet", "BD (Twice daily)", "30 days", "Take with meals"),
-    ("Cetirizine 10mg", "1 tablet", "HS (At bedtime)", "3 days", "May cause slight drowsiness")
+    ("Cetirizine 10mg", "1 tablet", "HS (At bedtime)", "3 days", "May cause slight drowsiness"),
+    ("Azithromycin 500mg", "1 tablet", "OD (Once daily)", "3 days", "Take 1 hour before meal"),
+    ("Ibuprofen 400mg", "1 tablet", "BD (Twice daily)", "3 days", "Take strictly after meals with water")
 ]
 
-FIRST_NAMES = ["Dev", "Aarav", "Rohan", "Ananya", "Ishaan", "Kavya", "Manish", "Aditi", "Harsh", "Bhavna", "Nikhil", "Pooja", "Suresh", "Geeta", "Chetan"]
-LAST_NAMES = ["Patel", "Shah", "Sharma", "Trivedi", "Joshi", "Verma", "Rathod", "Mehta", "Chauhan", "Desai"]
+BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+GENDERS = ["Male", "Female", "Other"]
+
+FIRST_NAMES = ["Dev", "Aarav", "Rohan", "Ananya", "Ishaan", "Kavya", "Manish", "Aditi", "Harsh", "Bhavna", "Nikhil", "Pooja", "Suresh", "Geeta", "Chetan", "Manoj", "Alka", "Deepak", "Sunita", "Ramesh"]
+LAST_NAMES = ["Patel", "Shah", "Sharma", "Trivedi", "Joshi", "Verma", "Rathod", "Mehta", "Chauhan", "Desai", "Pandya", "Gohil", "Vyas"]
 
 def build_comprehensive_scenarios():
     dataset = []
 
     # =========================================================================
-    # 1. OUTSIDE COMMANDS: BED DISCHARGE, TRANSFER & OCCUPANCY
+    # 1. MULTI-ATTRIBUTE PATIENT SEARCH (Blood Group + Gender + Age + Emergency)
     # =========================================================================
-    for bed_no, b_type, wing in BEDS[:15]:
-        # Outside command: Discharge bed
+    for bg in BLOOD_GROUPS:
+        for g in ["Male", "Female"]:
+            # Query 1: Direct blood group + gender
+            dataset.append({
+                "instruction": f"Find all {g.lower()} patients with blood group {bg}",
+                "output": f"> 💡 **Direct Answer:** Searching patient directory for **{g}** patients with blood group **{bg}**.\n\n"
+                          f"```sql\n"
+                          f"SELECT id AS mrn, CONCAT(name, ' ', COALESCE(surname, '')) AS patient_name, gender, blood_group, age, phone, emergency_contact_name, emergency_contact_phone "
+                          f"FROM patients "
+                          f"WHERE blood_group = '{bg}' AND gender = '{g}' AND hospital_id = 1 "
+                          f"ORDER BY name ASC LIMIT 50;\n"
+                          f"```\n\n"
+                          f"• Filter Applied: `blood_group = '{bg}'` AND `gender = '{g}'`\n"
+                          f"• Returns official MRN, age, and emergency contact coordinates."
+            })
+
+            # Query 2: Colloquial variations (e.g. "blood group A+ male", "A+ male patient details")
+            dataset.append({
+                "instruction": f"blood group {bg} {g.lower()}",
+                "output": f"> 💡 **Direct Answer:** Filtering hospital database for **{bg} ({g})** patient profiles.\n\n"
+                          f"```sql\n"
+                          f"SELECT id AS mrn, CONCAT(name, ' ', COALESCE(surname, '')) AS patient_name, gender, blood_group, age, phone "
+                          f"FROM patients "
+                          f"WHERE blood_group = '{bg}' AND gender = '{g}' AND hospital_id = 1 "
+                          f"ORDER BY id DESC LIMIT 50;\n"
+                          f"```"
+            })
+
+            dataset.append({
+                "instruction": f"Are there any {g.lower()} patients with {bg} blood admitted in hospital?",
+                "output": f"> 💡 **Direct Answer:** Checking currently admitted inpatient records for **{g}** patients with blood group **{bg}**.\n\n"
+                          f"```sql\n"
+                          f"SELECT p.id AS mrn, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name, p.blood_group, p.gender, b.bed_number, b.type AS ward_type, b.wing "
+                          f"FROM patients p "
+                          f"JOIN beds b ON p.id = b.patient_id "
+                          f"WHERE p.blood_group = '{bg}' AND p.gender = '{g}' AND p.hospital_id = 1;\n"
+                          f"```"
+            })
+
+            # Pediatric vs Geriatric
+            dataset.append({
+                "instruction": f"List pediatric patients under 18 years with blood group {bg}",
+                "output": f"> 💡 **Direct Answer:** Querying pediatric registry for children (age < 18) with blood group **{bg}**.\n\n"
+                          f"```sql\n"
+                          f"SELECT id AS mrn, CONCAT(name, ' ', COALESCE(surname, '')) AS patient_name, age, gender, blood_group, phone, emergency_contact_name "
+                          f"FROM patients "
+                          f"WHERE blood_group = '{bg}' AND age < 18 AND hospital_id = 1 "
+                          f"ORDER BY age ASC;\n"
+                          f"```"
+            })
+
+            dataset.append({
+                "instruction": f"Show senior citizen patients over 60 years with blood group {bg}",
+                "output": f"> 💡 **Direct Answer:** Accessing geriatric patient roster for seniors (> 60 years) with blood group **{bg}**.\n\n"
+                          f"```sql\n"
+                          f"SELECT id AS mrn, CONCAT(name, ' ', COALESCE(surname, '')) AS patient_name, age, gender, blood_group, phone "
+                          f"FROM patients "
+                          f"WHERE blood_group = '{bg}' AND age >= 60 AND hospital_id = 1 "
+                          f"ORDER BY age DESC;\n"
+                          f"```"
+            })
+
+    # =========================================================================
+    # 2. DOCTOR QUERIES (Specialization, Experience, Consultation Fees, Schedules)
+    # =========================================================================
+    for doc_id, doc_name, dept, role, phone, fee, exp in DOCTORS:
+        dataset.append({
+            "instruction": f"What is the consultation fee and experience of {doc_name}?",
+            "output": f"> 💡 **Direct Answer:** Profile details for **{doc_name}** ({dept}):\n\n"
+                      f"```sql\n"
+                      f"SELECT d.id, d.name, dep.name AS department, d.degree, d.experience, d.phone "
+                      f"FROM doctors d "
+                      f"LEFT JOIN departments dep ON d.department_id = dep.id "
+                      f"WHERE d.name LIKE '%{doc_name.split()[-1]}%' AND d.hospital_id = 1;\n"
+                      f"```\n\n"
+                      f"• **Specialty:** {dept} ({role})\n"
+                      f"• **Standard Fee:** ₹{fee} per consultation slot\n"
+                      f"• **Experience:** {exp}"
+        })
+
+        dataset.append({
+            "instruction": f"Which doctors are available in {dept} department?",
+            "output": f"> 💡 **Direct Answer:** Listing registered medical specialists in **{dept}**.\n\n"
+                      f"```sql\n"
+                      f"SELECT d.id, d.name, d.degree, d.experience, d.phone "
+                      f"FROM doctors d "
+                      f"JOIN departments dep ON d.department_id = dep.id "
+                      f"WHERE dep.name LIKE '%{dept}%' AND d.hospital_id = 1 "
+                      f"ORDER BY d.name ASC;\n"
+                      f"```"
+        })
+
+    # =========================================================================
+    # 3. BED INVENTORY & VACANCY TRACKING
+    # =========================================================================
+    for bed_no, b_type, wing, charge in BEDS[:20]:
+        dataset.append({
+            "instruction": f"Is bed {bed_no} vacant or occupied right now?",
+            "output": f"> 💡 **Direct Answer:** Querying real-time occupancy status for **Bed {bed_no} ({b_type})**.\n\n"
+                      f"```sql\n"
+                      f"SELECT b.bed_number, b.type, b.wing, b.status, p.id AS patient_id, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name "
+                      f"FROM beds b LEFT JOIN patients p ON b.patient_id = p.id "
+                      f"WHERE b.bed_number = '{bed_no}' AND b.hospital_id = 1;\n"
+                      f"```"
+        })
+
         dataset.append({
             "instruction": f"Discharge patient from bed {bed_no}",
             "output": f"> 💡 **Direct Answer:** Preparing discharge action to release **Bed {bed_no} ({b_type})** back to available inventory.\n\n"
@@ -102,24 +217,13 @@ def build_comprehensive_scenarios():
                       f"* *Action card generated. Click Confirm below to execute.*"
         })
 
-        # Outside command: Bed status lookup
-        dataset.append({
-            "instruction": f"Is bed {bed_no} vacant or occupied right now?",
-            "output": f"> 💡 **Direct Answer:** Querying real-time occupancy status for **Bed {bed_no}**.\n\n"
-                      f"```sql\n"
-                      f"SELECT b.bed_number, b.type, b.wing, b.status, p.id AS patient_id, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name "
-                      f"FROM beds b LEFT JOIN patients p ON b.patient_id = p.id "
-                      f"WHERE b.bed_number = '{bed_no}' AND b.hospital_id = 1;\n"
-                      f"```"
-        })
-
     # =========================================================================
-    # 2. OUTSIDE COMMANDS: APPOINTMENT CANCELLATION, RESCHEDULING & QUEUE
+    # 4. APPOINTMENT SCHEDULING, CHECK-IN & QUEUES
     # =========================================================================
-    for token_id in [3, 7, 12, 15, 22, 28, 35, 41]:
+    for token_id in [3, 7, 12, 15, 22, 28, 35, 41, 52, 60]:
         dataset.append({
             "instruction": f"Cancel appointment token #{token_id}",
-            "output": f"> 💡 **Direct Answer:** Ready to cancel **Appointment #{token_id}** and release the doctor's consultation slot.\n\n"
+            "output": f"> 💡 **Direct Answer:** Ready to cancel **Appointment #{token_id}** and release the consultation slot.\n\n"
                       f"```json\n"
                       f"{{\n"
                       f'  "action_type": "UPDATE",\n'
@@ -130,7 +234,6 @@ def build_comprehensive_scenarios():
                       f"}}\n"
                       f"```\n\n"
                       f"* **Token:** #{token_id}\n"
-                      f"* **Target State:** Status $\\rightarrow$ Cancelled.\n"
                       f"* *Please click Confirm below to apply this cancellation.*"
         })
 
@@ -145,13 +248,48 @@ def build_comprehensive_scenarios():
                       f'  "sql": "UPDATE appointments SET status = \'Checked In\', stage = 1 WHERE id = {token_id} AND hospital_id = 1",\n'
                       f'  "params": {{}}\n'
                       f"}}\n"
-                      f"```\n\n"
-                      f"* **Status:** Moving to OPD Queue\n"
-                      f"* *Confirm below to update real-time waiting tokens.*"
+                      f"```"
         })
 
     # =========================================================================
-    # 3. CLINICAL PRESCRIPTION & DIAGNOSIS QUERIES
+    # 5. STAFF ATTENDANCE & SHIFT ROTATIONS
+    # =========================================================================
+    dataset.append({
+        "instruction": "Who is present today in staff?",
+        "output": "> 💡 **Direct Answer:** Fetching real-time on-duty staff attendance for today.\n\n"
+                  "```sql\n"
+                  "SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.shift, sa.check_in_time "
+                  "FROM staff s "
+                  "JOIN staff_attendance sa ON s.id = sa.staff_id "
+                  "WHERE sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1 "
+                  "ORDER BY s.role ASC;\n"
+                  "```"
+    })
+
+    dataset.append({
+        "instruction": "List all absent staff members today",
+        "output": "> 💡 **Direct Answer:** Retrieving today's list of absent staff personnel.\n\n"
+                  "```sql\n"
+                  "SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.phone "
+                  "FROM staff s "
+                  "JOIN staff_attendance sa ON s.id = sa.staff_id "
+                  "WHERE sa.date = CURDATE() AND sa.status = 'Absent' AND s.hospital_id = 1 "
+                  "ORDER BY s.department ASC;\n"
+                  "```"
+    })
+
+    dataset.append({
+        "instruction": "Who is on the night shift rotation?",
+        "output": "> 💡 **Direct Answer:** Listing all hospital personnel assigned to the Night shift.\n\n"
+                  "```sql\n"
+                  "SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.phone "
+                  "FROM staff s "
+                  "WHERE s.shift = 'Night' AND s.status = 'Active' AND s.hospital_id = 1;\n"
+                  "```"
+    })
+
+    # =========================================================================
+    # 6. PRESCRIPTIONS & PHARMACY
     # =========================================================================
     for med, dose, freq, dur, inst in COMMON_MEDS:
         dataset.append({
@@ -169,144 +307,153 @@ def build_comprehensive_scenarios():
         })
 
     # =========================================================================
-    # 4. STAFF ATTENDANCE & SHIFT BREAKDOWNS (Zero Halucination Joins)
+    # 7. MULTI-TURN PRONOUN RESOLUTION & DELETIONS
     # =========================================================================
-    staff_prompts = [
-        ("who is present today in staff", "Present", "Fetching real-time on-duty staff attendance for today."),
-        ("list all absent staff members today", "Absent", "Retrieving today's list of absent staff personnel."),
-        ("who is on the night shift rotation?", "Night", "Listing all hospital personnel assigned to the Night shift."),
-        ("how many staff nurses are currently on duty?", "Nurse", "Counting on-duty nursing staff across departments."),
-        ("show staff in ICU department", "ICU", "Listing medical and support staff allocated to ICU.")
+    deletion_cases = [
+        ("Delete doctor Dr. Ambarish A. Panchasara from database", 
+         "> 💡 **Direct Answer:** Preparing permanent deletion of **Dr. Ambarish A. Panchasara** from the hospital directory.\n\n"
+         "```json\n"
+         "{\n"
+         '  "action_type": "DELETE",\n'
+         '  "table": "doctors",\n'
+         '  "description": "Delete doctor Dr. Ambarish A. Panchasara from database",\n'
+         '  "sql": "DELETE FROM doctors WHERE name LIKE \'%Ambarish%\' AND hospital_id = 1",\n'
+         '  "params": {"name": "Dr. Ambarish A. Panchasara"}\n'
+         "}\n"
+         "```\n\n"
+         "⚠️ **Warning:** Please click **Confirm Delete** on the red action card below to execute."),
+
+        ("delete that doctor",
+         "> 💡 **Direct Answer:** Preparing removal of the referenced doctor from our hospital database based on previous conversation context.\n\n"
+         "```json\n"
+         "{\n"
+         '  "action_type": "DELETE",\n'
+         '  "table": "doctors",\n'
+         '  "description": "Delete referenced doctor from database",\n'
+         '  "sql": "DELETE FROM doctors WHERE id = 1 AND hospital_id = 1",\n'
+         '  "params": {"doctor_id": 1}\n'
+         "}\n"
+         "```\n\n"
+         "⚠️ **Safety Check:** Please review and click **Confirm Delete** below to remove this doctor from records."),
+
+        ("Remove Dr. Priya Patel from hospital directory",
+         "> 💡 **Direct Answer:** Preparing deletion of **Dr. Priya Patel (Cardiology)** from the hospital doctors roster.\n\n"
+         "```json\n"
+         "{\n"
+         '  "action_type": "DELETE",\n'
+         '  "table": "doctors",\n'
+         '  "description": "Delete Dr. Priya Patel from hospital records",\n'
+         '  "sql": "DELETE FROM doctors WHERE name LIKE \'%Priya Patel%\' AND hospital_id = 1",\n'
+         '  "params": {"name": "Dr. Priya Patel"}\n'
+         "}\n"
+         "```\n\n"
+         "⚠️ Please click **Confirm Delete** on the card below to confirm this operation."),
+
+        ("Delete patient record PAT-1005",
+         "> 💡 **Direct Answer:** Preparing removal of patient profile **PAT-1005**.\n\n"
+         "```json\n"
+         "{\n"
+         '  "action_type": "DELETE",\n'
+         '  "table": "patients",\n'
+         '  "description": "Delete patient record PAT-1005",\n'
+         '  "sql": "DELETE FROM patients WHERE id = \'PAT-1005\' AND hospital_id = 1",\n'
+         '  "params": {"patient_id": "PAT-1005"}\n'
+         "}\n"
+         "```\n\n"
+         "⚠️ Click **Confirm Delete** below to permanently erase this patient file.")
     ]
-    for q, param, direct_desc in staff_prompts:
-        if param == "Present":
-            dataset.append({
-                "instruction": q,
-                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
-                          f"```sql\n"
-                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.shift, sa.check_in_time "
-                          f"FROM staff s "
-                          f"JOIN staff_attendance sa ON s.id = sa.staff_id "
-                          f"WHERE sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1 "
-                          f"ORDER BY s.role ASC;\n"
-                          f"```"
-            })
-        elif param == "Absent":
-            dataset.append({
-                "instruction": q,
-                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
-                          f"```sql\n"
-                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.phone "
-                          f"FROM staff s "
-                          f"JOIN staff_attendance sa ON s.id = sa.staff_id "
-                          f"WHERE sa.date = CURDATE() AND sa.status = 'Absent' AND s.hospital_id = 1 "
-                          f"ORDER BY s.department ASC;\n"
-                          f"```"
-            })
-        elif param == "Night":
-            dataset.append({
-                "instruction": q,
-                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
-                          f"```sql\n"
-                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.phone "
-                          f"FROM staff s "
-                          f"WHERE s.shift = 'Night' AND s.status = 'Active' AND s.hospital_id = 1;\n"
-                          f"```"
-            })
-        elif param == "Nurse":
-            dataset.append({
-                "instruction": q,
-                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
-                          f"```sql\n"
-                          f"SELECT s.id, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS nurse_name, s.role, s.department, sa.check_in_time "
-                          f"FROM staff s "
-                          f"JOIN staff_attendance sa ON s.id = sa.staff_id "
-                          f"WHERE s.role LIKE '%Nurse%' AND sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1;\n"
-                          f"```"
-            })
-        elif param == "ICU":
-            dataset.append({
-                "instruction": q,
-                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
-                          f"```sql\n"
-                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.shift, s.phone "
-                          f"FROM staff s "
-                          f"WHERE s.department = 'ICU' AND s.hospital_id = 1;\n"
-                          f"```"
-            })
+    for q, ans in deletion_cases:
+        dataset.append({"instruction": q, "output": ans})
 
     # =========================================================================
-    # 5. PATIENT SEARCH, MRN & EMERGENCY CONTACTS
+    # 8. OUTSIDE COMMANDS: INTERACTIVE PRE-FILLED IN-CHAT FORMS
     # =========================================================================
-    for _ in range(35):
-        f = random.choice(FIRST_NAMES)
-        l = random.choice(LAST_NAMES)
-        mrn = f"PAT-{random.randint(1001, 1150):04d}"
-        
-        dataset.append({
-            "instruction": f"Lookup emergency contact for patient {f} {l}",
-            "output": f"> 💡 **Direct Answer:** Accessing emergency contact details for patient **{f} {l}**.\n\n"
-                      f"```sql\n"
-                      f"SELECT id AS mrn, CONCAT(name, ' ', COALESCE(surname, '')) AS patient_name, phone, emergency_contact_name, emergency_contact_phone, blood_group "
-                      f"FROM patients "
-                      f"WHERE (name LIKE '%{f}%' AND surname LIKE '%{l}%') AND hospital_id = 1;\n"
-                      f"```"
-        })
+    form_cases = [
+        ("Register new patient Dev Patel male blood group A+ age 32 phone 9825144332",
+         "> 💡 **Direct Answer:** I have loaded the interactive **Patient Registration form** with the provided details pre-filled. Please review and click **Register Patient**."),
 
-        dataset.append({
-            "instruction": f"Show full clinical summary for MRN {mrn}",
-            "output": f"> 💡 **Direct Answer:** Fetching comprehensive patient profile and clinical history for **{mrn}**.\n\n"
-                      f"```sql\n"
-                      f"SELECT p.id, p.name, p.surname, p.gender, p.blood_group, p.age, p.phone, a.date AS last_visit, a.type AS visit_type, d.name AS consulting_doctor, a.status "
-                      f"FROM patients p "
-                      f"LEFT JOIN appointments a ON p.id = a.patient_id "
-                      f"LEFT JOIN doctors d ON a.doctor_id = d.id "
-                      f"WHERE p.id = '{mrn}' AND p.hospital_id = 1 "
-                      f"ORDER BY a.date DESC LIMIT 5;\n"
-                      f"```"
-        })
+        ("add patient",
+         "> 💡 **Direct Answer:** Opening the interactive **Patient Registration form**. Enter patient details and click submit."),
 
-    # =========================================================================
-    # 6. DOCTORS, SPECIALTIES & WEEKLY SCHEDULES
-    # =========================================================================
-    for doc_id, doc_name, dept, role, phone in DOCTORS:
-        dataset.append({
-            "instruction": f"Give me contact and OPD timings for {doc_name}",
-            "output": f"> 💡 **Direct Answer:** Accessing official profile and consultation schedule for **{doc_name}** ({dept}).\n\n"
-                      f"```sql\n"
-                      f"SELECT d.name, dep.name AS department, d.experience, d.degree, d.phone, dds.day_of_week, dds.start_time, dds.end_time, dds.is_available "
-                      f"FROM doctors d "
-                      f"LEFT JOIN departments dep ON d.department_id = dep.id "
-                      f"LEFT JOIN doctor_day_schedules dds ON d.id = dds.doctor_id "
-                      f"WHERE d.id = '{doc_id}' AND d.hospital_id = 1 "
-                      f"ORDER BY FIELD(dds.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday');\n"
-                      f"```"
-        })
+        ("Add doctor Dr. Rajesh Verma in Orthopedics department",
+         "> 💡 **Direct Answer:** Generated the **Doctor Onboarding form** with Dr. Rajesh Verma (Orthopedics) pre-configured. Enter degree and fees, then submit."),
 
-    # =========================================================================
-    # 7. NATURAL HINGLISH & EVERYDAY RECEPTION COMMANDS
-    # =========================================================================
-    hinglish_cases = [
-        ("aaj kitne patient OPD me aaye hai?", "> 💡 **Direct Answer:** Counting total today's OPD consultation count.\n\n```sql\nSELECT COUNT(*) AS total_opd_today, SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_consultations, SUM(CASE WHEN status = 'Checked In' THEN 1 ELSE 0 END) AS waiting_in_queue FROM appointments WHERE date = CURDATE() AND hospital_id = 1;\n```"),
-        ("icu me kitne bed khali hai abhi?", "> 💡 **Direct Answer:** Checking available ICU bed count.\n\n```sql\nSELECT bed_number, type, wing FROM beds WHERE type = 'ICU' AND status = 'Available' AND hospital_id = 1;\n```"),
-        ("dr priya patel ka phone number kya hai?", "> 💡 **Direct Answer:** Fetching official hospital phone extension for Dr. Priya Patel.\n\n```sql\nSELECT name, phone, degree FROM doctors WHERE name LIKE '%Priya Patel%' AND hospital_id = 1;\n```"),
-        ("kya koi orthopedics doctor abhi available hai?", "> 💡 **Direct Answer:** Checking currently active Orthopedics consultation doctors.\n\n```sql\nSELECT d.name, dep.name AS department, d.phone FROM doctors d JOIN departments dep ON d.department_id = dep.id WHERE dep.name LIKE '%Ortho%' AND d.hospital_id = 1;\n```"),
-        ("token 5 ko cancel karo", "> 💡 **Direct Answer:** Preparing cancellation for Appointment Token #5.\n\n```json\n{\n  \"action_type\": \"UPDATE\",\n  \"table\": \"appointments\",\n  \"description\": \"Cancel appointment #5\",\n  \"sql\": \"UPDATE appointments SET status = 'Cancelled' WHERE id = 5 AND hospital_id = 1\",\n  \"params\": {}\n}\n```\n* *Click Confirm below to cancel token #5.*"),
-        ("bistar khali hai kya general ward me?", "> 💡 **Direct Answer:** Querying vacant beds in General Ward.\n\n```sql\nSELECT COUNT(*) AS vacant_general_beds FROM beds WHERE type = 'General Ward' AND status = 'Available' AND hospital_id = 1;\n```")
+        ("create new bed ICU-11 in Critical Care Wing",
+         "> 💡 **Direct Answer:** Generated the **Bed Creation form** for Bed **ICU-11** (Critical Care Wing). Review settings and submit to add to inventory."),
+
+        ("update doctor Dr. Ambarish",
+         "> 💡 **Direct Answer:** I have loaded the current profile for **Dr. Ambarish A. Panchasara**. Please edit the values in the form below and click **Submit Changes**."),
+
+        ("change patient phone number",
+         "> 💡 **Direct Answer:** I have retrieved the patient's record. Please update the contact number in the form below and click **Submit Changes**."),
+
+        ("edit bed ICU-02 settings",
+         "> 💡 **Direct Answer:** Loaded ward settings for **Bed ICU-02**. Modify the wing or ward type below and submit changes."),
+
+        ("book doctor appointment",
+         "> 💡 **Direct Answer:** I have opened the interactive consultation booking form below. Please choose the doctor, patient, date, and preferred time slot, then click **Confirm & Book Appointment**."),
+
+        ("admit patient in icu",
+         "> 💡 **Direct Answer:** I have prepared the inpatient bed admission form below. Please select the patient, available ICU bed, and attending doctor to process admission.")
     ]
-    for q, ans in hinglish_cases:
+    for q, ans in form_cases:
+        dataset.append({"instruction": q, "output": ans})
+
+    # =========================================================================
+    # 9. REGIONAL HINDI & HINGLISH CLINICAL SYNONYMS
+    # =========================================================================
+    synonym_cases = [
+        ("Kaun sa room khali hai hospital me?",
+         "> 💡 **Direct Answer:** Checking all currently vacant rooms and beds across wards.\n\n```sql\nSELECT bed_number AS room_number, type AS ward_type, wing FROM beds WHERE status = 'Available' AND hospital_id = 1 ORDER BY type, bed_number;\n```"),
+
+        ("Show all physicians in hospital",
+         "> 💡 **Direct Answer:** Listing all registered medical physicians and specialists.\n\n```sql\nSELECT d.name AS physician_name, dep.name AS department, d.degree, d.experience, d.phone FROM doctors d LEFT JOIN departments dep ON d.department_id = dep.id WHERE d.hospital_id = 1 ORDER BY d.name;\n```"),
+
+        ("Aj koun si sister duty par hai?",
+         "> 💡 **Direct Answer:** Retrieving on-duty nursing staff for today.\n\n```sql\nSELECT s.first_name, s.last_name, s.role, s.shift, s.department FROM staff s JOIN staff_attendance sa ON s.id = sa.staff_id WHERE s.role LIKE '%Nurse%' AND sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1;\n```"),
+
+        ("Patient ki parchi cancel karo",
+         "> 💡 **Direct Answer:** Preparing cancellation of the patient's consultation token/slip.\n\n```json\n{\n  \"action_type\": \"UPDATE\",\n  \"table\": \"appointments\",\n  \"description\": \"Cancel patient consultation token/parchi\",\n  \"sql\": \"UPDATE appointments SET status = 'Cancelled' WHERE id = 15 AND hospital_id = 1\",\n  \"params\": {}\n}\n```\n* *Click Confirm below to cancel this token.*"),
+
+        ("Mareez ka hisaab / bill dikhao",
+         "> 💡 **Direct Answer:** Querying patient billing summary and invoice status.\n\n```sql\nSELECT p.id AS patient_id, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name, a.id AS appointment_id, a.type, a.status FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.hospital_id = 1 ORDER BY a.id DESC LIMIT 10;\n```")
+    ]
+    for q, ans in synonym_cases:
+        dataset.append({"instruction": q, "output": ans})
+
+    # =========================================================================
+    # 10. CLINICAL EMERGENCY TRIAGE PROTOCOLS + HMS DATABASE COORDINATION
+    # =========================================================================
+    emergency_cases = [
+        ("Patient has sudden chest pain and sweating, what to do?",
+         "> 💡 **Direct Answer:** This presents classic acute coronary symptoms. Act immediately with emergency cardiac stabilization.\n\n"
+         "• **First Steps:** Keep patient in resting semi-recumbent posture; monitor SpO2, pulse, and BP immediately.\n"
+         "• **Emergency Medication:** Administer chewable Aspirin 300mg + sublingual Nitrate (if systolic BP > 100 mmHg).\n"
+         "• **BHOOMA HMS Action:** Contact **Dr. Priya Patel (Cardiology)** immediately and reserve an available **ICU Bed** (e.g. ICU-01 or ICU-02) via the Bed Ward board."),
+
+        ("What are critical warning signs of Dengue fever?",
+         "> 💡 **Direct Answer:** Critical Dengue warning signs require immediate inpatient monitoring and fluid protocol.\n\n"
+         "• **Red Flag Signs:** Severe persistent abdominal pain, recurrent vomiting, mucosal bleeding, rapid platelet decline (< 50,000/μL), and hematocrit rise.\n"
+         "• **BHOOMA HMS Action:** Order urgent CBC/Platelet test in Pathology, and initiate General Ward/ICU bed admission."),
+
+        ("Child has 103F fever with shivering, what immediate steps?",
+         "> 💡 **Direct Answer:** Immediate pediatric fever protocol for 103°F hyperpyrexia:\n\n"
+         "• **Action:** Lukewarm water sponging on forehead/axilla; administer Paracetamol suspension (15 mg/kg) under guidance.\n"
+         "• **BHOOMA HMS Action:** Consult **Dr. Rajesh Sharma (Pediatrics)** in OPD or Emergency immediately.")
+    ]
+    for q, ans in emergency_cases:
         dataset.append({"instruction": q, "output": ans})
 
     return dataset
 
-def generate_target_dataset(target_size=2500):
+def generate_target_dataset(target_size=10000):
     base = build_comprehensive_scenarios()
     dataset = []
 
     prefixes = [
         "Please ", "Can you ", "Could you ", "Kindly ", "Help me to ",
         "I need to ", "Quickly ", "Tell me ", "Show me ", "Check if ",
-        "Status of: ", "System check: ", ""
+        "Status of: ", "System check: ", "Search: ", "Lookup: ", ""
     ]
 
     for item in base:
@@ -317,7 +464,7 @@ def generate_target_dataset(target_size=2500):
             "output": item["output"]
         })
 
-    # Augment until target size
+    # Synthesize permutations until target size (10,000+)
     while len(dataset) < target_size:
         sample = random.choice(base)
         prefix = random.choice(prefixes)
@@ -334,10 +481,10 @@ def generate_target_dataset(target_size=2500):
 
 def main():
     print("=" * 65)
-    print("[HMS AI] Generating 2,500+ Claude/Gemini-Style Training Examples...")
+    print("[HMS AI] Generating 10,000+ Claude/Gemini-Style Training Examples...")
     print("=" * 65)
 
-    dataset = generate_target_dataset(2600)
+    dataset = generate_target_dataset(10000)
     out_dir = os.path.dirname(os.path.abspath(__file__))
 
     # 1. Alpaca Format
@@ -361,7 +508,7 @@ def main():
     print(f"[SUCCESS] ChatML JSONL generated: {chatml_file} ({len(dataset)} examples)")
 
     print("=" * 65)
-    print("[DONE] Dataset ready for deep fine-tuning!")
+    print("[DONE] 10,000+ Example Fine-Tuning Dataset Ready!")
     print("=" * 65)
 
 if __name__ == "__main__":

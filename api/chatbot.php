@@ -117,11 +117,13 @@ switch ($action) {
         $sqlExecuted = null;
 
         if (function_exists('analyzeActionIntent')) {
-            $actionAnalysis = analyzeActionIntent($conn, $hospitalId, $message);
+            $actionAnalysis = analyzeActionIntent($conn, $hospitalId, $message, $history);
             if ($actionAnalysis !== null) {
                 if ($actionAnalysis['type'] === 'form') {
                     $formType = $actionAnalysis['form_type'];
                     $formMsg = $actionAnalysis['message'] ?? 'Please fill out the form below.';
+                    $formTitle = $actionAnalysis['title'] ?? 'Hospital Operation Form';
+                    $prefill = $actionAnalysis['prefill'] ?? [];
                     $highlighted = "> 💡 **Direct Answer:** " . $formMsg . "\n\n";
                     echo "data: " . json_encode(['type' => 'chunk', 'content' => $highlighted]) . "\n\n";
                     flush();
@@ -129,7 +131,8 @@ switch ($action) {
                     echo "data: " . json_encode([
                         'type' => 'form',
                         'form_type' => $formType,
-                        'title' => ($formType === 'book_appointment') ? 'Book New Appointment' : 'Inpatient Bed Admission'
+                        'title' => $formTitle,
+                        'prefill' => $prefill
                     ]) . "\n\n";
                     flush();
 
@@ -141,7 +144,7 @@ switch ($action) {
                     flush();
                     break;
                 } elseif ($actionAnalysis['type'] === 'clarification') {
-                    // Send clarification question back immediately (Ask back to gather all info!)
+                    // Send clarification question back immediately
                     $clarifyText = $actionAnalysis['question'];
                     echo "data: " . json_encode(['type' => 'chunk', 'content' => $clarifyText]) . "\n\n";
                     flush();
@@ -151,7 +154,6 @@ switch ($action) {
                         flush();
                     }
 
-                    // Save assistant message to conversation history
                     $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
                     $stmt->bind_param("is", $conversationId, $clarifyText);
                     $stmt->execute();
@@ -190,11 +192,14 @@ switch ($action) {
                 : "Generate SQL query for $message";
 
             $phase1Messages = [
-                ['role' => 'system', 'content' => $phase1Prompt],
-                ['role' => 'user', 'content' => $message]
+                ['role' => 'system', 'content' => $phase1Prompt]
             ];
+            foreach ($history as $h) {
+                $phase1Messages[] = $h;
+            }
+            $phase1Messages[] = ['role' => 'user', 'content' => $message];
 
-            $intentResp = function_exists('ollamaChat') ? ollamaChat($model, $phase1Messages, '', false, ['temperature' => 0.1, 'num_predict' => 200]) : null;
+            $intentResp = function_exists('ollamaChat') ? ollamaChat($model, $phase1Messages, '', false, ['temperature' => 0.1, 'num_predict' => 220]) : null;
             $intentContent = $intentResp['message']['content'] ?? '';
 
             // Check if model asked for clarification
@@ -240,22 +245,56 @@ switch ($action) {
             if (preg_match('/```json\s*(.*?)\s*```/is', $intentContent, $matches)) {
                 $jsonStr = trim($matches[1]);
                 $json = json_decode($jsonStr, true);
-                if ($json && isset($json['action_type'])) {
-                    $aType = $json['action_type'] ?? 'UPDATE';
-                    $aTable = $json['table'] ?? 'unknown';
-                    $aDesc = $json['description'] ?? 'AI-generated action';
+                if ($json) {
+                    $aType = $json['action_type'] ?? $json['type'] ?? $json['operation'] ?? 'UPDATE';
+                    $aTable = $json['table'] ?? ($json['action']['table'] ?? 'unknown');
+                    $aDesc = $json['description'] ?? 'AI-generated hospital operation';
                     $aSql = $json['sql'] ?? '';
-                    $aParams = isset($json['params']) ? json_encode($json['params']) : null;
-                    $lastMsgId = 0;
-                    
-                    $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
-                    $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
-                    $stmt->execute();
-                    $pendingAction = [
-                        'action_id' => $stmt->insert_id,
-                        'details' => $json,
-                        'description' => $aDesc
-                    ];
+
+                    // Resilient normalization if model didn't write full SQL
+                    if (empty($aSql)) {
+                        $rawAct = strtolower($json['action'] ?? $aType);
+                        if (strpos($rawAct, 'discharge') !== false) {
+                            $bedNum = $json['bed_number'] ?? ($json['action']['bed_number'] ?? '');
+                            if (!empty($bedNum)) {
+                                $aType = 'UPDATE';
+                                $aTable = 'beds';
+                                $aDesc = "Discharge patient from Bed $bedNum and mark bed Available";
+                                $aSql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE bed_number = '$bedNum' AND hospital_id = $hospitalId; UPDATE appointments SET status = 'Discharged from Bed', bed_number = NULL WHERE bed_number = '$bedNum' AND hospital_id = $hospitalId;";
+                            }
+                        } elseif (strpos($rawAct, 'delete') !== false && ($aTable === 'doctors' || isset($json['doctor_id']) || isset($json['name']))) {
+                            $docId = (int)($json['doctor_id'] ?? ($json['id'] ?? 0));
+                            $docName = $json['name'] ?? 'Doctor';
+                            if ($docId > 0) {
+                                $aType = 'DELETE';
+                                $aTable = 'doctors';
+                                $aDesc = "Permanently delete $docName (ID: $docId) from hospital database";
+                                $aSql = "DELETE FROM doctors WHERE id = $docId AND hospital_id = $hospitalId;";
+                            }
+                        } elseif (strpos($rawAct, 'cancel') !== false && ($aTable === 'appointments' || isset($json['appointment_id']))) {
+                            $appId = (int)($json['appointment_id'] ?? ($json['id'] ?? 0));
+                            if ($appId > 0) {
+                                $aType = 'UPDATE';
+                                $aTable = 'appointments';
+                                $aDesc = "Cancel Appointment #APP-$appId";
+                                $aSql = "UPDATE appointments SET status = 'Cancelled' WHERE id = $appId AND hospital_id = $hospitalId;";
+                            }
+                        }
+                    }
+
+                    if (!empty($aSql)) {
+                        $aParams = isset($json['params']) ? json_encode($json['params']) : null;
+                        $lastMsgId = 0;
+                        
+                        $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
+                        $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
+                        $stmt->execute();
+                        $pendingAction = [
+                            'action_id' => $stmt->insert_id,
+                            'details' => $json,
+                            'description' => $aDesc
+                        ];
+                    }
                 }
             }
         }
@@ -666,6 +705,184 @@ switch ($action) {
             'patient_id' => $patientId,
             'message' => "Patient $patientName successfully admitted to Bed $bedNumber ({$bedRow['type']})."
         ]);
+        break;
+
+    case 'update_doctor_form':
+        $docId = (int)($input['doctor_id'] ?? 0);
+        $name = trim($input['name'] ?? '');
+        $degree = trim($input['degree'] ?? '');
+        $experience = trim($input['experience'] ?? '');
+        $phone = trim($input['phone'] ?? '');
+
+        if ($docId <= 0 || empty($name)) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid doctor ID or name.']);
+            exit;
+        }
+
+        $upStmt = $conn->prepare("UPDATE doctors SET name = ?, degree = ?, experience = ?, phone = ? WHERE id = ? AND hospital_id = ?");
+        $upStmt->bind_param("ssssii", $name, $degree, $experience, $phone, $docId, $hospitalId);
+        if ($upStmt->execute()) {
+            $actSql = "UPDATE doctors SET name='$name', degree='$degree', experience='$experience', phone='$phone' WHERE id=$docId";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'UPDATE', 'doctors', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode(['status' => 'success', 'message' => "Dr. $name profile updated successfully."]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to update doctor: ' . $conn->error]);
+        }
+        break;
+
+    case 'update_patient_form':
+        $patId = trim($input['patient_id'] ?? '');
+        $name = trim($input['name'] ?? '');
+        $surname = trim($input['surname'] ?? '');
+        $phone = trim($input['phone'] ?? '');
+        $bloodGroup = trim($input['blood_group'] ?? '');
+        $age = (int)($input['age'] ?? 0);
+        $gender = trim($input['gender'] ?? 'Other');
+
+        if (empty($patId) || empty($name)) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid patient record or name.']);
+            exit;
+        }
+
+        $upStmt = $conn->prepare("UPDATE patients SET name = ?, surname = ?, phone = ?, blood_group = ?, age = ?, gender = ? WHERE id = ? AND hospital_id = ?");
+        $upStmt->bind_param("ssssissi", $name, $surname, $phone, $bloodGroup, $age, $gender, $patId, $hospitalId);
+        if ($upStmt->execute()) {
+            $actSql = "UPDATE patients SET name='$name', surname='$surname', phone='$phone', blood_group='$bloodGroup', age=$age, gender='$gender' WHERE id='$patId'";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'UPDATE', 'patients', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode(['status' => 'success', 'message' => "Patient $name $surname ($patId) updated successfully."]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to update patient: ' . $conn->error]);
+        }
+        break;
+
+    case 'update_bed_form':
+        $bedNumber = trim($input['bed_number'] ?? '');
+        $type = trim($input['type'] ?? 'General Ward');
+        $wing = trim($input['wing'] ?? 'Wing A');
+        $status = trim($input['status'] ?? 'Available');
+
+        if (empty($bedNumber)) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid bed number.']);
+            exit;
+        }
+
+        $upStmt = $conn->prepare("UPDATE beds SET type = ?, wing = ?, status = ? WHERE bed_number = ? AND hospital_id = ?");
+        $upStmt->bind_param("ssssi", $type, $wing, $status, $bedNumber, $hospitalId);
+        if ($upStmt->execute()) {
+            $actSql = "UPDATE beds SET type='$type', wing='$wing', status='$status' WHERE bed_number='$bedNumber'";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'UPDATE', 'beds', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode(['status' => 'success', 'message' => "Bed $bedNumber settings updated to $type ($status)."]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to update bed: ' . $conn->error]);
+        }
+        break;
+
+    case 'add_patient_form':
+        $name = trim($input['name'] ?? '');
+        $surname = trim($input['surname'] ?? '');
+        $gender = trim($input['gender'] ?? 'Male');
+        $bloodGroup = trim($input['blood_group'] ?? 'A+');
+        $age = (int)($input['age'] ?? 25);
+        $phone = trim($input['phone'] ?? '');
+        $emergName = trim($input['emergency_contact_name'] ?? '');
+        $emergPhone = trim($input['emergency_contact_phone'] ?? '');
+
+        if (empty($name)) {
+            echo json_encode(['status' => 'error', 'message' => 'Patient name is required.']);
+            exit;
+        }
+
+        $mrn = 'PAT-' . rand(3000, 9999);
+        $ins = $conn->prepare("INSERT INTO patients (id, name, surname, gender, blood_group, age, phone, emergency_contact_name, emergency_contact_phone, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $ins->bind_param("sssssisssi", $mrn, $name, $surname, $gender, $bloodGroup, $age, $phone, $emergName, $emergPhone, $hospitalId);
+        if ($ins->execute()) {
+            $actSql = "INSERT INTO patients (id, name, surname, gender, blood_group, age, phone) VALUES ('$mrn', '$name', '$surname', '$gender', '$bloodGroup', $age, '$phone')";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'INSERT', 'patients', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode(['status' => 'success', 'patient_id' => $mrn, 'message' => "Patient $name $surname registered successfully with MRN $mrn (Blood: $bloodGroup, Gender: $gender)."]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to register patient: ' . $conn->error]);
+        }
+        break;
+
+    case 'add_doctor_form':
+        $name = trim($input['name'] ?? '');
+        $degree = trim($input['degree'] ?? 'MBBS, MD');
+        $deptName = trim($input['department'] ?? 'General Medicine');
+        $phone = trim($input['phone'] ?? '');
+        $experience = trim($input['experience'] ?? '5 Years');
+
+        if (empty($name)) {
+            echo json_encode(['status' => 'error', 'message' => 'Doctor name is required.']);
+            exit;
+        }
+
+        $deptId = 1;
+        $dRes = $conn->query("SELECT id FROM departments WHERE name LIKE '%$deptName%' AND hospital_id = $hospitalId LIMIT 1");
+        if ($dRes && $row = $dRes->fetch_assoc()) {
+            $deptId = (int)$row['id'];
+        }
+
+        $ins = $conn->prepare("INSERT INTO doctors (name, degree, experience, department_id, phone, hospital_id) VALUES (?, ?, ?, ?, ?, ?)");
+        $ins->bind_param("sssisi", $name, $degree, $experience, $deptId, $phone, $hospitalId);
+        if ($ins->execute()) {
+            $newDocId = $conn->insert_id;
+            $actSql = "INSERT INTO doctors (name, degree, experience, phone) VALUES ('$name', '$degree', '$experience', '$phone')";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'INSERT', 'doctors', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode(['status' => 'success', 'doctor_id' => $newDocId, 'message' => "$name ($degree) added successfully to $deptName roster."]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to add doctor: ' . $conn->error]);
+        }
+        break;
+
+    case 'add_bed_form':
+        $bedNumber = trim($input['bed_number'] ?? '');
+        $type = trim($input['type'] ?? 'General Ward');
+        $wing = trim($input['wing'] ?? 'North Wing');
+
+        if (empty($bedNumber)) {
+            echo json_encode(['status' => 'error', 'message' => 'Bed number is required.']);
+            exit;
+        }
+
+        $ins = $conn->prepare("INSERT INTO beds (bed_number, type, wing, status, hospital_id) VALUES (?, ?, ?, 'Available', ?)");
+        $ins->bind_param("sssi", $bedNumber, $type, $wing, $hospitalId);
+        if ($ins->execute()) {
+            $actSql = "INSERT INTO beds (bed_number, type, wing, status) VALUES ('$bedNumber', '$type', '$wing', 'Available')";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'INSERT', 'beds', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode(['status' => 'success', 'message' => "Bed $bedNumber ($type, $wing) created as Available in inventory."]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to create bed: ' . $conn->error]);
+        }
         break;
 
     case 'status':

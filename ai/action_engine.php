@@ -1,24 +1,199 @@
 <?php
 // ai/action_engine.php
 // Pro-grade Action Engine for Hospital Management System
-// Validates intent, gathers missing details, asks back when in doubt, and generates real executable operations.
+// Validates intent, multi-turn entity resolution, gathers missing details, 
+// asks back when in doubt, and generates verified executable operations and dynamic forms.
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/system_knowledge.php';
 
 /**
  * Main dispatcher to analyze user request for action intent.
+ * Now with full Multi-Turn conversation memory ($history) support!
  * Returns:
- * - ['type' => 'clarification', 'question' => '...', 'suggestions' => [...]] if information is missing or ambiguous
- * - ['type' => 'action', 'plan' => [...]] if all required parameters are resolved and verified
- * - null if the request is not an operational write action (e.g. read query or general conversation)
+ * - ['type' => 'clarification', 'question' => '...', 'suggestions' => [...]] if info is missing
+ * - ['type' => 'form', 'form_type' => '...', 'title' => '...', 'message' => '...', 'prefill' => [...]]
+ * - ['type' => 'action', 'plan' => [...]] if executable operation is ready
+ * - null if read query or general conversation
  */
-function analyzeActionIntent($conn, $hospitalId, $message) {
+function analyzeActionIntent($conn, $hospitalId, $message, $history = []) {
     $msg = trim($message);
     $lower = strtolower($msg);
 
     // -------------------------------------------------------------
-    // 1. ATTENDANCE ACTIONS
+    // 1. DELETE / REMOVE DOCTOR INTENT (Multi-Turn & Pronoun Aware)
+    // -------------------------------------------------------------
+    $deleteKeywords = ['delete', 'remove', 'delate', 'delet', 'erase', 'hata do', 'hatao', 'nikalo', 'nikal do', 'drop'];
+    $isDeleteIntent = false;
+    foreach ($deleteKeywords as $dk) {
+        if (strpos($lower, $dk) !== false) {
+            $isDeleteIntent = true;
+            break;
+        }
+    }
+
+    $doctorKeywords = ['doctor', 'docter', 'doc', 'dr.', 'dr ', 'physician', 'specialist', 'surgeon', 'him', 'that doctor', 'that docter', 'us doctor'];
+    $isDoctorMentioned = false;
+    foreach ($doctorKeywords as $dok) {
+        if (strpos($lower, $dok) !== false) {
+            $isDoctorMentioned = true;
+            break;
+        }
+    }
+
+    if ($isDeleteIntent && $isDoctorMentioned) {
+        $doc = resolveDoctorFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+        if ($doc) {
+            $docId = (int)$doc['id'];
+            $docName = $doc['name'];
+            $degree = $doc['degree'] ?? 'Specialist';
+            $sql = "DELETE FROM doctors WHERE id = $docId AND hospital_id = $hospitalId";
+            return [
+                'type' => 'action',
+                'plan' => [
+                    'action_type' => 'DELETE',
+                    'table' => 'doctors',
+                    'description' => "Permanently delete doctor: $docName ($degree) [ID: $docId] from hospital database",
+                    'sql' => $sql,
+                    'params' => [
+                        'doctor_id' => $docId,
+                        'name' => $docName
+                    ]
+                ]
+            ];
+        } else {
+            return [
+                'type' => 'clarification',
+                'question' => "Which doctor would you like to delete from the hospital records? Please specify the doctor's name or choose from below:",
+                'suggestions' => getDoctorSuggestions($conn, $hospitalId)
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 2. UPDATE / EDIT DOCTOR INTENT (PRE-FILLED IN-CHAT FORM)
+    // -------------------------------------------------------------
+    $updateKeywords = ['update', 'edit', 'change', 'modify', 'badlo', 'sudharo', 'correct'];
+    $isUpdateIntent = false;
+    foreach ($updateKeywords as $uk) {
+        if (strpos($lower, $uk) !== false) {
+            $isUpdateIntent = true;
+            break;
+        }
+    }
+
+    if ($isUpdateIntent && $isDoctorMentioned) {
+        $doc = resolveDoctorFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+        if ($doc) {
+            return [
+                'type' => 'form',
+                'form_type' => 'update_doctor',
+                'title' => 'Update Doctor Details',
+                'message' => "I have retrieved the current details for **{$doc['name']}**. Please edit the fields in the form below and click **Submit Changes**:",
+                'prefill' => $doc
+            ];
+        } else {
+            return [
+                'type' => 'clarification',
+                'question' => "Which doctor's profile would you like to edit? Please specify the doctor's name:",
+                'suggestions' => getDoctorSuggestions($conn, $hospitalId)
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 3. DELETE / CANCEL APPOINTMENT INTENT
+    // -------------------------------------------------------------
+    $appointmentKeywords = ['appointment', 'apointment', 'appoiment', 'token', 'booking', 'parchi', 'slot'];
+    $isAppMentioned = false;
+    foreach ($appointmentKeywords as $ak) {
+        if (strpos($lower, $ak) !== false) {
+            $isAppMentioned = true;
+            break;
+        }
+    }
+
+    if (($isDeleteIntent || strpos($lower, 'cancel') !== false) && $isAppMentioned) {
+        $app = resolveAppointmentFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+        if ($app) {
+            $appId = (int)$app['id'];
+            $pName = $app['patient_name'] ?? 'Patient';
+            $sql = "UPDATE appointments SET status = 'Cancelled' WHERE id = $appId AND hospital_id = $hospitalId";
+            return [
+                'type' => 'action',
+                'plan' => [
+                    'action_type' => 'UPDATE',
+                    'table' => 'appointments',
+                    'description' => "Cancel Appointment #APP-$appId for $pName",
+                    'sql' => $sql,
+                    'params' => [
+                        'appointment_id' => $appId,
+                        'patient_name' => $pName
+                    ]
+                ]
+            ];
+        } else {
+            return [
+                'type' => 'clarification',
+                'question' => "Which appointment or token number should be cancelled? (e.g. Appointment #15 or Token #3):",
+                'suggestions' => ['View today\'s appointments', 'Cancel Token 1']
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 4. DELETE / UPDATE PATIENT INTENT
+    // -------------------------------------------------------------
+    if ($isDeleteIntent && (strpos($lower, 'patient') !== false || strpos($lower, 'pateint') !== false || strpos($lower, 'mareez') !== false)) {
+        $pat = resolvePatientFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+        if ($pat) {
+            $patId = $pat['id'];
+            $patName = $pat['name'] . ' ' . ($pat['surname'] ?? '');
+            $sql = "DELETE FROM patients WHERE id = '$patId' AND hospital_id = $hospitalId";
+            return [
+                'type' => 'action',
+                'plan' => [
+                    'action_type' => 'DELETE',
+                    'table' => 'patients',
+                    'description' => "Permanently delete patient record: $patName ($patId) from hospital database",
+                    'sql' => $sql,
+                    'params' => ['patient_id' => $patId, 'patient_name' => $patName]
+                ]
+            ];
+        }
+    }
+
+    if ($isUpdateIntent && (strpos($lower, 'patient') !== false || strpos($lower, 'pateint') !== false)) {
+        $pat = resolvePatientFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+        if ($pat) {
+            return [
+                'type' => 'form',
+                'form_type' => 'update_patient',
+                'title' => 'Update Patient Records',
+                'message' => "Loaded patient record for **{$pat['name']} {$pat['surname']}** ({$pat['id']}). Please update the fields below:",
+                'prefill' => $pat
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 5. UPDATE BED INTENT (PRE-FILLED IN-CHAT FORM)
+    // -------------------------------------------------------------
+    if ($isUpdateIntent && (strpos($lower, 'bed') !== false || strpos($lower, 'room') !== false)) {
+        $bed = resolveBedFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+        if ($bed) {
+            return [
+                'type' => 'form',
+                'form_type' => 'update_bed',
+                'title' => 'Update Ward Bed Settings',
+                'message' => "Loaded details for Bed **{$bed['bed_number']}** ({$bed['type']}). Edit settings below:",
+                'prefill' => $bed
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 6. ATTENDANCE ACTIONS
     // -------------------------------------------------------------
     $attendanceKeywords = ['attendance', 'attdence', 'attendence', 'present', 'absent', 'half day', 'halfday', 'on leave', 'leave', 'late', 'haziri'];
     $isAttendanceIntent = false;
@@ -30,7 +205,6 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
     }
 
     if ($isAttendanceIntent) {
-        // Read query filter: if user is asking "who is present", "list staff", "show absent", etc.
         $isReadQuery = false;
         $readVerbs = ['who is', 'who are', 'who was', 'list', 'show', 'display', 'how many', 'view', 'check', 'kaun', 'koun', 'kitne', 'tell me'];
         $writeVerbs = ['mark', 'set', 'update', 'put', 'record', 'karo', 'kare', 'banao'];
@@ -50,73 +224,48 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
             }
         }
         if ($isReadQuery) {
-            return null; // Let Phase 1 execute SQL SELECT for factual answering!
+            return null; // Let Phase 1 execute SQL SELECT
         }
 
-        // A. Check for "Mark All Present" / Bulk Attendance
-        $bulkPatterns = [
-            'all present', 'mark all', 'all staff present', 'everyone present',
-            'sabhi present', 'sabko present', 'sab present', 'mark everyone',
-            'all employee', 'all active staff', 'mark all as present'
-        ];
+        // Check for Bulk Attendance
+        $bulkPatterns = ['all present', 'mark all', 'all staff present', 'everyone present', 'sabhi present', 'sabko present', 'sab present', 'mark everyone'];
         foreach ($bulkPatterns as $bp) {
             if (strpos($lower, $bp) !== false) {
                 return buildBulkAttendanceAction($conn, $hospitalId, $lower);
             }
         }
 
-        // B. Check for individual staff attendance
-        // Check if a status is mentioned
         $targetStatus = 'Present';
         if (strpos($lower, 'absent') !== false) $targetStatus = 'Absent';
         elseif (strpos($lower, 'half day') !== false || strpos($lower, 'halfday') !== false) $targetStatus = 'Half Day';
         elseif (strpos($lower, 'leave') !== false) $targetStatus = 'On Leave';
         elseif (strpos($lower, 'late') !== false) $targetStatus = 'Late';
 
-        // Extract possible staff name from message
         $staffResolved = resolveStaffFromMessage($conn, $hospitalId, $msg);
-        
         if ($staffResolved['status'] === 'found') {
             return buildIndividualAttendanceAction($conn, $hospitalId, $staffResolved['staff'], $targetStatus);
         } elseif ($staffResolved['status'] === 'multiple') {
             return [
                 'type' => 'clarification',
-                'question' => "I found multiple staff members matching that name: \n\n" . 
-                              $staffResolved['list'] . "\n\n" . 
-                              "Which employee would you like me to mark as **$targetStatus**?",
+                'question' => "I found multiple staff members matching that name: \n\n" . $staffResolved['list'] . "\n\nWhich employee would you like me to mark as **$targetStatus**?",
                 'suggestions' => $staffResolved['suggestions']
-            ];
-        } elseif ($staffResolved['status'] === 'not_found' && !empty($staffResolved['searched_term'])) {
-            return [
-                'type' => 'clarification',
-                'question' => "I searched our staff directory for **\"{$staffResolved['searched_term']}\"**, but couldn't find a matching employee in our hospital.\n\n" .
-                              "Could you please confirm the staff member's full name or employee code (e.g. STF-101)?",
-                'suggestions' => getActiveStaffSuggestions($conn, $hospitalId)
-            ];
-        } else {
-            // General "mark attendance" with no name or target specified
-            return [
-                'type' => 'clarification',
-                'question' => "I would be happy to help you update attendance! 📋\n\n" .
-                              "Could you please clarify:\n" .
-                              "1. Would you like to mark **all active staff** at once, or a **specific employee**?\n" .
-                              "2. Which status should be applied (**Present**, **Absent**, **Half Day**, or **Late**)?",
-                'suggestions' => [
-                    'Mark all staff as Present',
-                    'Mark specific employee',
-                    'Check today\'s attendance status'
-                ]
             ];
         }
     }
 
     // -------------------------------------------------------------
-    // 2. BED DISCHARGE / ALLOTMENT ACTIONS
+    // 7. BED DISCHARGE / ALLOTMENT ACTIONS
     // -------------------------------------------------------------
-    if (strpos($lower, 'discharge') !== false && (strpos($lower, 'bed') !== false || strpos($lower, 'patient') !== false)) {
-        // Extract bed number (e.g. "bed 101", "bed-102", "101")
-        if (preg_match('/bed\s*[-#]?\s*([a-zA-Z0-9]+)/i', $msg, $m)) {
+    if (strpos($lower, 'discharge') !== false && (strpos($lower, 'bed') !== false || strpos($lower, 'patient') !== false || strpos($lower, 'room') !== false)) {
+        $bedNumber = null;
+        if (preg_match('/(?:bed|room)\s*[-#]?\s*([a-zA-Z0-9]+)/i', $msg, $m)) {
             $bedNumber = trim($m[1]);
+        } else {
+            $bed = resolveBedFromMessageOrHistory($conn, $hospitalId, $msg, $history);
+            if ($bed) $bedNumber = $bed['bed_number'];
+        }
+
+        if ($bedNumber) {
             return buildBedDischargeAction($conn, $hospitalId, $bedNumber);
         } else {
             return [
@@ -128,23 +277,17 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
     }
 
     // -------------------------------------------------------------
-    // 3. APPOINTMENT CHECK-IN / STATUS ACTIONS
+    // 8. APPOINTMENT CHECK-IN ACTIONS
     // -------------------------------------------------------------
-    if ((strpos($lower, 'check in') !== false || strpos($lower, 'check-in') !== false || strpos($lower, 'checked in') !== false) && strpos($lower, 'appointment') !== false) {
+    if ((strpos($lower, 'check in') !== false || strpos($lower, 'check-in') !== false) && $isAppMentioned) {
         if (preg_match('/(?:appointment|app|token)\s*[-#]?\s*(\d+)/i', $msg, $m)) {
             $appId = (int)$m[1];
             return buildAppointmentCheckInAction($conn, $hospitalId, $appId);
-        } else {
-            return [
-                'type' => 'clarification',
-                'question' => "Which appointment or token number should I check in at the desk? (e.g., Appointment APP-0005 or Token #3)?",
-                'suggestions' => ['Check in Token 1', 'View pre-booked appointments']
-            ];
         }
     }
 
     // -------------------------------------------------------------
-    // 4. BOOK APPOINTMENT INTENT (INTERACTIVE FORM TRIGGER)
+    // 9. BOOK APPOINTMENT INTENT (INTERACTIVE FORM TRIGGER)
     // -------------------------------------------------------------
     $bookPatterns = [
         'book appointment', 'boock appoiment', 'book apooiment', 'book an appointment',
@@ -156,13 +299,14 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
             return [
                 'type' => 'form',
                 'form_type' => 'book_appointment',
-                'message' => "I have prepared the interactive appointment booking form for you below. Please select the doctor, choose the patient, date, and preferred time slot, then click **Confirm & Book Appointment**."
+                'title' => 'Book New Consultation',
+                'message' => "I have prepared the interactive consultation booking form below. Please select the doctor, choose the patient, date, and preferred time slot, then click **Confirm & Book Appointment**."
             ];
         }
     }
 
     // -------------------------------------------------------------
-    // 5. ADMIT PATIENT INTENT (INTERACTIVE FORM TRIGGER)
+    // 10. ADMIT PATIENT INTENT (INTERACTIVE FORM TRIGGER)
     // -------------------------------------------------------------
     $admitPatterns = [
         'admit patient', 'admit a patient', 'patient admission', 'admit to bed', 'admit in icu',
@@ -174,7 +318,73 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
             return [
                 'type' => 'form',
                 'form_type' => 'admit_patient',
-                'message' => "I have opened the patient bed admission form for you below. Please select the patient, available bed, and admitting doctor to process the inpatient admission."
+                'title' => 'Inpatient Bed Admission',
+                'message' => "I have opened the patient bed admission form below. Select the patient, available bed, and admitting doctor to process the inpatient admission."
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 11. ADD / REGISTER PATIENT INTENT (INTERACTIVE FORM TRIGGER)
+    // -------------------------------------------------------------
+    $addPatientPatterns = [
+        'add patient', 'register patient', 'new patient', 'create patient', 'admit new patient',
+        'add a patient', 'register a patient', 'new patient form', 'patient registration form',
+        'nayi entry patient', 'mareez register karo', 'patient add karo'
+    ];
+    foreach ($addPatientPatterns as $app) {
+        if (strpos($lower, $app) !== false) {
+            $extracted = extractPatientPrefillFromText($msg);
+            return [
+                'type' => 'form',
+                'form_type' => 'add_patient',
+                'title' => 'Register New Patient',
+                'message' => "I have prepared the interactive Patient Registration form below. Please fill out or review the details and click **Register Patient**.",
+                'prefill' => $extracted
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 12. ADD / ONBOARD DOCTOR INTENT (INTERACTIVE FORM TRIGGER)
+    // -------------------------------------------------------------
+    $addDoctorPatterns = [
+        'add doctor', 'register doctor', 'new doctor', 'create doctor', 'onboard doctor',
+        'add a doctor', 'add physician', 'new physician', 'doctor registration form',
+        'doctor add karo', 'nayi doctor entry'
+    ];
+    foreach ($addDoctorPatterns as $adp) {
+        if (strpos($lower, $adp) !== false) {
+            $extracted = extractDoctorPrefillFromText($msg);
+            return [
+                'type' => 'form',
+                'form_type' => 'add_doctor',
+                'title' => 'Onboard New Doctor / Specialist',
+                'message' => "I have generated the Doctor Onboarding form below. Enter the physician's credentials, specialization, and consultation fee, then submit.",
+                'prefill' => $extracted
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 13. ADD / CREATE BED INTENT (INTERACTIVE FORM TRIGGER)
+    // -------------------------------------------------------------
+    $addBedPatterns = [
+        'add bed', 'create bed', 'new bed', 'add room', 'new room', 'create room',
+        'bed add karo', 'room create karo', 'new ward bed'
+    ];
+    foreach ($addBedPatterns as $abp) {
+        if (strpos($lower, $abp) !== false) {
+            $bedNum = '';
+            if (preg_match('/(?:bed|room)\s*([a-zA-Z0-9_-]+)/i', $msg, $bm)) {
+                $bedNum = strtoupper($bm[1]);
+            }
+            return [
+                'type' => 'form',
+                'form_type' => 'add_bed',
+                'title' => 'Add New Hospital Bed / Room',
+                'message' => "I have loaded the Bed Inventory Creation form below. Specify the bed number, ward type, and wing to add it to hospital inventory.",
+                'prefill' => ['bed_number' => $bedNum, 'type' => 'General Ward', 'wing' => 'North Wing', 'daily_charge' => '1500']
             ];
         }
     }
@@ -182,31 +392,211 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
     return null;
 }
 
+function extractPatientPrefillFromText($msg) {
+    $prefill = ['name' => '', 'surname' => '', 'gender' => 'Male', 'blood_group' => '', 'age' => '', 'phone' => ''];
+    if (preg_match('/(?:blood\s*group\s*)?([ABOabo0]{1,2}[\+-])(?=[^a-zA-Z0-9]|$)/i', $msg, $m)) {
+        $prefill['blood_group'] = strtoupper($m[1]);
+    }
+    if (preg_match('/\b(male|female|other|purush|mahila)\b/i', $msg, $m)) {
+        $g = strtolower($m[1]);
+        $prefill['gender'] = ($g === 'female' || $g === 'mahila') ? 'Female' : (($g === 'other') ? 'Other' : 'Male');
+    }
+    if (preg_match('/\b(?:age|umar|saal)\s*[:=]?\s*(\d{1,3})\b/i', $msg, $m) || preg_match('/\b(\d{1,2})\s*(?:years?|yrs?|yr|saal)\b/i', $msg, $m)) {
+        $prefill['age'] = $m[1];
+    }
+    if (preg_match('/\b(\+?91[\s-]?)?([6-9]\d{9})\b/', $msg, $m)) {
+        $prefill['phone'] = $m[2];
+    }
+    if (preg_match('/(?:patient|naam|name)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i', $msg, $m)) {
+        $prefill['name'] = ucfirst($m[1]);
+        $prefill['surname'] = ucfirst($m[2]);
+    }
+    return $prefill;
+}
+
+function extractDoctorPrefillFromText($msg) {
+    $prefill = ['name' => '', 'degree' => 'MBBS, MD', 'department' => 'General Medicine', 'phone' => '', 'fee' => '500', 'experience' => '5 Years'];
+    if (preg_match('/(?:dr\.?|doctor)\s+([A-Za-z\.\s]+?)(?:(?:\bwith\b|\bdept\b|\bphone\b|\bfee\b)|$)/i', $msg, $m)) {
+        $prefill['name'] = 'Dr. ' . trim(preg_replace('/^dr\.?\s*/i', '', $m[1]));
+    }
+    if (preg_match('/\b(cardio\w*|ortho\w*|pediatr\w*|neuro\w*|general medicine|gynec\w*|dermat\w*|radiology)\b/i', $msg, $m)) {
+        $prefill['department'] = ucfirst($m[1]);
+    }
+    return $prefill;
+}
+
+// =================================================================
+// MULTI-TURN & ENTITY RESOLUTION HELPERS
+// =================================================================
+
 /**
- * Builds the verified action plan for bulk attendance.
+ * Resolves doctor from message tokens OR scans previous conversation turns.
  */
-function buildBulkAttendanceAction($conn, $hospitalId, $lower) {
-    $targetStatus = 'Present';
-    if (strpos($lower, 'absent') !== false) $targetStatus = 'Absent';
-
-    // Check how many active staff exist
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM staff WHERE hospital_id = ? AND status = 'Active'");
-    $stmt->bind_param("i", $hospitalId);
-    $stmt->execute();
-    $activeCount = $stmt->get_result()->fetch_row()[0] ?? 0;
-
-    if ($activeCount === 0) {
-        return [
-            'type' => 'clarification',
-            'question' => "There are currently no active staff members registered in your hospital to mark attendance for.",
-            'suggestions' => ['Add new staff member', 'View staff directory']
-        ];
+function resolveDoctorFromMessageOrHistory($conn, $hospitalId, $msg, $history = []) {
+    // 1. Direct name match in user message
+    $res = $conn->query("SELECT id, name, degree, experience, phone, email, department_id FROM doctors WHERE hospital_id = $hospitalId");
+    $doctors = [];
+    if ($res) {
+        while ($r = $res->fetch_assoc()) $doctors[] = $r;
     }
 
-    $today = date('Y-m-d');
-    $checkIn = ($targetStatus === 'Present') ? '08:00:00' : 'NULL';
-    $hours = ($targetStatus === 'Present') ? 8.0 : 0.0;
+    $msgLower = strtolower($msg);
+    foreach ($doctors as $d) {
+        $nameLower = strtolower($d['name']);
+        // Remove "dr." prefix for robust fuzzy matching
+        $cleanDocName = trim(preg_replace('/^dr\.?\s*/i', '', $nameLower));
+        $nameParts = explode(' ', $cleanDocName);
+        
+        // Exact name or substantial part (e.g. "Ambarish" or "Panchasara")
+        if (strpos($msgLower, $nameLower) !== false || strpos($msgLower, $cleanDocName) !== false) {
+            return $d;
+        }
+        foreach ($nameParts as $part) {
+            if (strlen($part) >= 4 && strpos($msgLower, $part) !== false) {
+                return $d;
+            }
+        }
+    }
 
+    // 2. Pronoun / Reference Match ("that doctor", "him", "delete that doctor", etc.) from Conversation History
+    if (!empty($history)) {
+        // Iterate backwards from most recent message
+        $revHistory = array_reverse($history);
+        foreach ($revHistory as $h) {
+            $contentLower = strtolower($h['content'] ?? '');
+            foreach ($doctors as $d) {
+                $nameLower = strtolower($d['name']);
+                $cleanDocName = trim(preg_replace('/^dr\.?\s*/i', '', $nameLower));
+                if (strpos($contentLower, $nameLower) !== false || strpos($contentLower, $cleanDocName) !== false) {
+                    return $d;
+                }
+                $nameParts = explode(' ', $cleanDocName);
+                foreach ($nameParts as $part) {
+                    if (strlen($part) >= 4 && strpos($contentLower, $part) !== false) {
+                        return $d;
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Fallback: If only 1 doctor exists in hospital, return that
+    if (count($doctors) === 1) {
+        return $doctors[0];
+    }
+
+    return null;
+}
+
+/**
+ * Resolves patient from message or conversation history.
+ */
+function resolvePatientFromMessageOrHistory($conn, $hospitalId, $msg, $history = []) {
+    if (preg_match('/pat-\d+/i', $msg, $m)) {
+        $pid = strtoupper($m[0]);
+        $res = $conn->query("SELECT * FROM patients WHERE id = '$pid' AND hospital_id = $hospitalId LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) return $row;
+    }
+
+    $res = $conn->query("SELECT id, name, surname, phone, blood_group, age, gender FROM patients WHERE hospital_id = $hospitalId LIMIT 50");
+    $patients = [];
+    if ($res) {
+        while ($r = $res->fetch_assoc()) $patients[] = $r;
+    }
+
+    $msgLower = strtolower($msg);
+    foreach ($patients as $p) {
+        $fullName = strtolower($p['name'] . ' ' . ($p['surname'] ?? ''));
+        if (strpos($msgLower, strtolower($p['name'])) !== false || strpos($msgLower, $fullName) !== false) {
+            return $p;
+        }
+    }
+
+    // Scan history
+    if (!empty($history)) {
+        $rev = array_reverse($history);
+        foreach ($rev as $h) {
+            $c = strtolower($h['content'] ?? '');
+            foreach ($patients as $p) {
+                if (strpos($c, strtolower($p['name'])) !== false || strpos($c, strtolower($p['id'])) !== false) {
+                    return $p;
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Resolves bed number from message or conversation history.
+ */
+function resolveBedFromMessageOrHistory($conn, $hospitalId, $msg, $history = []) {
+    if (preg_match('/(?:bed|room)?\s*[-#]?\s*([a-zA-Z0-9]+-\d+|\d+)/i', $msg, $m)) {
+        $bedNum = strtoupper(trim($m[1]));
+        $res = $conn->query("SELECT * FROM beds WHERE (UPPER(bed_number) = '$bedNum' OR bed_number LIKE '%$bedNum%') AND hospital_id = $hospitalId LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) return $row;
+    }
+
+    // Scan history for bed numbers
+    if (!empty($history)) {
+        $rev = array_reverse($history);
+        foreach ($rev as $h) {
+            $c = $h['content'] ?? '';
+            if (preg_match('/(?:bed|room)\s*[:#\-]?\s*([a-zA-Z0-9\-]+)/i', $c, $m)) {
+                $b = strtoupper(trim($m[1]));
+                $res = $conn->query("SELECT * FROM beds WHERE UPPER(bed_number) = '$b' AND hospital_id = $hospitalId LIMIT 1");
+                if ($res && $row = $res->fetch_assoc()) return $row;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Resolves appointment from message or conversation history.
+ */
+function resolveAppointmentFromMessageOrHistory($conn, $hospitalId, $msg, $history = []) {
+    if (preg_match('/(?:app|appointment|token)\s*[-#]?\s*(\d+)/i', $msg, $m)) {
+        $appId = (int)$m[1];
+        $res = $conn->query("SELECT a.*, p.name as patient_name FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id WHERE a.id = $appId AND a.hospital_id = $hospitalId LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) return $row;
+    }
+
+    if (!empty($history)) {
+        $rev = array_reverse($history);
+        foreach ($rev as $h) {
+            $c = $h['content'] ?? '';
+            if (preg_match('/#APP-(\d+)/i', $c, $m) || preg_match('/appointment #?(\d+)/i', $c, $m)) {
+                $appId = (int)$m[1];
+                $res = $conn->query("SELECT a.*, p.name as patient_name FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id WHERE a.id = $appId AND a.hospital_id = $hospitalId LIMIT 1");
+                if ($res && $row = $res->fetch_assoc()) return $row;
+            }
+        }
+    }
+
+    return null;
+}
+
+function getDoctorSuggestions($conn, $hospitalId) {
+    $res = $conn->query("SELECT name FROM doctors WHERE hospital_id = $hospitalId LIMIT 4");
+    $suggs = [];
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $suggs[] = "Delete {$r['name']}";
+        }
+    }
+    return $suggs ?: ['View doctor directory'];
+}
+
+// Re-include standard builders
+function buildBulkAttendanceAction($conn, $hospitalId, $lower) {
+    $targetStatus = (strpos($lower, 'absent') !== false) ? 'Absent' : 'Present';
+    $today = date('Y-m-d');
+    $hours = ($targetStatus === 'Present') ? 8.0 : 0.0;
+    
+    $cnt = $conn->query("SELECT COUNT(*) FROM staff WHERE hospital_id = $hospitalId AND status = 'Active'")->fetch_row()[0] ?? 0;
     $sql = "INSERT INTO staff_attendance (hospital_id, staff_id, date, status, check_in_time, working_hours, notes, marked_by) " .
            "SELECT hospital_id, id, '$today', '$targetStatus', '08:00:00', $hours, 'Bulk Attendance marked via BHOOMA AI', 'BHOOMA AI' " .
            "FROM staff WHERE hospital_id = $hospitalId AND status = 'Active' " .
@@ -217,30 +607,18 @@ function buildBulkAttendanceAction($conn, $hospitalId, $lower) {
         'plan' => [
             'action_type' => 'INSERT_UPDATE',
             'table' => 'staff_attendance',
-            'description' => "Mark all $activeCount active staff members as '$targetStatus' for today ($today)",
+            'description' => "Mark all $cnt active staff members as '$targetStatus' for today ($today)",
             'sql' => $sql,
-            'params' => [
-                'hospital_id' => $hospitalId,
-                'status' => $targetStatus,
-                'count' => $activeCount,
-                'date' => $today
-            ]
+            'params' => ['hospital_id' => $hospitalId, 'status' => $targetStatus, 'date' => $today]
         ]
     ];
 }
 
-/**
- * Builds the verified action plan for individual staff attendance.
- */
 function buildIndividualAttendanceAction($conn, $hospitalId, $staff, $status) {
     $staffId = (int)$staff['id'];
     $staffName = $staff['first_name'] . ' ' . $staff['last_name'];
-    $staffCode = $staff['staff_code'] ?? "STF-$staffId";
-    $role = $staff['role'] ?? 'Staff';
     $today = date('Y-m-d');
-
-    $checkIn = ($status === 'Present') ? '08:00:00' : null;
-    $hours = ($status === 'Present') ? 8.0 : (($status === 'Half Day') ? 4.0 : (($status === 'Late') ? 7.5 : 0.0));
+    $hours = ($status === 'Present') ? 8.0 : 0.0;
 
     $sql = "INSERT INTO staff_attendance (hospital_id, staff_id, date, status, check_in_time, working_hours, notes, marked_by) " .
            "VALUES ($hospitalId, $staffId, '$today', '$status', '08:00:00', $hours, 'Marked via BHOOMA AI', 'BHOOMA AI') " .
@@ -251,146 +629,75 @@ function buildIndividualAttendanceAction($conn, $hospitalId, $staff, $status) {
         'plan' => [
             'action_type' => 'INSERT_UPDATE',
             'table' => 'staff_attendance',
-            'description' => "Mark $staffName ($staffCode - $role) as '$status' for today ($today)",
+            'description' => "Mark employee $staffName ({$staff['staff_code']}) as '$status' for today",
             'sql' => $sql,
-            'params' => [
-                'hospital_id' => $hospitalId,
-                'staff_id' => $staffId,
-                'staff_name' => $staffName,
-                'status' => $status,
-                'date' => $today
-            ]
+            'params' => ['staff_id' => $staffId, 'status' => $status, 'date' => $today]
         ]
     ];
 }
 
-/**
- * Builds the verified action plan for bed discharge.
- */
 function buildBedDischargeAction($conn, $hospitalId, $bedNumber) {
-    // Find bed and patient
-    $stmt = $conn->prepare("SELECT b.*, p.name, p.surname, p.id as pid FROM beds b LEFT JOIN patients p ON b.patient_id = p.id WHERE (b.bed_number = ? OR b.bed_number = ?) AND (b.hospital_id = ? OR b.hospital_id IS NULL)");
-    $cleanBed = trim($bedNumber);
-    $prefixedBed = 'Bed ' . $cleanBed;
-    $stmt->bind_param("ssi", $cleanBed, $prefixedBed, $hospitalId);
+    $stmt = $conn->prepare("SELECT b.*, p.name, p.surname FROM beds b LEFT JOIN patients p ON b.patient_id = p.id WHERE (UPPER(b.bed_number) = UPPER(?) OR b.bed_number = ?) AND (b.hospital_id = ? OR b.hospital_id IS NULL)");
+    $stmt->bind_param("ssi", $bedNumber, $bedNumber, $hospitalId);
     $stmt->execute();
     $bed = $stmt->get_result()->fetch_assoc();
 
-    if (!$bed) {
-        return [
-            'type' => 'clarification',
-            'question' => "Bed **$bedNumber** was not found in our hospital bed records. Please check the bed number.",
-            'suggestions' => getOccupiedBedSuggestions($conn, $hospitalId)
-        ];
-    }
-
-    if ($bed['status'] === 'Available' || empty($bed['patient_id'])) {
-        return [
-            'type' => 'clarification',
-            'question' => "Bed **{$bed['bed_number']}** is currently already **Available** and sanitized (no admitted patient).",
-            'suggestions' => ['View all beds', 'Allot bed to patient']
-        ];
-    }
-
+    $realBedNum = $bed ? $bed['bed_number'] : $bedNumber;
+    $patientId = $bed['patient_id'] ?? '';
     $patientName = trim(($bed['name'] ?? '') . ' ' . ($bed['surname'] ?? ''));
-    $patientId = $bed['patient_id'];
-    $realBedNum = $bed['bed_number'];
 
-    $sql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE bed_number = '$realBedNum'; " .
-           "UPDATE appointments SET status = 'Discharged from Bed', bed_number = NULL WHERE patient_id = '$patientId' AND bed_number = '$realBedNum'";
+    $sql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE bed_number = '$realBedNum' AND hospital_id = $hospitalId; " .
+           "UPDATE appointments SET status = 'Discharged from Bed', bed_number = NULL WHERE bed_number = '$realBedNum' AND hospital_id = $hospitalId;";
 
     return [
         'type' => 'action',
         'plan' => [
             'action_type' => 'UPDATE',
             'table' => 'beds',
-            'description' => "Discharge patient $patientName ($patientId) from Bed $realBedNum and mark bed Available",
+            'description' => "Discharge patient $patientName from Bed $realBedNum and mark bed Available",
             'sql' => $sql,
-            'params' => [
-                'bed_number' => $realBedNum,
-                'patient_id' => $patientId
-            ]
+            'params' => ['bed_number' => $realBedNum, 'patient_id' => $patientId]
         ]
     ];
 }
 
-/**
- * Builds the verified action plan for appointment check-in.
- */
 function buildAppointmentCheckInAction($conn, $hospitalId, $appId) {
-    $stmt = $conn->prepare("SELECT a.*, p.name, p.surname FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.id = ? AND (a.hospital_id = ? OR a.hospital_id IS NULL)");
+    $stmt = $conn->prepare("SELECT a.*, p.name, p.surname FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.id = ? AND a.hospital_id = ?");
     $stmt->bind_param("ii", $appId, $hospitalId);
     $stmt->execute();
     $appt = $stmt->get_result()->fetch_assoc();
 
-    if (!$appt) {
-        return [
-            'type' => 'clarification',
-            'question' => "Appointment ID #$appId could not be found for our hospital.",
-            'suggestions' => ['Check today\'s queue', 'View appointments']
-        ];
-    }
-
-    $patientName = $appt['name'] . ' ' . $appt['surname'];
-    $sql = "UPDATE appointments SET status = 'Checked-In', stage = 1 WHERE id = $appId";
+    $patientName = $appt ? ($appt['name'] . ' ' . $appt['surname']) : 'Patient';
+    $sql = "UPDATE appointments SET status = 'Checked-In', stage = 1 WHERE id = $appId AND hospital_id = $hospitalId";
 
     return [
         'type' => 'action',
         'plan' => [
             'action_type' => 'UPDATE',
             'table' => 'appointments',
-            'description' => "Check in $patientName for Appointment #$appId into Queue Stage 1 (Checked-In)",
+            'description' => "Check in $patientName for Appointment #APP-$appId (Stage: Checked-In)",
             'sql' => $sql,
-            'params' => [
-                'appointment_id' => $appId,
-                'patient_id' => $appt['patient_id']
-            ]
+            'params' => ['appointment_id' => $appId]
         ]
     ];
 }
 
-/**
- * Extracts and resolves a staff member from the text message against the real database.
- */
 function resolveStaffFromMessage($conn, $hospitalId, $msg) {
-    // Strip common filler words
-    $clean = preg_replace('/\b(mark|attendance|attdence|attendence|of|for|as|is|the|employee|staff|present|absent|late|half|day|leave|today|today\'s|karo|lagao|ki|ko|kare)\b/i', ' ', $msg);
+    $clean = preg_replace('/\b(mark|attendance|attdence|attendence|of|for|as|is|the|employee|staff|present|absent|late|half|day|leave|today|karo|lagao)\b/i', ' ', $msg);
     $clean = trim(preg_replace('/\s+/', ' ', $clean));
+    if (strlen($clean) < 2) return ['status' => 'empty'];
 
-    if (empty($clean) || strlen($clean) < 2) {
-        return ['status' => 'empty'];
-    }
-
-    // Try finding staff matching the clean string or tokens
     $tokens = explode(' ', $clean);
     $matches = [];
-
-    // 1. Direct match by staff_code
     foreach ($tokens as $token) {
-        if (preg_match('/^stf-?\d+/i', $token)) {
-            $code = strtoupper($token);
-            $stmt = $conn->prepare("SELECT * FROM staff WHERE hospital_id = ? AND (UPPER(staff_code) = ? OR UPPER(staff_code) LIKE ?)");
-            $pattern = "%$code%";
-            $stmt->bind_param("iss", $hospitalId, $code, $pattern);
+        if (strlen($token) >= 3) {
+            $stmt = $conn->prepare("SELECT * FROM staff WHERE hospital_id = ? AND (LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR UPPER(staff_code) LIKE ?)");
+            $term = "%" . strtolower($token) . "%";
+            $upTerm = "%" . strtoupper($token) . "%";
+            $stmt->bind_param("isss", $hospitalId, $term, $term, $upTerm);
             $stmt->execute();
             $res = $stmt->get_result();
             while ($r = $res->fetch_assoc()) $matches[$r['id']] = $r;
-        }
-    }
-
-    // 2. Match by first or last name
-    if (empty($matches)) {
-        foreach ($tokens as $token) {
-            if (strlen($token) >= 3) {
-                $stmt = $conn->prepare("SELECT * FROM staff WHERE hospital_id = ? AND (LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ?)");
-                $term = "%" . strtolower($token) . "%";
-                $stmt->bind_param("iss", $hospitalId, $term, $term);
-                $stmt->execute();
-                $res = $stmt->get_result();
-                while ($r = $res->fetch_assoc()) {
-                    $matches[$r['id']] = $r;
-                }
-            }
         }
     }
 
@@ -401,45 +708,20 @@ function resolveStaffFromMessage($conn, $hospitalId, $msg) {
         $suggestions = [];
         foreach ($matches as $s) {
             $name = $s['first_name'] . ' ' . $s['last_name'];
-            $code = $s['staff_code'];
-            $role = $s['role'];
-            $list .= "• **$name** ($code — $role)\n";
+            $list .= "• **$name** ({$s['staff_code']})\n";
             $suggestions[] = "Mark $name as Present";
         }
-        return [
-            'status' => 'multiple',
-            'list' => trim($list),
-            'suggestions' => array_slice($suggestions, 0, 3)
-        ];
+        return ['status' => 'multiple', 'list' => trim($list), 'suggestions' => array_slice($suggestions, 0, 3)];
     }
 
     return ['status' => 'not_found', 'searched_term' => $clean];
 }
 
-/**
- * Returns suggestions of active staff for the hospital.
- */
-function getActiveStaffSuggestions($conn, $hospitalId) {
-    $res = $conn->query("SELECT first_name, last_name, role FROM staff WHERE hospital_id = $hospitalId AND status = 'Active' LIMIT 3");
-    $suggs = [];
-    if ($res) {
-        while ($row = $res->fetch_assoc()) {
-            $suggs[] = "Mark {$row['first_name']} {$row['last_name']} as Present";
-        }
-    }
-    return $suggs;
-}
-
-/**
- * Returns suggestions of occupied beds.
- */
 function getOccupiedBedSuggestions($conn, $hospitalId) {
-    $res = $conn->query("SELECT bed_number FROM beds WHERE (hospital_id = $hospitalId OR hospital_id IS NULL) AND status = 'Occupied' LIMIT 3");
+    $res = $conn->query("SELECT bed_number FROM beds WHERE hospital_id = $hospitalId AND status = 'Occupied' LIMIT 3");
     $suggs = [];
     if ($res) {
-        while ($row = $res->fetch_assoc()) {
-            $suggs[] = "Discharge {$row['bed_number']}";
-        }
+        while ($r = $res->fetch_assoc()) $suggs[] = "Discharge {$r['bed_number']}";
     }
     return $suggs ?: ['View all beds'];
 }
