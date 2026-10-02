@@ -296,7 +296,7 @@ switch ($action) {
                 $fullResponse .= $text;
                 echo "data: " . json_encode(['type' => 'chunk', 'content' => $text]) . "\n\n";
                 flush();
-            }, ['temperature' => 0.35]);
+            }, ['temperature' => 0.25, 'num_predict' => 220]);
         } else {
             $mock = "I am processing your hospital request with real-time data.";
             $fullResponse .= $mock;

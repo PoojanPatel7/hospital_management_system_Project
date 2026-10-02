@@ -1,0 +1,1915 @@
+{
+  "tables": {
+    "ai_action_log": {
+      "columns": [
+        "id",
+        "hospital_id",
+        "user_id",
+        "user_role",
+        "action_id",
+        "action_type",
+        "target_table",
+        "sql_executed",
+        "rows_affected",
+        "success",
+        "error_message",
+        "ip_address",
+        "created_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_role",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "action_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "action_type",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "target_table",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "sql_executed",
+          "Type": "text",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "rows_affected",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "success",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        },
+        {
+          "Field": "error_message",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "ip_address",
+          "Type": "varchar(45)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        }
+      ]
+    },
+    "ai_chat_messages": {
+      "columns": [
+        "id",
+        "conversation_id",
+        "role",
+        "content",
+        "tokens_used",
+        "sql_executed",
+        "response_time_ms",
+        "created_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "conversation_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role",
+          "Type": "enum('user','assistant','system')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "content",
+          "Type": "text",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "tokens_used",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "sql_executed",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "response_time_ms",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        }
+      ]
+    },
+    "ai_config": {
+      "columns": [
+        "id",
+        "hospital_id",
+        "enabled",
+        "model_name",
+        "ollama_url",
+        "max_tokens",
+        "temperature",
+        "context_window",
+        "rate_limit_per_minute",
+        "allowed_tables",
+        "system_prompt_override",
+        "created_at",
+        "updated_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "enabled",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        },
+        {
+          "Field": "model_name",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "qwen3:4b",
+          "Extra": ""
+        },
+        {
+          "Field": "ollama_url",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "http://localhost:11434",
+          "Extra": ""
+        },
+        {
+          "Field": "max_tokens",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "2048",
+          "Extra": ""
+        },
+        {
+          "Field": "temperature",
+          "Type": "decimal(3,2)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0.30",
+          "Extra": ""
+        },
+        {
+          "Field": "context_window",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "8192",
+          "Extra": ""
+        },
+        {
+          "Field": "rate_limit_per_minute",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "30",
+          "Extra": ""
+        },
+        {
+          "Field": "allowed_tables",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "system_prompt_override",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "updated_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": "on update current_timestamp()"
+        }
+      ]
+    },
+    "ai_conversations": {
+      "columns": [
+        "id",
+        "hospital_id",
+        "user_type",
+        "user_id",
+        "user_role",
+        "title",
+        "model_used",
+        "page_context",
+        "created_at",
+        "updated_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_type",
+          "Type": "enum('admin','staff')",
+          "Null": "NO",
+          "Key": "",
+          "Default": "admin",
+          "Extra": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_role",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Admin",
+          "Extra": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "New Chat",
+          "Extra": ""
+        },
+        {
+          "Field": "model_used",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "qwen3:4b",
+          "Extra": ""
+        },
+        {
+          "Field": "page_context",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "updated_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": "on update current_timestamp()"
+        }
+      ]
+    },
+    "ai_pending_actions": {
+      "columns": [
+        "id",
+        "conversation_id",
+        "message_id",
+        "hospital_id",
+        "action_type",
+        "target_table",
+        "description",
+        "sql_query",
+        "sql_params",
+        "validation_data",
+        "status",
+        "confirmed_at",
+        "executed_at",
+        "error_message",
+        "expires_at",
+        "created_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "conversation_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "message_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "action_type",
+          "Type": "enum('INSERT','UPDATE','DELETE')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "target_table",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "sql_query",
+          "Type": "text",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "sql_params",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "validation_data",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('pending','confirmed','cancelled','expired','executed','failed')",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": "pending",
+          "Extra": ""
+        },
+        {
+          "Field": "confirmed_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "executed_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "error_message",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "expires_at",
+          "Type": "datetime",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        }
+      ]
+    },
+    "appointments": {
+      "columns": [
+        "id",
+        "patient_id",
+        "doctor_id",
+        "type",
+        "date",
+        "slot",
+        "symptoms",
+        "allergies",
+        "status",
+        "stage",
+        "bed_number",
+        "doctor_notes",
+        "created_at",
+        "hospital_id"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "patient_id",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "doctor_id",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "slot",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "symptoms",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "allergies",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "stage",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "bed_number",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "doctor_notes",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "beds": {
+      "columns": [
+        "id",
+        "bed_number",
+        "type",
+        "wing",
+        "status",
+        "patient_id",
+        "hospital_id"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "bed_number",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "wing",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Available",
+          "Extra": ""
+        },
+        {
+          "Field": "patient_id",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "departments": {
+      "columns": [
+        "id",
+        "name",
+        "icon",
+        "hospital_id"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "icon",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "diagnoses": {
+      "columns": [
+        "id",
+        "appointment_id",
+        "description"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "appointment_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "doctor_categories": {
+      "columns": [
+        "doctor_id",
+        "department_id"
+      ],
+      "details": [
+        {
+          "Field": "doctor_id",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "department_id",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "doctor_day_schedules": {
+      "columns": [
+        "id",
+        "doctor_id",
+        "day_of_week",
+        "is_available",
+        "start_time",
+        "end_time",
+        "duration_minutes",
+        "break_start",
+        "break_end",
+        "custom_slots",
+        "created_at",
+        "updated_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "doctor_id",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "day_of_week",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "is_available",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        },
+        {
+          "Field": "start_time",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "09:00 AM",
+          "Extra": ""
+        },
+        {
+          "Field": "end_time",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "05:00 PM",
+          "Extra": ""
+        },
+        {
+          "Field": "duration_minutes",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "30",
+          "Extra": ""
+        },
+        {
+          "Field": "break_start",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "break_end",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "custom_slots",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "updated_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": "on update current_timestamp()"
+        }
+      ]
+    },
+    "doctor_slots": {
+      "columns": [
+        "id",
+        "doctor_id",
+        "time_slot"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "doctor_id",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "time_slot",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "doctors": {
+      "columns": [
+        "id",
+        "name",
+        "department_id",
+        "experience",
+        "degree",
+        "hospital_id",
+        "phone"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "department_id",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "experience",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "degree",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "phone",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "hospitals": {
+      "columns": [
+        "id",
+        "name",
+        "username",
+        "password",
+        "created_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "name",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "username",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "password",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        }
+      ]
+    },
+    "patient_files": {
+      "columns": [
+        "id",
+        "patient_id",
+        "appointment_id",
+        "title",
+        "file_path",
+        "record_date",
+        "created_at",
+        "file_data",
+        "file_name",
+        "mime_type",
+        "file_size"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "patient_id",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "appointment_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "file_path",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "record_date",
+          "Type": "datetime",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "file_data",
+          "Type": "longblob",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "file_name",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "mime_type",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "file_size",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        }
+      ]
+    },
+    "patients": {
+      "columns": [
+        "id",
+        "name",
+        "surname",
+        "father_name",
+        "phone",
+        "demographics",
+        "created_at",
+        "gender",
+        "blood_group",
+        "age",
+        "emergency_contact_name",
+        "emergency_contact_phone",
+        "hospital_id"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "surname",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "father_name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "phone",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "demographics",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "gender",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "blood_group",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "age",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "emergency_contact_name",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "emergency_contact_phone",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "prescriptions": {
+      "columns": [
+        "id",
+        "appointment_id",
+        "medicine_name",
+        "dosage",
+        "frequency",
+        "duration",
+        "instructions"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "appointment_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "medicine_name",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "dosage",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "frequency",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "duration",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "instructions",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ]
+    },
+    "staff": {
+      "columns": [
+        "id",
+        "hospital_id",
+        "staff_code",
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "role",
+        "department",
+        "gender",
+        "date_of_birth",
+        "joining_date",
+        "shift",
+        "status",
+        "qualification",
+        "salary",
+        "blood_group",
+        "emergency_contact",
+        "address",
+        "is_user",
+        "username",
+        "password",
+        "avatar",
+        "created_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "staff_code",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "first_name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "last_name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "phone",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "department",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "gender",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Female",
+          "Extra": ""
+        },
+        {
+          "Field": "date_of_birth",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "joining_date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "shift",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Morning (08:00 - 16:00)",
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Active",
+          "Extra": ""
+        },
+        {
+          "Field": "qualification",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "salary",
+          "Type": "decimal(10,2)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0.00",
+          "Extra": ""
+        },
+        {
+          "Field": "blood_group",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "emergency_contact",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "address",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "is_user",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "username",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "password",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "avatar",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        }
+      ]
+    },
+    "staff_attendance": {
+      "columns": [
+        "id",
+        "hospital_id",
+        "staff_id",
+        "date",
+        "status",
+        "check_in_time",
+        "check_out_time",
+        "working_hours",
+        "notes",
+        "marked_by",
+        "created_at",
+        "updated_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "hospital_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "staff_id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "date",
+          "Type": "date",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Present','Absent','Late','Half Day','On Leave')",
+          "Null": "NO",
+          "Key": "",
+          "Default": "Present",
+          "Extra": ""
+        },
+        {
+          "Field": "check_in_time",
+          "Type": "time",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "check_out_time",
+          "Type": "time",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "working_hours",
+          "Type": "decimal(4,2)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "notes",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "marked_by",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Admin",
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        },
+        {
+          "Field": "updated_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": "on update current_timestamp()"
+        }
+      ]
+    },
+    "system_state": {
+      "columns": [
+        "id",
+        "line_running"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "line_running",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        }
+      ]
+    },
+    "timeline_events": {
+      "columns": [
+        "id",
+        "appointment_id",
+        "patient_id",
+        "event_time",
+        "event_description",
+        "created_at"
+      ],
+      "details": [
+        {
+          "Field": "id",
+          "Type": "int(11)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "appointment_id",
+          "Type": "int(11)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "patient_id",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "event_time",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "event_description",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": "current_timestamp()",
+          "Extra": ""
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "from": "appointments.patient_id",
+      "to": "patients.id",
+      "type": "MANY_TO_ONE",
+      "description": "Patient attending appointment"
+    },
+    {
+      "from": "appointments.doctor_id",
+      "to": "doctors.id",
+      "type": "MANY_TO_ONE",
+      "description": "Doctor consulting appointment"
+    },
+    {
+      "from": "doctors.department_id",
+      "to": "departments.id",
+      "type": "MANY_TO_ONE",
+      "description": "Doctor specialty department"
+    },
+    {
+      "from": "beds.patient_id",
+      "to": "patients.id",
+      "type": "ONE_TO_ONE",
+      "description": "Patient currently admitted in bed"
+    },
+    {
+      "from": "staff_attendance.staff_id",
+      "to": "staff.id",
+      "type": "MANY_TO_ONE",
+      "description": "Attendance log for staff member"
+    },
+    {
+      "from": "prescriptions.appointment_id",
+      "to": "appointments.id",
+      "type": "MANY_TO_ONE",
+      "description": "Prescription generated during appointment"
+    },
+    {
+      "from": "diagnoses.appointment_id",
+      "to": "appointments.id",
+      "type": "MANY_TO_ONE",
+      "description": "Diagnosis documented for appointment"
+    },
+    {
+      "from": "doctor_day_schedules.doctor_id",
+      "to": "doctors.id",
+      "type": "MANY_TO_ONE",
+      "description": "Weekly day schedule for doctor"
+    },
+    {
+      "from": "timeline_events.appointment_id",
+      "to": "appointments.id",
+      "type": "MANY_TO_ONE",
+      "description": "Clinical stage event timeline"
+    }
+  ],
+  "multi_tenant_column": "hospital_id"
+}

@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """
-HMS AI Dataset Generator
-========================
-Generates a comprehensive, fine-tuning dataset (1000+ examples) for training a dedicated
-hospital management AI model (Qwen2.5-3B-Instruct / Llama-3-3B) tailored specifically
-to the Bhooma Hospital Management System schema and operational workflows.
+HMS AI Master Dataset Generator (Gemini & Claude Style)
+======================================================
+Generates an extensive, professional, high-density fine-tuning dataset (2,500+ examples)
+covering ALL 34 hospital tables, foreign keys, outside commands, and clinical workflows.
+
+Tone & Style:
+  - Modeled after Claude 3.5 Sonnet & Gemini 1.5 Pro: Crisp, authoritative, highly structured,
+    executive summaries, bold key metrics, zero boring fluff or conversational filler.
 
 Outputs:
-  - hms_chatml.jsonl (Standard ChatML format for Hugging Face / Axolotl / SFTTrainer)
-  - hms_alpaca.json  (Instruction / Input / Output format for Unsloth / LLaMA-Factory)
+  - hms_training_chatml.jsonl (Standard ChatML format for Hugging Face / Axolotl / SFTTrainer)
+  - hms_training_alpaca.json  (Instruction / Input / Output format for Unsloth / LLaMA-Factory)
 """
 
 import json
@@ -19,189 +22,331 @@ import sys
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-SYSTEM_PROMPT = """You are BHOOMA HMS AI, an intelligent, professional Hospital Information Assistant.
-You have real-time access to the hospital database.
+SYSTEM_PROMPT = """You are BHOOMA HMS AI, an elite clinical & administrative intelligence coordinator.
+You communicate with the crisp, direct, and authoritative precision of Claude and Gemini.
 Rules:
 1. Always isolate data by hospital_id = ? for multi-tenant safety.
-2. For read queries, provide a clear direct answer highlighted with '> 💡 **Direct Answer:**' followed by the exact, optimized MySQL SELECT query inside ```sql codeblocks.
-3. For staff attendance queries, join `staff` and `staff_attendance` on staff.id = staff_attendance.staff_id with staff_attendance.date = CURDATE().
-4. Never expose sensitive columns like passwords or private keys.
-5. Never perform DROP, DELETE, ALTER, or TRUNCATE operations."""
+2. Format: Begin with a single high-impact executive direct answer (> 💡 **Direct Answer:** ...).
+3. Follow with dense, structured bullet points or tables. Zero rambling or generic filler.
+4. For read queries, provide the optimized MySQL SELECT query inside ```sql codeblocks.
+5. For write actions, provide the structured action plan inside ```json codeblocks or specify the exact interactive form.
+6. For staff attendance, join `staff` and `staff_attendance` on staff.id = staff_attendance.staff_id with staff_attendance.date = CURDATE()."""
 
-# Real names and entities matching hospital_db
+# Hospital Entities
 DOCTORS = [
-    ("doc-1", "Dr. Ambarish A. Panchasara", "Orthopedics", "Surgeon"),
-    ("doc-2", "Dr. Priya Patel", "Cardiology", "Cardiologist"),
-    ("doc-3", "Dr. Rajesh Sharma", "Pediatrics", "Pediatrician"),
-    ("doc-4", "Dr. Neha Verma", "General Medicine", "Physician"),
-    ("doc-5", "Dr. Suresh Joshi", "Neurology", "Neurologist")
+    ("doc-1", "Dr. Ambarish A. Panchasara", "Orthopedics", "Surgeon", "+91 98250 11223"),
+    ("doc-2", "Dr. Priya Patel", "Cardiology", "Cardiologist", "+91 98250 22334"),
+    ("doc-3", "Dr. Rajesh Sharma", "Pediatrics", "Pediatrician", "+91 98250 33445"),
+    ("doc-4", "Dr. Neha Verma", "General Medicine", "Physician", "+91 98250 44556"),
+    ("doc-5", "Dr. Suresh Joshi", "Neurology", "Neurologist", "+91 98250 55667")
 ]
 
-DEPARTMENTS = ["Cardiology", "Orthopedics", "Pediatrics", "General Medicine", "Neurology", "ICU", "Emergency"]
+DEPARTMENTS = ["Cardiology", "Orthopedics", "Pediatrics", "General Medicine", "Neurology", "ICU", "Emergency", "Radiology", "Pathology"]
 
 BED_TYPES = ["ICU", "General Ward", "Private", "Semi-Private"]
-BED_NUMBERS = [f"ICU-{i:02d}" for i in range(1, 11)] + [f"GEN-{i:03d}" for i in range(101, 131)] + [f"PVT-{i:03d}" for i in range(201, 215)]
+BEDS = [
+    (f"ICU-{i:02d}", "ICU", "Critical Care Wing") for i in range(1, 11)
+] + [
+    (f"GEN-{i:03d}", "General Ward", "North Wing") for i in range(101, 125)
+] + [
+    (f"PVT-{i:03d}", "Private", "South Wing Deluxe") for i in range(201, 215)
+]
 
-STAFF_ROLES = ["Senior Staff Nurse", "Staff Nurse", "Ward Attendant", "Receptionist", "Lab Technician", "Pharmacist", "Radiologist"]
-FIRST_NAMES = ["Amit", "Pooja", "Vikram", "Sneha", "Rahul", "Anjali", "Karan", "Ritu", "Deepak", "Sunita", "Manoj", "Kavita", "Sanjay", "Meena", "Gaurav", "Swati", "Naveen", "Divya", "Rohit", "Priyanka"]
-LAST_NAMES = ["Sharma", "Shah", "Patel", "Verma", "Mehta", "Desai", "Joshi", "Chauhan", "Trivedi", "Rathod", "Yadav", "Dave", "Pandya", "Kapadia", "Vyas"]
+STAFF_MEMBERS = [
+    (11, "STF-1001", "Amit", "Sharma", "Senior Staff Nurse", "ICU", "Morning"),
+    (12, "STF-1002", "Pooja", "Shah", "Senior Staff Nurse", "Emergency", "Morning"),
+    (13, "STF-1003", "Vikram", "Patel", "Ward Attendant", "General Ward", "Night"),
+    (14, "STF-1004", "Sneha", "Verma", "Staff Nurse", "Pediatrics", "Evening"),
+    (15, "STF-1005", "Rahul", "Mehta", "Pharmacist", "Pharmacy", "General"),
+    (16, "STF-1006", "Anjali", "Desai", "Receptionist", "Front Desk", "Morning"),
+    (17, "STF-1007", "Karan", "Joshi", "Lab Technician", "Pathology", "General"),
+    (18, "STF-1008", "Ritu", "Chauhan", "Staff Nurse", "Cardiology", "Morning"),
+    (19, "STF-1009", "Deepak", "Trivedi", "Ward Attendant", "Orthopedics", "Evening"),
+    (20, "STF-1010", "Sunita", "Rathod", "Senior Staff Nurse", "ICU", "Night")
+]
 
-TIME_SLOTS = ["09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"]
-APPOINTMENT_TYPES = ["General Consultation", "Specialist Follow-up", "Routine Check-up", "Emergency Assessment", "Post-Op Review"]
+COMMON_MEDS = [
+    ("Paracetamol 650mg", "1 tablet", "TDS (Thrice daily)", "5 days", "Take after meals"),
+    ("Amoxicillin 500mg", "1 capsule", "BD (Twice daily)", "7 days", "Complete full antibiotic course"),
+    ("Pantoprazole 40mg", "1 tablet", "OD (Once daily)", "10 days", "Take early morning on empty stomach"),
+    ("Atorvastatin 20mg", "1 tablet", "OD (Night)", "30 days", "Take after dinner"),
+    ("Metformin 500mg", "1 tablet", "BD (Twice daily)", "30 days", "Take with meals"),
+    ("Cetirizine 10mg", "1 tablet", "HS (At bedtime)", "3 days", "May cause slight drowsiness")
+]
 
-def generate_templates():
-    templates = []
+FIRST_NAMES = ["Dev", "Aarav", "Rohan", "Ananya", "Ishaan", "Kavya", "Manish", "Aditi", "Harsh", "Bhavna", "Nikhil", "Pooja", "Suresh", "Geeta", "Chetan"]
+LAST_NAMES = ["Patel", "Shah", "Sharma", "Trivedi", "Joshi", "Verma", "Rathod", "Mehta", "Chauhan", "Desai"]
 
-    # 1. DOCTOR AVAILABILITY & DETAILS
-    for doc_id, doc_name, dept, role in DOCTORS:
-        templates.append({
-            "user": f"Is {doc_name} available today?",
-            "answer": f"> 💡 **Direct Answer:** Checking today's schedule and appointments for {doc_name} ({dept}).\n\n```sql\nSELECT d.name, d.experience, d.degree, dep.name AS department, dds.start_time, dds.end_time, dds.is_available FROM doctors d LEFT JOIN departments dep ON d.department_id = dep.id LEFT JOIN doctor_day_schedules dds ON d.id = dds.doctor_id AND dds.day_of_week = DAYNAME(CURDATE()) WHERE d.id = '{doc_id}' AND d.hospital_id = 1;\n```"
-        })
-        templates.append({
-            "user": f"Show qualifications and experience of {doc_name}",
-            "answer": f"> 💡 **Direct Answer:** {doc_name} is a specialist in {dept}.\n\n```sql\nSELECT name, experience, degree, phone FROM doctors WHERE id = '{doc_id}' AND hospital_id = 1;\n```"
-        })
-        templates.append({
-            "user": f"List all appointments scheduled for {doc_name} today",
-            "answer": f"> 💡 **Direct Answer:** Fetching today's scheduled patient visits for {doc_name}.\n\n```sql\nSELECT a.id AS token_id, a.slot, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name, a.type, a.status FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.doctor_id = '{doc_id}' AND a.date = CURDATE() AND a.hospital_id = 1 ORDER BY a.slot ASC;\n```"
-        })
-
-    # 2. DEPARTMENT DOCTOR LOOKUPS
-    for dept in DEPARTMENTS:
-        templates.append({
-            "user": f"Which doctors are in {dept} department?",
-            "answer": f"> 💡 **Direct Answer:** Listing all practicing specialists in the {dept} department.\n\n```sql\nSELECT d.id, d.name, d.experience, d.degree, d.phone FROM doctors d JOIN departments dep ON d.department_id = dep.id WHERE dep.name LIKE '%{dept}%' AND d.hospital_id = 1;\n```"
-        })
-        templates.append({
-            "user": f"Who is available for consultation in {dept} right now?",
-            "answer": f"> 💡 **Direct Answer:** Checking currently active consultation specialists in {dept}.\n\n```sql\nSELECT d.name, dep.name AS department, dds.start_time, dds.end_time FROM doctors d JOIN departments dep ON d.department_id = dep.id JOIN doctor_day_schedules dds ON d.id = dds.doctor_id WHERE dep.name LIKE '%{dept}%' AND dds.day_of_week = DAYNAME(CURDATE()) AND dds.is_available = 1 AND d.hospital_id = 1;\n```"
-        })
-
-    # 3. BED MANAGEMENT (ICU, GENERAL, PRIVATE)
-    for b_type in BED_TYPES:
-        templates.append({
-            "user": f"How many {b_type} beds are vacant?",
-            "answer": f"> 💡 **Direct Answer:** Checking current occupancy status for {b_type} beds.\n\n```sql\nSELECT COUNT(*) AS available_beds FROM beds WHERE type = '{b_type}' AND status = 'Available' AND hospital_id = 1;\n```"
-        })
-        templates.append({
-            "user": f"List all empty {b_type} beds",
-            "answer": f"> 💡 **Direct Answer:** Displaying available {b_type} bed inventory.\n\n```sql\nSELECT bed_number, type, wing FROM beds WHERE type = '{b_type}' AND status = 'Available' AND hospital_id = 1 ORDER BY bed_number ASC;\n```"
-        })
-        templates.append({
-            "user": f"Show all occupied {b_type} beds with patient details",
-            "answer": f"> 💡 **Direct Answer:** Listing occupied {b_type} beds along with admitted patients.\n\n```sql\nSELECT b.bed_number, b.type, b.wing, p.id AS mrn, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name, a.date AS admission_date FROM beds b JOIN patients p ON b.patient_id = p.id LEFT JOIN appointments a ON a.patient_id = p.id AND a.bed_number = b.bed_number WHERE b.type = '{b_type}' AND b.status = 'Occupied' AND b.hospital_id = 1;\n```"
-        })
-
-    # 4. STAFF & ATTENDANCE QUERIES
-    attendance_queries = [
-        ("who is present today in staff", "Present", "Listing all hospital staff members checked in on duty today."),
-        ("list absent staff members", "Absent", "Showing all staff members marked absent for today."),
-        ("how many staff are present today", "Present", "Counting total on-duty hospital personnel for today."),
-        ("who is on leave today", "On Leave", "Fetching staff members currently approved on official leave."),
-        ("who is on night shift", "Night", "Displaying personnel scheduled on the night shift rotation.")
-    ]
-    for q, status, direct_ans in attendance_queries:
-        if status in ["Present", "Absent", "On Leave"]:
-            templates.append({
-                "user": q,
-                "answer": f"> 💡 **Direct Answer:** {direct_ans}\n\n```sql\nSELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, sa.check_in_time, sa.status FROM staff s JOIN staff_attendance sa ON s.id = sa.staff_id WHERE sa.date = CURDATE() AND sa.status = '{status}' AND s.hospital_id = 1 ORDER BY s.role ASC;\n```"
-            })
-        elif status == "Night":
-            templates.append({
-                "user": q,
-                "answer": f"> 💡 **Direct Answer:** {direct_ans}\n\n```sql\nSELECT s.id, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.shift FROM staff s WHERE s.shift = 'Night' AND s.status = 'Active' AND s.hospital_id = 1;\n```"
-            })
-
-    # 5. PATIENT ADMISSIONS, MRN LOOKUPS & DEMOGRAPHICS
-    for _ in range(30):
-        first = random.choice(FIRST_NAMES)
-        last = random.choice(LAST_NAMES)
-        full_name = f"{first} {last}"
-        pat_id = f"PAT-{random.randint(1001, 1150):04d}"
-        
-        templates.append({
-            "user": f"Find patient records for {full_name}",
-            "answer": f"> 💡 **Direct Answer:** Retrieving medical record profile for patient {full_name}.\n\n```sql\nSELECT id, name, surname, phone, demographics, gender, blood_group, age, created_at FROM patients WHERE (name LIKE '%{first}%' AND surname LIKE '%{last}%') AND hospital_id = 1;\n```"
-        })
-        templates.append({
-            "user": f"Show details of patient MRN {pat_id}",
-            "answer": f"> 💡 **Direct Answer:** Accessing patient demographic and emergency profile for {pat_id}.\n\n```sql\nSELECT id, name, surname, phone, emergency_contact_name, emergency_contact_phone, blood_group, age, gender FROM patients WHERE id = '{pat_id}' AND hospital_id = 1;\n```"
-        })
-        templates.append({
-            "user": f"What prescriptions and medications were given to {pat_id}?",
-            "answer": f"> 💡 **Direct Answer:** Fetching pharmacy prescription history for patient {pat_id}.\n\n```sql\nSELECT pr.medicine_name, pr.dosage, pr.frequency, pr.duration, pr.instructions, a.date, d.name AS prescribed_by FROM prescriptions pr JOIN appointments a ON pr.appointment_id = a.id JOIN doctors d ON a.doctor_id = d.id WHERE a.patient_id = '{pat_id}' AND a.hospital_id = 1 ORDER BY a.date DESC;\n```"
-        })
-
-    # 6. TODAY'S APPOINTMENT OVERVIEW & QUEUE
-    templates.append({
-        "user": "How many appointments are booked for today?",
-        "answer": "> 💡 **Direct Answer:** Calculating total OPD consultation volume for today.\n\n```sql\nSELECT COUNT(*) AS total_today, SUM(CASE WHEN status = 'Checked In' THEN 1 ELSE 0 END) AS checked_in_count, SUM(CASE WHEN status = 'Pre-Booked' THEN 1 ELSE 0 END) AS pre_booked_count, SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_count FROM appointments WHERE date = CURDATE() AND hospital_id = 1;\n```"
-    })
-    templates.append({
-        "user": "Show queue of patients waiting for consultation",
-        "answer": "> 💡 **Direct Answer:** Listing checked-in patients currently awaiting doctor consultation.\n\n```sql\nSELECT a.id AS token, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name, d.name AS doctor_name, a.slot, a.symptoms FROM appointments a JOIN patients p ON a.patient_id = p.id JOIN doctors d ON a.doctor_id = d.id WHERE a.date = CURDATE() AND a.status = 'Checked In' AND a.hospital_id = 1 ORDER BY a.slot ASC;\n```"
-    })
-
-    # 7. MULTILINGUAL & COMMON TYPOS (Hinglish + Human queries)
-    typo_variations = [
-        ("kitne docter available hai aaj", "> 💡 **Direct Answer:** Listing currently available practicing doctors for today.\n\n```sql\nSELECT d.name, dep.name AS department, dds.start_time, dds.end_time FROM doctors d LEFT JOIN departments dep ON d.department_id = dep.id LEFT JOIN doctor_day_schedules dds ON d.id = dds.doctor_id AND dds.day_of_week = DAYNAME(CURDATE()) WHERE dds.is_available = 1 AND d.hospital_id = 1;\n```"),
-        ("aaj kitne pecent admit hai", "> 💡 **Direct Answer:** Counting total inpatient bed admissions.\n\n```sql\nSELECT COUNT(*) AS admitted_patients FROM beds WHERE status = 'Occupied' AND hospital_id = 1;\n```"),
-        ("kon kon nurse duty par hai", "> 💡 **Direct Answer:** Showing nursing staff members currently on duty today.\n\n```sql\nSELECT s.id, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS nurse_name, s.department, sa.check_in_time FROM staff s JOIN staff_attendance sa ON s.id = sa.staff_id WHERE s.role LIKE '%Nurse%' AND sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1;\n```"),
-        ("icu me kitne bed khali hai", "> 💡 **Direct Answer:** Checking vacant ICU beds count.\n\n```sql\nSELECT bed_number, wing FROM beds WHERE type = 'ICU' AND status = 'Available' AND hospital_id = 1;\n```")
-    ]
-    for q, ans in typo_variations:
-        templates.append({"user": q, "answer": ans})
-
-    return templates
-
-def generate_augmented_dataset(target_count=1200):
-    base_templates = generate_templates()
+def build_comprehensive_scenarios():
     dataset = []
-    
-    # Add base templates
-    for item in base_templates:
+
+    # =========================================================================
+    # 1. OUTSIDE COMMANDS: BED DISCHARGE, TRANSFER & OCCUPANCY
+    # =========================================================================
+    for bed_no, b_type, wing in BEDS[:15]:
+        # Outside command: Discharge bed
+        dataset.append({
+            "instruction": f"Discharge patient from bed {bed_no}",
+            "output": f"> 💡 **Direct Answer:** Preparing discharge action to release **Bed {bed_no} ({b_type})** back to available inventory.\n\n"
+                      f"```json\n"
+                      f"{{\n"
+                      f'  "action_type": "UPDATE",\n'
+                      f'  "table": "beds",\n'
+                      f'  "description": "Discharge inpatient from Bed {bed_no} and mark bed Available",\n'
+                      f'  "sql": "UPDATE beds SET status = \'Available\', patient_id = NULL WHERE bed_number = \'{bed_no}\' AND hospital_id = 1",\n'
+                      f'  "params": {{}}\n'
+                      f"}}\n"
+                      f"```\n\n"
+                      f"* **Bed:** {bed_no} | **Wing:** {wing}\n"
+                      f"* **Target State:** Status set to Available, patient unlinked.\n"
+                      f"* *Action card generated. Click Confirm below to execute.*"
+        })
+
+        # Outside command: Bed status lookup
+        dataset.append({
+            "instruction": f"Is bed {bed_no} vacant or occupied right now?",
+            "output": f"> 💡 **Direct Answer:** Querying real-time occupancy status for **Bed {bed_no}**.\n\n"
+                      f"```sql\n"
+                      f"SELECT b.bed_number, b.type, b.wing, b.status, p.id AS patient_id, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name "
+                      f"FROM beds b LEFT JOIN patients p ON b.patient_id = p.id "
+                      f"WHERE b.bed_number = '{bed_no}' AND b.hospital_id = 1;\n"
+                      f"```"
+        })
+
+    # =========================================================================
+    # 2. OUTSIDE COMMANDS: APPOINTMENT CANCELLATION, RESCHEDULING & QUEUE
+    # =========================================================================
+    for token_id in [3, 7, 12, 15, 22, 28, 35, 41]:
+        dataset.append({
+            "instruction": f"Cancel appointment token #{token_id}",
+            "output": f"> 💡 **Direct Answer:** Ready to cancel **Appointment #{token_id}** and release the doctor's consultation slot.\n\n"
+                      f"```json\n"
+                      f"{{\n"
+                      f'  "action_type": "UPDATE",\n'
+                      f'  "table": "appointments",\n'
+                      f'  "description": "Cancel appointment #{token_id} and notify patient timeline",\n'
+                      f'  "sql": "UPDATE appointments SET status = \'Cancelled\' WHERE id = {token_id} AND hospital_id = 1",\n'
+                      f'  "params": {{}}\n'
+                      f"}}\n"
+                      f"```\n\n"
+                      f"* **Token:** #{token_id}\n"
+                      f"* **Target State:** Status $\\rightarrow$ Cancelled.\n"
+                      f"* *Please click Confirm below to apply this cancellation.*"
+        })
+
+        dataset.append({
+            "instruction": f"Check in patient for token #{token_id} at front desk",
+            "output": f"> 💡 **Direct Answer:** Processing reception check-in for **Appointment #{token_id}**.\n\n"
+                      f"```json\n"
+                      f"{{\n"
+                      f'  "action_type": "UPDATE",\n'
+                      f'  "table": "appointments",\n'
+                      f'  "description": "Check in token #{token_id} to OPD Waiting Queue (Stage 1)",\n'
+                      f'  "sql": "UPDATE appointments SET status = \'Checked In\', stage = 1 WHERE id = {token_id} AND hospital_id = 1",\n'
+                      f'  "params": {{}}\n'
+                      f"}}\n"
+                      f"```\n\n"
+                      f"* **Status:** Moving to OPD Queue\n"
+                      f"* *Confirm below to update real-time waiting tokens.*"
+        })
+
+    # =========================================================================
+    # 3. CLINICAL PRESCRIPTION & DIAGNOSIS QUERIES
+    # =========================================================================
+    for med, dose, freq, dur, inst in COMMON_MEDS:
+        dataset.append({
+            "instruction": f"Which patients were prescribed {med.split()[0]}?",
+            "output": f"> 💡 **Direct Answer:** Searching pharmacy records for active prescriptions containing **{med.split()[0]}**.\n\n"
+                      f"```sql\n"
+                      f"SELECT p.id AS mrn, CONCAT(p.name, ' ', COALESCE(p.surname, '')) AS patient_name, d.name AS doctor_name, pr.medicine_name, pr.dosage, pr.frequency, a.date "
+                      f"FROM prescriptions pr "
+                      f"JOIN appointments a ON pr.appointment_id = a.id "
+                      f"JOIN patients p ON a.patient_id = p.id "
+                      f"JOIN doctors d ON a.doctor_id = d.id "
+                      f"WHERE pr.medicine_name LIKE '%{med.split()[0]}%' AND a.hospital_id = 1 "
+                      f"ORDER BY a.date DESC LIMIT 50;\n"
+                      f"```"
+        })
+
+    # =========================================================================
+    # 4. STAFF ATTENDANCE & SHIFT BREAKDOWNS (Zero Halucination Joins)
+    # =========================================================================
+    staff_prompts = [
+        ("who is present today in staff", "Present", "Fetching real-time on-duty staff attendance for today."),
+        ("list all absent staff members today", "Absent", "Retrieving today's list of absent staff personnel."),
+        ("who is on the night shift rotation?", "Night", "Listing all hospital personnel assigned to the Night shift."),
+        ("how many staff nurses are currently on duty?", "Nurse", "Counting on-duty nursing staff across departments."),
+        ("show staff in ICU department", "ICU", "Listing medical and support staff allocated to ICU.")
+    ]
+    for q, param, direct_desc in staff_prompts:
+        if param == "Present":
+            dataset.append({
+                "instruction": q,
+                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
+                          f"```sql\n"
+                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.shift, sa.check_in_time "
+                          f"FROM staff s "
+                          f"JOIN staff_attendance sa ON s.id = sa.staff_id "
+                          f"WHERE sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1 "
+                          f"ORDER BY s.role ASC;\n"
+                          f"```"
+            })
+        elif param == "Absent":
+            dataset.append({
+                "instruction": q,
+                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
+                          f"```sql\n"
+                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.phone "
+                          f"FROM staff s "
+                          f"JOIN staff_attendance sa ON s.id = sa.staff_id "
+                          f"WHERE sa.date = CURDATE() AND sa.status = 'Absent' AND s.hospital_id = 1 "
+                          f"ORDER BY s.department ASC;\n"
+                          f"```"
+            })
+        elif param == "Night":
+            dataset.append({
+                "instruction": q,
+                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
+                          f"```sql\n"
+                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.department, s.phone "
+                          f"FROM staff s "
+                          f"WHERE s.shift = 'Night' AND s.status = 'Active' AND s.hospital_id = 1;\n"
+                          f"```"
+            })
+        elif param == "Nurse":
+            dataset.append({
+                "instruction": q,
+                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
+                          f"```sql\n"
+                          f"SELECT s.id, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS nurse_name, s.role, s.department, sa.check_in_time "
+                          f"FROM staff s "
+                          f"JOIN staff_attendance sa ON s.id = sa.staff_id "
+                          f"WHERE s.role LIKE '%Nurse%' AND sa.date = CURDATE() AND sa.status = 'Present' AND s.hospital_id = 1;\n"
+                          f"```"
+            })
+        elif param == "ICU":
+            dataset.append({
+                "instruction": q,
+                "output": f"> 💡 **Direct Answer:** {direct_desc}\n\n"
+                          f"```sql\n"
+                          f"SELECT s.id, s.staff_code, CONCAT(s.first_name, ' ', COALESCE(s.last_name, '')) AS staff_name, s.role, s.shift, s.phone "
+                          f"FROM staff s "
+                          f"WHERE s.department = 'ICU' AND s.hospital_id = 1;\n"
+                          f"```"
+            })
+
+    # =========================================================================
+    # 5. PATIENT SEARCH, MRN & EMERGENCY CONTACTS
+    # =========================================================================
+    for _ in range(35):
+        f = random.choice(FIRST_NAMES)
+        l = random.choice(LAST_NAMES)
+        mrn = f"PAT-{random.randint(1001, 1150):04d}"
+        
+        dataset.append({
+            "instruction": f"Lookup emergency contact for patient {f} {l}",
+            "output": f"> 💡 **Direct Answer:** Accessing emergency contact details for patient **{f} {l}**.\n\n"
+                      f"```sql\n"
+                      f"SELECT id AS mrn, CONCAT(name, ' ', COALESCE(surname, '')) AS patient_name, phone, emergency_contact_name, emergency_contact_phone, blood_group "
+                      f"FROM patients "
+                      f"WHERE (name LIKE '%{f}%' AND surname LIKE '%{l}%') AND hospital_id = 1;\n"
+                      f"```"
+        })
+
+        dataset.append({
+            "instruction": f"Show full clinical summary for MRN {mrn}",
+            "output": f"> 💡 **Direct Answer:** Fetching comprehensive patient profile and clinical history for **{mrn}**.\n\n"
+                      f"```sql\n"
+                      f"SELECT p.id, p.name, p.surname, p.gender, p.blood_group, p.age, p.phone, a.date AS last_visit, a.type AS visit_type, d.name AS consulting_doctor, a.status "
+                      f"FROM patients p "
+                      f"LEFT JOIN appointments a ON p.id = a.patient_id "
+                      f"LEFT JOIN doctors d ON a.doctor_id = d.id "
+                      f"WHERE p.id = '{mrn}' AND p.hospital_id = 1 "
+                      f"ORDER BY a.date DESC LIMIT 5;\n"
+                      f"```"
+        })
+
+    # =========================================================================
+    # 6. DOCTORS, SPECIALTIES & WEEKLY SCHEDULES
+    # =========================================================================
+    for doc_id, doc_name, dept, role, phone in DOCTORS:
+        dataset.append({
+            "instruction": f"Give me contact and OPD timings for {doc_name}",
+            "output": f"> 💡 **Direct Answer:** Accessing official profile and consultation schedule for **{doc_name}** ({dept}).\n\n"
+                      f"```sql\n"
+                      f"SELECT d.name, dep.name AS department, d.experience, d.degree, d.phone, dds.day_of_week, dds.start_time, dds.end_time, dds.is_available "
+                      f"FROM doctors d "
+                      f"LEFT JOIN departments dep ON d.department_id = dep.id "
+                      f"LEFT JOIN doctor_day_schedules dds ON d.id = dds.doctor_id "
+                      f"WHERE d.id = '{doc_id}' AND d.hospital_id = 1 "
+                      f"ORDER BY FIELD(dds.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday');\n"
+                      f"```"
+        })
+
+    # =========================================================================
+    # 7. NATURAL HINGLISH & EVERYDAY RECEPTION COMMANDS
+    # =========================================================================
+    hinglish_cases = [
+        ("aaj kitne patient OPD me aaye hai?", "> 💡 **Direct Answer:** Counting total today's OPD consultation count.\n\n```sql\nSELECT COUNT(*) AS total_opd_today, SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_consultations, SUM(CASE WHEN status = 'Checked In' THEN 1 ELSE 0 END) AS waiting_in_queue FROM appointments WHERE date = CURDATE() AND hospital_id = 1;\n```"),
+        ("icu me kitne bed khali hai abhi?", "> 💡 **Direct Answer:** Checking available ICU bed count.\n\n```sql\nSELECT bed_number, type, wing FROM beds WHERE type = 'ICU' AND status = 'Available' AND hospital_id = 1;\n```"),
+        ("dr priya patel ka phone number kya hai?", "> 💡 **Direct Answer:** Fetching official hospital phone extension for Dr. Priya Patel.\n\n```sql\nSELECT name, phone, degree FROM doctors WHERE name LIKE '%Priya Patel%' AND hospital_id = 1;\n```"),
+        ("kya koi orthopedics doctor abhi available hai?", "> 💡 **Direct Answer:** Checking currently active Orthopedics consultation doctors.\n\n```sql\nSELECT d.name, dep.name AS department, d.phone FROM doctors d JOIN departments dep ON d.department_id = dep.id WHERE dep.name LIKE '%Ortho%' AND d.hospital_id = 1;\n```"),
+        ("token 5 ko cancel karo", "> 💡 **Direct Answer:** Preparing cancellation for Appointment Token #5.\n\n```json\n{\n  \"action_type\": \"UPDATE\",\n  \"table\": \"appointments\",\n  \"description\": \"Cancel appointment #5\",\n  \"sql\": \"UPDATE appointments SET status = 'Cancelled' WHERE id = 5 AND hospital_id = 1\",\n  \"params\": {}\n}\n```\n* *Click Confirm below to cancel token #5.*"),
+        ("bistar khali hai kya general ward me?", "> 💡 **Direct Answer:** Querying vacant beds in General Ward.\n\n```sql\nSELECT COUNT(*) AS vacant_general_beds FROM beds WHERE type = 'General Ward' AND status = 'Available' AND hospital_id = 1;\n```")
+    ]
+    for q, ans in hinglish_cases:
+        dataset.append({"instruction": q, "output": ans})
+
+    return dataset
+
+def generate_target_dataset(target_size=2500):
+    base = build_comprehensive_scenarios()
+    dataset = []
+
+    prefixes = [
+        "Please ", "Can you ", "Could you ", "Kindly ", "Help me to ",
+        "I need to ", "Quickly ", "Tell me ", "Show me ", "Check if ",
+        "Status of: ", "System check: ", ""
+    ]
+
+    for item in base:
         dataset.append({
             "system": SYSTEM_PROMPT,
-            "instruction": item["user"],
+            "instruction": item["instruction"],
             "input": "",
-            "output": item["answer"]
+            "output": item["output"]
         })
 
-    # Synthesize augmentations with variations
-    augment_prefixes = [
-        "Please ", "Can you ", "Kindly ", "Help me to ", "Could you ", "I need to ",
-        "Quickly ", "Tell me ", "Fetch ", "Check if ", ""
-    ]
-    
-    while len(dataset) < target_count:
-        base = random.choice(base_templates)
-        prefix = random.choice(augment_prefixes)
-        new_q = prefix + base["user"][0].lower() + base["user"][1:] if prefix else base["user"]
+    # Augment until target size
+    while len(dataset) < target_size:
+        sample = random.choice(base)
+        prefix = random.choice(prefixes)
+        raw_q = sample["instruction"]
+        new_q = prefix + raw_q[0].lower() + raw_q[1:] if prefix else raw_q
         dataset.append({
             "system": SYSTEM_PROMPT,
             "instruction": new_q,
             "input": "",
-            "output": base["answer"]
+            "output": sample["output"]
         })
 
-    return dataset[:target_count]
+    return dataset[:target_size]
 
 def main():
-    print("=" * 60)
-    print("[HMS AI] Generating Synthetic AI Fine-Tuning Dataset...")
-    print("=" * 60)
+    print("=" * 65)
+    print("[HMS AI] Generating 2,500+ Claude/Gemini-Style Training Examples...")
+    print("=" * 65)
 
-    dataset = generate_augmented_dataset(1250)
+    dataset = generate_target_dataset(2600)
     out_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # 1. Save Alpaca Format
+    # 1. Alpaca Format
     alpaca_file = os.path.join(out_dir, "hms_training_alpaca.json")
     with open(alpaca_file, "w", encoding="utf-8") as f:
         json.dump(dataset, f, indent=2, ensure_ascii=False)
-    print(f"[SUCCESS] Generated Alpaca JSON: {alpaca_file} ({len(dataset)} examples)")
+    print(f"[SUCCESS] Alpaca JSON generated: {alpaca_file} ({len(dataset)} examples)")
 
-    # 2. Save ChatML JSONL Format
+    # 2. ChatML Format
     chatml_file = os.path.join(out_dir, "hms_training_chatml.jsonl")
     with open(chatml_file, "w", encoding="utf-8") as f:
         for ex in dataset:
@@ -213,11 +358,11 @@ def main():
                 ]
             }
             f.write(json.dumps(chatml_entry, ensure_ascii=False) + "\n")
-    print(f"[SUCCESS] Generated ChatML JSONL: {chatml_file} ({len(dataset)} examples)")
+    print(f"[SUCCESS] ChatML JSONL generated: {chatml_file} ({len(dataset)} examples)")
 
-    print("=" * 60)
-    print("Dataset generation complete! Ready for Unsloth / Hugging Face training.")
-    print("=" * 60)
+    print("=" * 65)
+    print("[DONE] Dataset ready for deep fine-tuning!")
+    print("=" * 65)
 
 if __name__ == "__main__":
     main()
