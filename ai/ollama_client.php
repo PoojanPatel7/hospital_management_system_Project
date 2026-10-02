@@ -86,7 +86,7 @@ function ollamaChatStream($model, $messages, $systemPrompt, $callback, $options 
             if (empty($line)) continue;
             $decoded = json_decode($line, true);
             if (is_array($decoded) && isset($decoded['message']['content'])) {
-                $callback($decoded);
+                $callback($decoded['message']['content']);
             }
         }
         return strlen($chunk);

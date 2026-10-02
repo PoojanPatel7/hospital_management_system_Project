@@ -118,8 +118,10 @@ switch ($action) {
         
         if (function_exists('ollamaChatStream')) {
             ollamaChatStream($model, $messages, $systemPrompt, function($chunk) use (&$fullResponse) {
-                $fullResponse .= $chunk;
-                echo "data: " . json_encode(['type' => 'chunk', 'content' => $chunk]) . "\n\n";
+                $text = is_array($chunk) ? ($chunk['message']['content'] ?? '') : (string)$chunk;
+                if ($text === '') return;
+                $fullResponse .= $text;
+                echo "data: " . json_encode(['type' => 'chunk', 'content' => $text]) . "\n\n";
                 flush();
             });
         } else {

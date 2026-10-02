@@ -255,7 +255,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS ai_pending_actions (
     confirmed_at TIMESTAMP NULL,
     executed_at TIMESTAMP NULL,
     error_message TEXT DEFAULT NULL,
-    expires_at TIMESTAMP NOT NULL,
+    expires_at DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     KEY idx_status (status),
     KEY idx_expires (expires_at)

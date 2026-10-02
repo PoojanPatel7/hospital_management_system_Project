@@ -18,7 +18,7 @@ function buildPageContext($conn, $hospitalId, $currentPage) {
             $patientsToday = $stmt->get_result()->fetch_row()[0] ?? 0;
 
             // Today's appointments
-            $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE hospital_id = ? AND DATE(appointment_date) = CURDATE()");
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE hospital_id = ? AND DATE(date) = CURDATE()");
             $stmt->bind_param("i", $hospitalId);
             $stmt->execute();
             $appointmentsToday = $stmt->get_result()->fetch_row()[0] ?? 0;
@@ -42,7 +42,7 @@ function buildPageContext($conn, $hospitalId, $currentPage) {
 
         case 'queue':
             $focus_tables = ['appointments', 'patients'];
-            $stmt = $conn->prepare("SELECT stage, COUNT(*) as count FROM appointments WHERE hospital_id = ? AND DATE(appointment_date) = CURDATE() GROUP BY stage");
+            $stmt = $conn->prepare("SELECT stage, COUNT(*) as count FROM appointments WHERE hospital_id = ? AND DATE(date) = CURDATE() GROUP BY stage");
             $stmt->bind_param("i", $hospitalId);
             $stmt->execute();
             $res = $stmt->get_result();
@@ -56,7 +56,7 @@ function buildPageContext($conn, $hospitalId, $currentPage) {
             }
             $stageStr = rtrim($stageStr, ", ");
 
-            $stmt = $conn->prepare("SELECT patient_id, status FROM appointments WHERE hospital_id = ? AND DATE(appointment_date) = CURDATE() AND status = 'consulting'");
+            $stmt = $conn->prepare("SELECT patient_id, status FROM appointments WHERE hospital_id = ? AND DATE(date) = CURDATE() AND status = 'consulting'");
             $stmt->bind_param("i", $hospitalId);
             $stmt->execute();
             $consulting = $stmt->get_result()->num_rows;
@@ -76,7 +76,7 @@ function buildPageContext($conn, $hospitalId, $currentPage) {
 
         case 'appointments':
             $focus_tables = ['appointments'];
-            $stmt = $conn->prepare("SELECT COUNT(*) as total_today, SUM(CASE WHEN appointment_date > CURDATE() THEN 1 ELSE 0 END) as upcoming FROM appointments WHERE hospital_id = ? AND (DATE(appointment_date) = CURDATE() OR appointment_date > CURDATE())");
+            $stmt = $conn->prepare("SELECT COUNT(*) as total_today, SUM(CASE WHEN date > CURDATE() THEN 1 ELSE 0 END) as upcoming FROM appointments WHERE hospital_id = ? AND (DATE(date) = CURDATE() OR date > CURDATE())");
             $stmt->bind_param("i", $hospitalId);
             $stmt->execute();
             $row = $stmt->get_result()->fetch_assoc();
@@ -187,7 +187,7 @@ function buildPageContext($conn, $hospitalId, $currentPage) {
 
         case 'history':
             $focus_tables = ['appointments', 'prescriptions', 'diagnoses'];
-            $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE hospital_id = ? AND appointment_date < CURDATE()");
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE hospital_id = ? AND date < CURDATE()");
             $stmt->bind_param("i", $hospitalId);
             $stmt->execute();
             $recentAppts = $stmt->get_result()->fetch_row()[0] ?? 0;
@@ -228,7 +228,7 @@ function getTodayStats($conn, $hospitalId) {
     $stmt->execute();
     $p = $stmt->get_result()->fetch_row()[0] ?? 0;
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE hospital_id = ? AND DATE(appointment_date) = CURDATE()");
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE hospital_id = ? AND DATE(date) = CURDATE()");
     $stmt->bind_param("i", $hospitalId);
     $stmt->execute();
     $a = $stmt->get_result()->fetch_row()[0] ?? 0;

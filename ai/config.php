@@ -1,7 +1,7 @@
 <?php
 // ai/config.php
 define('OLLAMA_URL', 'http://localhost:11434');
-define('DEFAULT_MODEL', 'qwen3:4b');
+define('DEFAULT_MODEL', 'qwen2.5:3b');
 define('MAX_TOKENS', 2048);
 define('TEMPERATURE', 0.3);
 define('CONTEXT_WINDOW', 8192);
