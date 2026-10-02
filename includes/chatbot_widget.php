@@ -134,8 +134,16 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
             <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm">
                 <i class="fa-solid fa-robot"></i>
             </div>
-            <div class="ml-2 bg-white border border-slate-200 text-slate-700 text-sm py-2 px-3 rounded-2xl rounded-tl-sm shadow-sm">
+            <div class="ml-2 bg-white border border-slate-200 text-slate-700 text-sm py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm space-y-2">
                 <p>Hello <?php echo htmlspecialchars($chatbot_user_role); ?>! I'm BHOOMA AI. How can I help you with <?php echo htmlspecialchars($chatbot_hospital_name); ?> today?</p>
+                <div class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                    <button type="button" onclick="BhoomaAI.renderInChatForm('book_appointment');" class="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-calendar-plus text-[11px]"></i> Book Appointment Form
+                    </button>
+                    <button type="button" onclick="BhoomaAI.renderInChatForm('admit_patient');" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                        <i class="fa-solid fa-bed-pulse text-[11px]"></i> Inpatient Bed Admission
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -717,6 +725,9 @@ const BhoomaAI = {
                             else if (data.type === 'action') {
                                 this.renderActionCard(data.action_id, data.content);
                             }
+                            else if (data.type === 'form') {
+                                this.renderInChatForm(data.form_type, data);
+                            }
                             else if (data.type === 'suggestions') {
                                 this.renderInlineSuggestions(data.suggestions);
                             }
@@ -833,6 +844,384 @@ const BhoomaAI = {
         `;
         this.dom.messages.appendChild(wrapper);
         this.scrollToBottom();
+    },
+
+    async renderInChatForm(formType, config = {}) {
+        const formId = 'bhooma-form-' + Date.now();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'flex items-start max-w-[95%] mt-2 mb-3';
+        wrapper.id = formId;
+
+        if (!this._formOptions) {
+            try {
+                const res = await fetch(this.apiUrl + '?action=get_form_options');
+                this._formOptions = await res.json();
+            } catch(e) {
+                this._formOptions = { doctors: [], beds: [], types: [], slots: [] };
+            }
+        }
+        const opts = this._formOptions || {};
+        const doctors = opts.doctors || [];
+        const beds = opts.beds || [];
+        const types = opts.types || ['General Consultation', 'Specialist Review', 'Follow-up Consultation', 'Emergency Consultation'];
+        const slots = opts.slots || ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '02:00 PM', '02:30 PM', '03:00 PM', '04:00 PM'];
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        let formHtml = '';
+
+        if (formType === 'book_appointment') {
+            let docOptions = '<option value="">-- Choose Specialist Doctor --</option>';
+            doctors.forEach(d => {
+                docOptions += `<option value="${d.id}">${d.name} (${d.department})</option>`;
+            });
+
+            let typeOptions = '';
+            types.forEach(t => {
+                typeOptions += `<option value="${t}">${t}</option>`;
+            });
+
+            let slotOptions = '';
+            slots.forEach(s => {
+                slotOptions += `<option value="${s}">${s}</option>`;
+            });
+
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-indigo-50/40 border border-indigo-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-indigo-100">
+                        <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-calendar-plus"></i>
+                            </span>
+                            <span>Book Consultation Form</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Live Booking</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitBookingForm('${formId}');">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Select Doctor *</label>
+                            <select id="${formId}-doctor" required class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                ${docOptions}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Patient MRN or Full Name *</label>
+                            <div class="relative">
+                                <input type="text" id="${formId}-patient" required placeholder="e.g. PAT-1001 or Aarav Patel" autocomplete="off"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                <div id="${formId}-pat-hints" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-36 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Date *</label>
+                                <input type="date" id="${formId}-date" value="${todayStr}" min="${todayStr}" required
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Time Slot *</label>
+                                <select id="${formId}-slot" required class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                    ${slotOptions}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Consultation Type</label>
+                                <select id="${formId}-type" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                    ${typeOptions}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Chief Symptoms</label>
+                                <input type="text" id="${formId}-symptoms" placeholder="e.g. Chest pain, Fever..."
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/50">
+                            </div>
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-check"></i> <span>Confirm & Book Appointment</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else if (formType === 'admit_patient') {
+            let bedOptions = '<option value="">-- Choose Available Bed --</option>';
+            beds.forEach(b => {
+                bedOptions += `<option value="${b.bed_number}">${b.bed_number} (${b.type} - ${b.wing})</option>`;
+            });
+
+            let docOptions = '<option value="">-- Attending Doctor --</option>';
+            doctors.forEach(d => {
+                docOptions += `<option value="${d.id}">${d.name}</option>`;
+            });
+
+            formHtml = `
+                <div class="bg-gradient-to-br from-white to-rose-50/40 border border-rose-200 rounded-2xl p-4 shadow-md w-full relative">
+                    <div class="flex items-center justify-between pb-2 mb-3 border-b border-rose-100">
+                        <div class="flex items-center gap-2 text-rose-700 font-bold text-sm">
+                            <span class="w-6 h-6 rounded-lg bg-rose-600 text-white flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-bed-pulse"></i>
+                            </span>
+                            <span>Inpatient Bed Admission Form</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Admission</span>
+                    </div>
+
+                    <form id="${formId}-form" class="space-y-3" onsubmit="event.preventDefault(); BhoomaAI.submitAdmissionForm('${formId}');">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Select Available Bed *</label>
+                            <select id="${formId}-bed" required class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-rose-500/50">
+                                ${bedOptions}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Patient MRN or Name *</label>
+                            <input type="text" id="${formId}-patient" required placeholder="e.g. PAT-1022 or Patient Name" autocomplete="off"
+                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-rose-500/50">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Attending Doctor</label>
+                            <select id="${formId}-doctor" class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-rose-500/50">
+                                ${docOptions}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Clinical Admission Reason *</label>
+                            <input type="text" id="${formId}-reason" required placeholder="e.g. Acute coronary syndrome, Pre-op femur fracture"
+                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-rose-500/50">
+                        </div>
+
+                        <div id="${formId}-err" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium"></div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" id="${formId}-submit" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-bed"></i> <span>Confirm Inpatient Admission</span>
+                            </button>
+                            <button type="button" onclick="document.getElementById('${formId}').remove();" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        }
+
+        wrapper.innerHTML = `
+            <div class="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                <i class="fa-solid fa-receipt"></i>
+            </div>
+            ${formHtml}
+        `;
+
+        this.dom.messages.appendChild(wrapper);
+        this.scrollToBottom();
+
+        const patInput = document.getElementById(`${formId}-patient`);
+        const patHints = document.getElementById(`${formId}-pat-hints`);
+        if (patInput && patHints) {
+            let debounce = null;
+            patInput.addEventListener('input', () => {
+                clearTimeout(debounce);
+                const q = patInput.value.trim();
+                if (q.length < 1) {
+                    patHints.classList.add('hidden');
+                    return;
+                }
+                debounce = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`${this.apiUrl}?action=patient_quick_search&query=${encodeURIComponent(q)}`);
+                        const data = await res.json();
+                        if (data.patients && data.patients.length > 0) {
+                            patHints.innerHTML = '';
+                            data.patients.forEach(p => {
+                                const item = document.createElement('div');
+                                item.className = 'p-2 hover:bg-indigo-50 cursor-pointer flex justify-between items-center';
+                                item.innerHTML = `<span><b>${p.id}</b> - ${p.name} ${p.surname||''}</span><span class="text-[10px] text-slate-400">${p.phone||''}</span>`;
+                                item.onclick = () => {
+                                    patInput.value = `${p.id} (${p.name} ${p.surname||''})`;
+                                    patHints.classList.add('hidden');
+                                };
+                                patHints.appendChild(item);
+                            });
+                            patHints.classList.remove('hidden');
+                        } else {
+                            patHints.classList.add('hidden');
+                        }
+                    } catch(e) {}
+                }, 150);
+            });
+        }
+    },
+
+    async submitBookingForm(formId) {
+        const docEl = document.getElementById(`${formId}-doctor`);
+        const patEl = document.getElementById(`${formId}-patient`);
+        const dateEl = document.getElementById(`${formId}-date`);
+        const slotEl = document.getElementById(`${formId}-slot`);
+        const typeEl = document.getElementById(`${formId}-type`);
+        const sympEl = document.getElementById(`${formId}-symptoms`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        errEl.classList.add('hidden');
+
+        if (!docEl.value) {
+            errEl.textContent = 'Please choose a specialist doctor.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (!patEl.value.trim()) {
+            errEl.textContent = 'Please enter a patient MRN or name.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Booking...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'book_appointment_form');
+            formData.append('doctor_id', docEl.value);
+            formData.append('patient_id', patEl.value.trim());
+            formData.append('date', dateEl.value);
+            formData.append('slot', slotEl.value);
+            formData.append('type', typeEl ? typeEl.value : 'General Consultation');
+            formData.append('symptoms', sympEl ? sympEl.value : '');
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                        <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 shadow-sm w-full">
+                            <div class="flex items-center justify-between pb-2 border-b border-emerald-200 mb-2">
+                                <span class="font-bold text-emerald-800 text-xs flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Appointment Confirmed #APP-${data.appointment_id}
+                                </span>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Pre-Booked</span>
+                            </div>
+                            <div class="text-xs text-slate-700 space-y-1">
+                                <div><b>Patient:</b> ${data.patient_name} <span class="text-slate-400">(${data.patient_id})</span></div>
+                                <div><b>Doctor:</b> ${data.doctor_name}</div>
+                                <div><b>Schedule:</b> ${data.date} at <b>${data.slot}</b> (${data.type})</div>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-emerald-100 flex gap-2">
+                                <a href="appointments.php?date=${data.date}" class="text-xs text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-up-right-from-square text-[10px]"></i> View in Appointments Hub
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **Appointment #APP-${data.appointment_id} confirmed** for ${data.patient_name} with ${data.doctor_name} on ${data.date} at ${data.slot}.`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> Confirm & Book Appointment`;
+                errEl.textContent = data.message || 'Failed to book appointment.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Confirm & Book Appointment`;
+            errEl.textContent = 'Server connection error. Please try again.';
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    async submitAdmissionForm(formId) {
+        const bedEl = document.getElementById(`${formId}-bed`);
+        const patEl = document.getElementById(`${formId}-patient`);
+        const docEl = document.getElementById(`${formId}-doctor`);
+        const reasonEl = document.getElementById(`${formId}-reason`);
+        const btn = document.getElementById(`${formId}-submit`);
+        const errEl = document.getElementById(`${formId}-err`);
+
+        errEl.classList.add('hidden');
+
+        if (!bedEl.value) {
+            errEl.textContent = 'Please choose an available bed.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (!patEl.value.trim()) {
+            errEl.textContent = 'Please provide the patient MRN or name.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Admitting...`;
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'admit_patient_form');
+            formData.append('bed_number', bedEl.value);
+            formData.append('patient_id', patEl.value.trim());
+            formData.append('doctor_id', docEl ? docEl.value : '');
+            formData.append('reason', reasonEl ? reasonEl.value : 'Clinical Inpatient Care');
+
+            const res = await fetch(this.apiUrl, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const card = document.getElementById(formId);
+                if (card) {
+                    card.innerHTML = `
+                        <div class="w-6 h-6 rounded-full bg-rose-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                            <i class="fa-solid fa-bed-pulse"></i>
+                        </div>
+                        <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 shadow-sm w-full">
+                            <div class="flex items-center justify-between pb-2 border-b border-rose-200 mb-2">
+                                <span class="font-bold text-rose-800 text-xs flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-rose-600"></i> Patient Admitted to Bed ${data.bed_number}
+                                </span>
+                                <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">Occupied</span>
+                            </div>
+                            <div class="text-xs text-slate-700 space-y-1">
+                                <div><b>Patient:</b> ${data.patient_name} <span class="text-slate-400">(${data.patient_id})</span></div>
+                                <div><b>Ward:</b> ${data.bed_type} Bed ${data.bed_number}</div>
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-rose-100 flex gap-2">
+                                <a href="beds.php" class="text-xs text-rose-700 hover:text-rose-800 font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-up-right-from-square text-[10px]"></i> View Inpatient Bed Board
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+                this.appendMessage('assistant', `✅ **Patient ${data.patient_name} successfully admitted** to ${data.bed_type} Bed **${data.bed_number}**.`);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-bed"></i> Confirm Inpatient Admission`;
+                errEl.textContent = data.message || 'Failed to admit patient.';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-bed"></i> Confirm Inpatient Admission`;
+            errEl.textContent = 'Server connection error. Please try again.';
+            errEl.classList.remove('hidden');
+        }
     },
     
     renderInlineSuggestions(suggestions) {

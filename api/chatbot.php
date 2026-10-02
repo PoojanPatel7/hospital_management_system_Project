@@ -119,7 +119,28 @@ switch ($action) {
         if (function_exists('analyzeActionIntent')) {
             $actionAnalysis = analyzeActionIntent($conn, $hospitalId, $message);
             if ($actionAnalysis !== null) {
-                if ($actionAnalysis['type'] === 'clarification') {
+                if ($actionAnalysis['type'] === 'form') {
+                    $formType = $actionAnalysis['form_type'];
+                    $formMsg = $actionAnalysis['message'] ?? 'Please fill out the form below.';
+                    $highlighted = "> 💡 **Direct Answer:** " . $formMsg . "\n\n";
+                    echo "data: " . json_encode(['type' => 'chunk', 'content' => $highlighted]) . "\n\n";
+                    flush();
+
+                    echo "data: " . json_encode([
+                        'type' => 'form',
+                        'form_type' => $formType,
+                        'title' => ($formType === 'book_appointment') ? 'Book New Appointment' : 'Inpatient Bed Admission'
+                    ]) . "\n\n";
+                    flush();
+
+                    $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
+                    $stmt->bind_param("is", $conversationId, $highlighted);
+                    $stmt->execute();
+
+                    echo "data: " . json_encode(['type' => 'done', 'conversation_id' => $conversationId]) . "\n\n";
+                    flush();
+                    break;
+                } elseif ($actionAnalysis['type'] === 'clarification') {
                     // Send clarification question back immediately (Ask back to gather all info!)
                     $clarifyText = $actionAnalysis['question'];
                     echo "data: " . json_encode(['type' => 'chunk', 'content' => $clarifyText]) . "\n\n";
@@ -417,6 +438,234 @@ switch ($action) {
         $stmt->bind_param("issss", $hospitalId, $userId, $staffRole, $title, $pageCtx);
         $stmt->execute();
         echo json_encode(['conversation_id' => $stmt->insert_id]);
+        break;
+
+    case 'get_form_options':
+        $docStmt = $conn->prepare("
+            SELECT d.id, d.name, d.degree, d.experience, 
+                   COALESCE(GROUP_CONCAT(DISTINCT dep.name SEPARATOR ', '), 'General Specialist') as department
+            FROM doctors d
+            LEFT JOIN doctor_categories dc ON d.id = dc.doctor_id
+            LEFT JOIN departments dep ON dc.department_id = dep.id
+            WHERE d.hospital_id = ?
+            GROUP BY d.id
+            ORDER BY d.name ASC
+        ");
+        $docStmt->bind_param("i", $hospitalId);
+        $docStmt->execute();
+        $docRes = $docStmt->get_result();
+        $doctors = [];
+        while ($r = $docRes->fetch_assoc()) $doctors[] = $r;
+
+        $bedStmt = $conn->prepare("SELECT id, bed_number, type, wing FROM beds WHERE hospital_id = ? AND status = 'Available' ORDER BY type, bed_number ASC");
+        $bedStmt->bind_param("i", $hospitalId);
+        $bedStmt->execute();
+        $bedRes = $bedStmt->get_result();
+        $beds = [];
+        while ($r = $bedRes->fetch_assoc()) $beds[] = $r;
+
+        $types = ['General Consultation', 'Specialist Review', 'Follow-up Consultation', 'Emergency Consultation'];
+        $slots = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'];
+
+        echo json_encode([
+            'status' => 'success',
+            'doctors' => $doctors,
+            'beds' => $beds,
+            'types' => $types,
+            'slots' => $slots
+        ]);
+        break;
+
+    case 'patient_quick_search':
+        $q = trim($input['query'] ?? '');
+        $patients = [];
+        if (strlen($q) >= 1) {
+            $like = "%$q%";
+            $pStmt = $conn->prepare("SELECT id, name, surname, phone, age, gender FROM patients WHERE hospital_id = ? AND (id LIKE ? OR name LIKE ? OR surname LIKE ? OR phone LIKE ?) ORDER BY id DESC LIMIT 8");
+            $pStmt->bind_param("issss", $hospitalId, $like, $like, $like, $like);
+            $pStmt->execute();
+            $pRes = $pStmt->get_result();
+            while ($r = $pRes->fetch_assoc()) $patients[] = $r;
+        }
+        echo json_encode(['status' => 'success', 'patients' => $patients]);
+        break;
+
+    case 'book_appointment_form':
+        $docId = trim($input['doctor_id'] ?? '');
+        $patIdent = trim($input['patient_id'] ?? '');
+        $appDate = trim($input['date'] ?? date('Y-m-d'));
+        $appSlot = trim($input['slot'] ?? '09:00 AM');
+        $appType = trim($input['type'] ?? 'General Consultation');
+        $symptoms = trim($input['symptoms'] ?? 'Booked via BHOOMA AI Assistant');
+
+        if (empty($docId)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please select a doctor.']);
+            exit;
+        }
+        if (empty($patIdent)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please enter a Patient MRN or Name.']);
+            exit;
+        }
+        if (empty($appDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $appDate)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please choose a valid appointment date.']);
+            exit;
+        }
+
+        $patientId = null;
+        $patientName = '';
+        $chkP = $conn->prepare("SELECT id, name, surname FROM patients WHERE (id = ? OR phone = ? OR CONCAT(name, ' ', surname) LIKE ?) AND hospital_id = ? LIMIT 1");
+        $likeName = "%$patIdent%";
+        $chkP->bind_param("sssi", $patIdent, $patIdent, $likeName, $hospitalId);
+        $chkP->execute();
+        $pRow = $chkP->get_result()->fetch_assoc();
+        if ($pRow) {
+            $patientId = $pRow['id'];
+            $patientName = trim($pRow['name'] . ' ' . ($pRow['surname'] ?? ''));
+        } else {
+            $cntRow = $conn->query("SELECT MAX(CAST(SUBSTRING(id, 5) AS UNSIGNED)) as max_id FROM patients WHERE id LIKE 'PAT-%'")->fetch_assoc();
+            $nextNum = max(1101, (int)($cntRow['max_id'] ?? 1000) + 1);
+            $newPatId = sprintf("PAT-%04d", $nextNum);
+            $parts = explode(' ', $patIdent, 2);
+            $fName = $parts[0];
+            $lName = $parts[1] ?? 'Patient';
+            $insP = $conn->prepare("INSERT INTO patients (id, name, surname, demographics, hospital_id) VALUES (?, ?, ?, 'Registered via AI', ?)");
+            $insP->bind_param("sssi", $newPatId, $fName, $lName, $hospitalId);
+            $insP->execute();
+            $patientId = $newPatId;
+            $patientName = "$fName $lName";
+        }
+
+        $docRow = $conn->query("SELECT name FROM doctors WHERE id = '$docId' AND hospital_id = $hospitalId")->fetch_assoc();
+        $docName = $docRow['name'] ?? 'Doctor';
+
+        $dupStmt = $conn->prepare("SELECT id FROM appointments WHERE doctor_id = ? AND date = ? AND slot = ? AND status NOT IN ('Cancelled', 'Discharged from Bed') AND hospital_id = ?");
+        $dupStmt->bind_param("sssi", $docId, $appDate, $appSlot, $hospitalId);
+        $dupStmt->execute();
+        if ($dupStmt->get_result()->num_rows > 0) {
+            echo json_encode(['status' => 'error', 'message' => "Dr. $docName is already booked for slot $appSlot on $appDate. Please select another slot."]);
+            exit;
+        }
+
+        $insApp = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, allergies, status, stage, hospital_id) VALUES (?, ?, ?, ?, ?, ?, 'None recorded', 'Pre-Booked', 0, ?)");
+        $insApp->bind_param("ssssssi", $patientId, $docId, $appType, $appDate, $appSlot, $symptoms, $hospitalId);
+        if ($insApp->execute()) {
+            $appId = $insApp->insert_id;
+            
+            $timeNow = date('h:i A');
+            $evDesc = "Appointment scheduled for $appType with $docName on $appDate ($appSlot). Status: Pre-Booked.";
+            $tStmt = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
+            $tStmt->bind_param("isss", $appId, $patientId, $timeNow, $evDesc);
+            $tStmt->execute();
+
+            $actSql = "INSERT INTO appointments (id, patient_id, doctor_id, date, slot, status) VALUES ($appId, '$patientId', '$docId', '$appDate', '$appSlot', 'Pre-Booked')";
+            $logUser = $userId ?? 'Admin';
+            $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'INSERT', 'appointments', ?, 1, 1, ?)");
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+            $aLog->execute();
+
+            echo json_encode([
+                'status' => 'success',
+                'appointment_id' => $appId,
+                'patient_id' => $patientId,
+                'patient_name' => $patientName,
+                'doctor_name' => $docName,
+                'date' => $appDate,
+                'slot' => $appSlot,
+                'type' => $appType,
+                'message' => "Appointment #$appId confirmed successfully for $patientName with $docName."
+            ]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to book appointment: ' . $conn->error]);
+        }
+        break;
+
+    case 'admit_patient_form':
+        $patIdent = trim($input['patient_id'] ?? '');
+        $bedNumber = trim($input['bed_number'] ?? '');
+        $docId = trim($input['doctor_id'] ?? '');
+        $reason = trim($input['reason'] ?? 'Emergency Clinical Admission');
+
+        if (empty($patIdent)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please provide a valid Patient MRN or Name.']);
+            exit;
+        }
+        if (empty($bedNumber)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please select an available Bed.']);
+            exit;
+        }
+
+        $bedChk = $conn->prepare("SELECT id, bed_number, type, status FROM beds WHERE bed_number = ? AND hospital_id = ?");
+        $bedChk->bind_param("si", $bedNumber, $hospitalId);
+        $bedChk->execute();
+        $bedRow = $bedChk->get_result()->fetch_assoc();
+        if (!$bedRow) {
+            echo json_encode(['status' => 'error', 'message' => "Bed $bedNumber not found in hospital inventory."]);
+            exit;
+        }
+        if ($bedRow['status'] !== 'Available') {
+            echo json_encode(['status' => 'error', 'message' => "Bed $bedNumber is currently Occupied. Please choose an available bed."]);
+            exit;
+        }
+
+        $chkP = $conn->prepare("SELECT id, name, surname FROM patients WHERE (id = ? OR phone = ? OR CONCAT(name, ' ', surname) LIKE ?) AND hospital_id = ? LIMIT 1");
+        $likeName = "%$patIdent%";
+        $chkP->bind_param("sssi", $patIdent, $patIdent, $likeName, $hospitalId);
+        $chkP->execute();
+        $pRow = $chkP->get_result()->fetch_assoc();
+        if (!$pRow) {
+            echo json_encode(['status' => 'error', 'message' => "Patient not found. Please register or verify the patient ID first."]);
+            exit;
+        }
+        $patientId = $pRow['id'];
+        $patientName = trim($pRow['name'] . ' ' . ($pRow['surname'] ?? ''));
+
+        $upBed = $conn->prepare("UPDATE beds SET status = 'Occupied', patient_id = ? WHERE bed_number = ? AND hospital_id = ?");
+        $upBed->bind_param("ssi", $patientId, $bedNumber, $hospitalId);
+        $upBed->execute();
+
+        $appChk = $conn->prepare("SELECT id FROM appointments WHERE patient_id = ? AND hospital_id = ? AND date = CURDATE() ORDER BY id DESC LIMIT 1");
+        $appChk->bind_param("si", $patientId, $hospitalId);
+        $appChk->execute();
+        $appRow = $appChk->get_result()->fetch_assoc();
+
+        $appId = 0;
+        if ($appRow) {
+            $appId = (int)$appRow['id'];
+            $upApp = $conn->prepare("UPDATE appointments SET status = 'Admitted to Bed', stage = 5, bed_number = ?, doctor_notes = CONCAT(COALESCE(doctor_notes, ''), '\nAdmitted: ', ?) WHERE id = ?");
+            $upApp->bind_param("ssi", $bedNumber, $reason, $appId);
+            $upApp->execute();
+        } else {
+            $today = date('Y-m-d');
+            $timeSlot = date('h:i A');
+            $docToUse = !empty($docId) ? $docId : ($conn->query("SELECT id FROM doctors WHERE hospital_id = $hospitalId LIMIT 1")->fetch_assoc()['id'] ?? 'doc-1');
+            $insApp = $conn->prepare("INSERT INTO appointments (patient_id, doctor_id, type, date, slot, symptoms, status, stage, bed_number, doctor_notes, hospital_id) VALUES (?, ?, 'Inpatient Admission', ?, ?, ?, 'Admitted to Bed', 5, ?, ?, ?)");
+            $insApp->bind_param("sssssssi", $patientId, $docToUse, $today, $timeSlot, $reason, $bedNumber, $reason, $hospitalId);
+            $insApp->execute();
+            $appId = $insApp->insert_id;
+        }
+
+        $timeNow = date('h:i A');
+        $evDesc = "Patient admitted to {$bedRow['type']} Bed $bedNumber. Reason: $reason.";
+        $tStmt = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
+        $tStmt->bind_param("isss", $appId, $patientId, $timeNow, $evDesc);
+        $tStmt->execute();
+
+        $actSql = "UPDATE beds SET status='Occupied', patient_id='$patientId' WHERE bed_number='$bedNumber'";
+        $logUser = $userId ?? 'Admin';
+        $aLog = $conn->prepare("INSERT INTO ai_action_log (hospital_id, user_id, user_role, action_type, target_table, sql_executed, rows_affected, success, ip_address) VALUES (?, ?, ?, 'UPDATE', 'beds', ?, 1, 1, ?)");
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $aLog->bind_param("issss", $hospitalId, $logUser, $staffRole, $actSql, $ip);
+        $aLog->execute();
+
+        echo json_encode([
+            'status' => 'success',
+            'bed_number' => $bedNumber,
+            'bed_type' => $bedRow['type'],
+            'patient_name' => $patientName,
+            'patient_id' => $patientId,
+            'message' => "Patient $patientName successfully admitted to Bed $bedNumber ({$bedRow['type']})."
+        ]);
         break;
 
     case 'status':

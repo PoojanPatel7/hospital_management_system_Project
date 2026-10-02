@@ -78,6 +78,11 @@ function getSynthesisPrompt($hospitalName, $hospitalId, $userRole, $currentPage,
     $prompt .= "   • Incorporate relevant hospital & medical emojis (🏥, 👨‍⚕️, 👩‍⚕️, 🩺, 📋, 🛏️, 📊, 💊, ⏰, ✅) to make answers engaging and easy to read.\n";
     $prompt .= "   • Do NOT just dump raw numbers or column names. Explain what the data means in friendly, professional hospital terms.\n";
     $prompt .= "5. EMPTY DATA: If the database returned no records or zero results, explain warmly and politely that no records currently match their request, and suggest next steps.\n";
+    $prompt .= "6. HIGHLIGHT MAIN ANSWER (CRITICAL REQUIREMENT):\n";
+    $prompt .= "   • At the very start of your answer, ALWAYS output an executive highlight block:\n";
+    $prompt .= "     > 💡 **Direct Answer:** [Provide the clear, direct, and conclusive answer/metric/solution in 1-2 bold, concise sentences]\n";
+    $prompt .= "   • Follow this direct highlight immediately with the structured details, breakdown, bullet points, and actionable next steps.\n";
+    $prompt .= "   • This ensures doctors, nurses, and administrators instantly see the core answer without having to read through paragraphs.\n";
     
     return $prompt;
 }

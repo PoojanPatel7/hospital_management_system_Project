@@ -30,6 +30,29 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
     }
 
     if ($isAttendanceIntent) {
+        // Read query filter: if user is asking "who is present", "list staff", "show absent", etc.
+        $isReadQuery = false;
+        $readVerbs = ['who is', 'who are', 'who was', 'list', 'show', 'display', 'how many', 'view', 'check', 'kaun', 'koun', 'kitne', 'tell me'];
+        $writeVerbs = ['mark', 'set', 'update', 'put', 'record', 'karo', 'kare', 'banao'];
+        $hasWriteVerb = false;
+        foreach ($writeVerbs as $wv) {
+            if (strpos($lower, $wv) !== false) {
+                $hasWriteVerb = true;
+                break;
+            }
+        }
+        if (!$hasWriteVerb) {
+            foreach ($readVerbs as $rv) {
+                if (strpos($lower, $rv) !== false) {
+                    $isReadQuery = true;
+                    break;
+                }
+            }
+        }
+        if ($isReadQuery) {
+            return null; // Let Phase 1 execute SQL SELECT for factual answering!
+        }
+
         // A. Check for "Mark All Present" / Bulk Attendance
         $bulkPatterns = [
             'all present', 'mark all', 'all staff present', 'everyone present',
@@ -116,6 +139,41 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
                 'type' => 'clarification',
                 'question' => "Which appointment or token number should I check in at the desk? (e.g., Appointment APP-0005 or Token #3)?",
                 'suggestions' => ['Check in Token 1', 'View pre-booked appointments']
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 4. BOOK APPOINTMENT INTENT (INTERACTIVE FORM TRIGGER)
+    // -------------------------------------------------------------
+    $bookPatterns = [
+        'book appointment', 'boock appoiment', 'book apooiment', 'book an appointment',
+        'schedule appointment', 'take appointment', 'open booking form', 'book doctor',
+        'new appointment', 'appointment form', 'appointment book', 'book consultation'
+    ];
+    foreach ($bookPatterns as $bp) {
+        if (strpos($lower, $bp) !== false) {
+            return [
+                'type' => 'form',
+                'form_type' => 'book_appointment',
+                'message' => "I have prepared the interactive appointment booking form for you below. Please select the doctor, choose the patient, date, and preferred time slot, then click **Confirm & Book Appointment**."
+            ];
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 5. ADMIT PATIENT INTENT (INTERACTIVE FORM TRIGGER)
+    // -------------------------------------------------------------
+    $admitPatterns = [
+        'admit patient', 'patient admission', 'admit to bed', 'admit in icu',
+        'admit to icu', 'bed admission', 'open admission form', 'admit in ward'
+    ];
+    foreach ($admitPatterns as $ap) {
+        if (strpos($lower, $ap) !== false) {
+            return [
+                'type' => 'form',
+                'form_type' => 'admit_patient',
+                'message' => "I have opened the patient bed admission form for you below. Please select the patient, available bed, and admitting doctor to process the inpatient admission."
             ];
         }
     }
