@@ -434,7 +434,7 @@ function extractDoctorPrefillFromText($msg) {
  */
 function resolveDoctorFromMessageOrHistory($conn, $hospitalId, $msg, $history = []) {
     // 1. Direct name match in user message
-    $res = $conn->query("SELECT id, name, degree, experience, phone, email, department_id FROM doctors WHERE hospital_id = $hospitalId");
+    $res = $conn->query("SELECT id, name, degree, experience, phone, department_id FROM doctors WHERE hospital_id = $hospitalId");
     $doctors = [];
     if ($res) {
         while ($r = $res->fetch_assoc()) $doctors[] = $r;

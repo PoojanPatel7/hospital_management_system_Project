@@ -27,29 +27,25 @@ function getQueryGenerationPrompt($hospitalName, $hospitalId, $userRole, $curren
     $prompt .= $schemaContext . "\n";
     
     $prompt .= "\n--- STRICT OPERATIONAL RULES & INTELLIGENCE ---\n";
-    $prompt .= "1. MULTI-TURN CONVERSATION & PRONOUN RESOLUTION:\n";
-    $prompt .= "   • The conversation history is provided above. Always resolve pronouns and relative references using the previous messages!\n";
-    $prompt .= "   • If the user asks 'delete that doctor', 'remove him', 'delete Dr. [name]', 'cancel that appointment', 'discharge that bed', find the exact doctor, appointment, patient, or bed referenced in the previous assistant or user message.\n";
-    $prompt .= "2. SYNONYM & REGIONAL VOCABULARY MAPPING:\n";
-    $prompt .= "   • 'Room' / 'Cabin' / 'Ward' / 'Bed' -> table `beds`\n";
-    $prompt .= "   • 'Physician' / 'Consultant' / 'Surgeon' / 'Doctor' / 'Vaidya' -> table `doctors`\n";
-    $prompt .= "   • 'Nurse' / 'Sister' / 'Compounder' / 'Staff' / 'Karamchari' -> table `staff`\n";
-    $prompt .= "   • 'Parchi' / 'Token' / 'Slip' / 'Booking' / 'Slot' / 'Appointment' -> table `appointments`\n";
-    $prompt .= "   • 'Dawa' / 'Goli' / 'Tablet' / 'Medicine' / 'Rx' -> table `prescriptions`\n";
-    $prompt .= "   • 'Hisaab' / 'Bill' / 'Fee' / 'Invoice' / 'Payment' -> table `invoices` or `billing`\n";
-    $prompt .= "   • 'Mareez' / 'Patient' / 'Case' -> table `patients`\n";
-    $prompt .= "3. READ INTENT:\n";
-    $prompt .= "   • If the user wants to read or see information, output ONLY a valid MySQL SELECT query wrapped in ```sql ... ```.\n";
-    $prompt .= "   • ALWAYS filter by `hospital_id = $hospitalId` for every table with hospital_id.\n";
-    $prompt .= "   • STRICTLY use existing columns. NEVER invent fake columns.\n";
-    $prompt .= "   • Output NOTHING ELSE except the ```sql block.\n";
-    $prompt .= "4. WRITE / DELETE / OPERATIONAL INTENT:\n";
-    $prompt .= "   • If user wants to DELETE (e.g. 'delete doctor Dr. Ambarish', 'delete that doctor', 'cancel appointment', 'delete bed'):\n";
-    $prompt .= "     Output ONLY a JSON action plan wrapped in ```json ... ``` with keys: action_type ('DELETE' or 'UPDATE'), table, description, sql, params.\n";
-    $prompt .= "     Example: ```json {\"action_type\": \"DELETE\", \"table\": \"doctors\", \"description\": \"Delete Dr. Ambarish from doctors directory\", \"sql\": \"DELETE FROM doctors WHERE id = 1 AND hospital_id = $hospitalId;\"} ```\n";
-    $prompt .= "   • If missing critical details, output ONLY: CLARIFY: <Friendly question asking back for the missing details and offering choices>\n";
-    $prompt .= "5. GENERAL OUTSIDE / CLINICAL QUESTIONS:\n";
-    $prompt .= "   • If user asks general health or medical questions (e.g. symptoms, treatments, first aid), output ONLY:\nNO_SQL\n";
+    $prompt .= "1. THE GOLDEN RULE (READ vs WRITE):\n";
+    $prompt .= "   • A user request is an ACTION (DELETE/UPDATE) ONLY IF IT EXPLICITLY CONTAINS A MUTATION VERB:\n";
+    $prompt .= "     ['delete', 'remove', 'erase', 'cancel', 'discharge', 'update', 'change', 'modify', 'set', 'hatao', 'nikalo', 'badlo']\n";
+    $prompt .= "   • IF THE MESSAGE DOES NOT CONTAIN ONE OF THESE VERBS, IT IS 100% A READ QUERY (SELECT)!\n";
+    $prompt .= "   • NEVER EVER generate DELETE or UPDATE for attribute queries, searches, or filter refinements!\n";
+    $prompt .= "     - 'i need blood A+' -> NO mutation verb -> MUST BE SELECT on patients where blood_group = 'A+'\n";
+    $prompt .= "     - 'now all male with A+' -> NO mutation verb -> MUST BE SELECT on patients where blood_group = 'A+' AND gender = 'Male'\n";
+    $prompt .= "     - 'patients with fever' -> NO mutation verb -> MUST BE SELECT\n";
+    $prompt .= "     - 'all doctors in cardiology' -> NO mutation verb -> MUST BE SELECT\n";
+    $prompt .= "     - 'ICU beds' -> NO mutation verb -> MUST BE SELECT\n";
+    $prompt .= "2. MULTI-TURN CONVERSATION & QUERY REFINEMENT:\n";
+    $prompt .= "   • When user follows up with a narrower filter like 'now all male with A+', 'only females', 'what about pediatric?':\n";
+    $prompt .= "     This is a QUERY REFINEMENT, NOT A DELETION! The user is asking to VIEW the filtered subset.\n";
+    $prompt .= "     Output a SELECT query with both criteria combined:\n";
+    $prompt .= "     ```sql SELECT id, name, surname, phone, blood_group, gender, age FROM patients WHERE blood_group = 'A+' AND gender = 'Male' AND hospital_id = $hospitalId; ```\n";
+    $prompt .= "3. OUTPUT FORMAT STRICTNESS:\n";
+    $prompt .= "   • For READ queries: Output ONLY ```sql SELECT ... ```. DO NOT output JSON for SELECT queries!\n";
+    $prompt .= "   • For WRITE queries (ONLY when mutation verb present): Output ```json {\"action_type\": \"DELETE\"|\"UPDATE\", \"table\": \"...\", \"description\": \"...\", \"sql\": \"...\"} ```\n";
+    $prompt .= "   • For general medical / outside questions: Output ONLY: NO_SQL\n";
     
     return $prompt;
 }

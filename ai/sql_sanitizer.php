@@ -59,6 +59,9 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
         $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])hospital_id\b/i', "$alias.hospital_id", $sql);
     }
     
+    // Auto-replace placeholder hospital_id = ? with real ID
+    $sql = preg_replace('/hospital_id\s*=\s*[\'"]?\?[\'"]?/i', "hospital_id = $hospitalId", $sql);
+
     // Auto-inject WHERE hospital_id = $hospitalId if not present
     if (stripos($sql, 'hospital_id') === false) {
         // Detect the primary table alias for JOINed queries to avoid ambiguous column errors

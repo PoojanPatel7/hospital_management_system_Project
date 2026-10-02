@@ -178,6 +178,15 @@ def gen_blood_group_queries():
         ("adult", "35", "60"), ("senior", "60", "120"), ("elderly", "70", "120"),
     ]
     query_templates = [
+        "i need blood {bg}",
+        "i need {bg} blood",
+        "i need {gender} blood {bg}",
+        "urgent requirement blood {bg}",
+        "now all {gender} with {bg}",
+        "now only {gender} with {bg}",
+        "now {gender} patients with {bg}",
+        "now show {gender} with {bg}",
+        "now filter {gender} with {bg}",
         "show me all {gender} patients with blood group {bg}",
         "find {gender} {bg} patients",
         "list patients blood group {bg} gender {gender}",
