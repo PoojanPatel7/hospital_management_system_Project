@@ -507,6 +507,9 @@ const BhoomaAI = {
         
         const itemEls = this.dom.liveSuggestions.querySelectorAll('.bhooma-live-item');
         itemEls.forEach(el => {
+            el.onmousedown = (e) => {
+                e.preventDefault(); // Prevent input blur on click
+            };
             el.onclick = (e) => {
                 e.stopPropagation();
                 const idx = parseInt(el.dataset.index, 10);
@@ -533,8 +536,17 @@ const BhoomaAI = {
     selectLiveSuggestion(index) {
         if (index >= 0 && index < this.activeSuggestions.length) {
             const item = this.activeSuggestions[index];
-            this.dom.input.value = item.text;
             this.hideLiveSuggestions();
+            const lower = item.text.toLowerCase();
+            if (lower.includes('booking form') || lower.includes('book an appointment') || lower.includes('book appointment')) {
+                this.renderInChatForm('book_appointment');
+                return;
+            }
+            if (lower.includes('admission form') || lower.includes('admit patient')) {
+                this.renderInChatForm('admit_patient');
+                return;
+            }
+            this.dom.input.value = item.text;
             this.autoResize(this.dom.input);
             this.handleSend();
         }
@@ -1232,7 +1244,7 @@ const BhoomaAI = {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-medium transition-colors shadow-2xs cursor-pointer';
-            btn.innerHTML = `<i class="fa-regular fa-paper-plane mr-1 text-[10px]"></i> \${text}`;
+            btn.innerHTML = `<i class="fa-regular fa-paper-plane mr-1 text-[10px]"></i> ${text}`;
             btn.onclick = () => {
                 this.dom.input.value = text;
                 this.autoResize(this.dom.input);

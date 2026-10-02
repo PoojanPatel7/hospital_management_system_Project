@@ -74,6 +74,10 @@ function getRelevantSchema($conn, $keywords) {
         if (!in_array('appointments', $matchedTables)) $matchedTables[] = 'appointments';
         if (!in_array('patients', $matchedTables)) $matchedTables[] = 'patients';
     }
+    if (in_array('staff', $matchedTables) || in_array('staff_attendance', $matchedTables)) {
+        if (!in_array('staff', $matchedTables)) $matchedTables[] = 'staff';
+        if (!in_array('staff_attendance', $matchedTables)) $matchedTables[] = 'staff_attendance';
+    }
     
     $matchedTables = array_unique($matchedTables);
     
@@ -87,10 +91,14 @@ function getRelevantSchema($conn, $keywords) {
         $schema .= getTableDescription($conn, $table) . "\n";
     }
 
-    $schema .= "\n=== COLUMN RULES ===\n";
+    $schema .= "\n=== COLUMN RULES & CANONICAL QUERIES ===\n";
     $schema .= "- In `doctors`: id, name, department_id, experience, degree, hospital_id, phone (NO created_at column!)\n";
     $schema .= "- In `appointments`: column name is `date` (NOT appointment_date).\n";
     $schema .= "- In `beds`: status is 'Available' or 'Occupied'.\n";
+    $schema .= "- In `staff`: Primary key is `id` (NOT staff_id). Code is `staff_code`. status is 'Active' or 'Inactive'.\n";
+    $schema .= "- In `staff_attendance`: staff_id references staff.id. status is 'Present', 'Absent', 'Late', 'Half Day', 'On Leave'. Attendance is NEVER in `staff` table!\n";
+    $schema .= "- CANONICAL STAFF ATTENDANCE QUERY:\n";
+    $schema .= "  SELECT s.first_name, s.last_name, s.role, s.department, sa.status, sa.check_in_time FROM staff s JOIN staff_attendance sa ON s.id = sa.staff_id WHERE s.hospital_id = ? AND sa.date = CURDATE() AND sa.status = 'Present';\n";
 
     return $schema;
 }

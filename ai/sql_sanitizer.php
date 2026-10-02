@@ -37,6 +37,23 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
     
     $sql = removePasswordColumns($sql);
     $sql = rtrim(trim($sql), "; \t\n\r\0\x0B");
+
+    // Auto-correct common LLM schema misconceptions:
+    // 1. staff table primary key is `id`, not `staff_id`
+    $sql = preg_replace('/\b(staff\.|s\.)?staff_id\b/i', '${1}id AS staff_id', $sql);
+    // 2. appointments date column is `date`, not `appointment_date`
+    $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?appointment_date\b/i', '${1}date', $sql);
+    // 3. If querying staff table with status = 'Present'/'Absent' without joining staff_attendance:
+    if (preg_match('/FROM\s+`?staff`?\s*(?:as\s+)?([a-zA-Z0-9_]+)?\s+WHERE/i', $sql, $tblM) && 
+        preg_match('/(?:[a-zA-Z0-9_]+\.)?status\s*=\s*[\'"](Present|Absent|Late|Half Day|On Leave)[\'"]/i', $sql) && 
+        stripos($sql, 'staff_attendance') === false) {
+        $alias = !empty($tblM[1]) ? $tblM[1] : 's';
+        $sql = preg_replace('/FROM\s+`?staff`?\s*(?:as\s+[a-zA-Z0-9_]+)?\s+WHERE/i', "FROM staff $alias JOIN staff_attendance sa ON $alias.id = sa.staff_id WHERE sa.date = CURDATE() AND ", $sql);
+        $sql = preg_replace('/\b(?:' . preg_quote($alias) . '\.)?status\s*=\s*[\'"](Present|Absent|Late|Half Day|On Leave)[\'"]/i', "sa.status = '$1'", $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])id\b/i', "$alias.id", $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])status\b/i', "sa.status", $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])hospital_id\b/i', "$alias.hospital_id", $sql);
+    }
     
     // Auto-inject WHERE hospital_id = $hospitalId if not present
     if (stripos($sql, 'hospital_id') === false) {
