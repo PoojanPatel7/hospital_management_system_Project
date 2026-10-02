@@ -33,6 +33,7 @@ index2.html
 
 # Python helper/fixer scripts (development utilities)
 *.py
+!ai/python/*.py
 
 # PHP backup copies
 *_backup.php
