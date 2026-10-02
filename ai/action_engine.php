@@ -165,8 +165,9 @@ function analyzeActionIntent($conn, $hospitalId, $message) {
     // 5. ADMIT PATIENT INTENT (INTERACTIVE FORM TRIGGER)
     // -------------------------------------------------------------
     $admitPatterns = [
-        'admit patient', 'patient admission', 'admit to bed', 'admit in icu',
-        'admit to icu', 'bed admission', 'open admission form', 'admit in ward'
+        'admit patient', 'admit a patient', 'patient admission', 'admit to bed', 'admit in icu',
+        'admit a patient in icu', 'admit to icu', 'bed admission', 'open admission form', 'admit in ward',
+        'admit someone'
     ];
     foreach ($admitPatterns as $ap) {
         if (strpos($lower, $ap) !== false) {
