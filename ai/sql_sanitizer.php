@@ -4,7 +4,7 @@
 define('ALLOWED_READ_OPERATIONS', ['SELECT']);
 define('ALLOWED_WRITE_OPERATIONS', ['INSERT', 'UPDATE']);
 define('BLOCKED_OPERATIONS', ['DROP', 'ALTER', 'TRUNCATE', 'CREATE', 'GRANT', 'REVOKE', 'DELETE']);
-define('ALLOWED_TABLES', ['patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules', 'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files', 'system_state']);
+define('ALLOWED_TABLES', ['hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules', 'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files', 'system_state']);
 
 function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
     $type = detectSqlType($sql);
@@ -20,24 +20,24 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
     }
     
     $sql = removePasswordColumns($sql);
+    $sql = rtrim(trim($sql), "; \t\n\r\0\x0B");
     
-    // Auto-inject WHERE hospital_id = $hospitalId (Simplified regex approach)
-    // In a real app, use a proper SQL parser. Here we do simple string manipulation.
-    // If it doesn't have WHERE, add it before GROUP BY, ORDER BY, or LIMIT
-    if (stripos($sql, 'WHERE') === false) {
-        $insertStr = " WHERE hospital_id = $hospitalId ";
-        if (preg_match('/\s(GROUP BY|ORDER BY|LIMIT)\s/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
-            $sql = substr_replace($sql, $insertStr, $matches[0][1], 0);
+    // Auto-inject WHERE hospital_id = $hospitalId if not present
+    if (stripos($sql, 'hospital_id') === false) {
+        if (stripos($sql, 'WHERE') === false) {
+            $insertStr = " WHERE hospital_id = $hospitalId ";
+            if (preg_match('/\s(GROUP BY|ORDER BY|LIMIT)\s/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
+                $sql = substr_replace($sql, $insertStr, $matches[0][1], 0);
+            } else {
+                $sql .= $insertStr;
+            }
         } else {
-            $sql .= $insertStr;
+            $sql = preg_replace('/\sWHERE\s/i', " WHERE hospital_id = $hospitalId AND ", $sql, 1);
         }
-    } else {
-        // Just append AND hospital_id =
-        $sql = preg_replace('/\sWHERE\s/i', " WHERE hospital_id = $hospitalId AND ", $sql);
     }
     
     // Auto add limit
-    if (stripos($sql, 'LIMIT') === false) {
+    if (stripos($sql, 'LIMIT') === false && stripos($sql, 'COUNT(') === false) {
         $sql .= " LIMIT 100";
     }
     

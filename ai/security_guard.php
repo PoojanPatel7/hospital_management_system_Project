@@ -18,7 +18,7 @@ function getAllowedTables($role) {
     $role = strtolower($role);
     switch ($role) {
         case 'admin':
-            return ['patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules', 'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files', 'system_state'];
+            return ['hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules', 'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files', 'system_state'];
         case 'nurse':
             return ['patients', 'appointments', 'beds', 'doctors', 'departments', 'prescriptions', 'diagnoses', 'timeline_events'];
         case 'receptionist':
@@ -73,18 +73,23 @@ function canWriteTable($role, $tableName, $operation) {
     return false;
 }
 
-function checkRateLimit($session, $conn, $limit = 30) {
-    if (!isset($session['hospital_id']) || !isset($session['staff_id'])) return false;
-    
-    $hospitalId = $session['hospital_id'];
-    $staffId = $session['staff_id'];
-    
-    $stmt = $conn->prepare("SELECT COUNT(*) as cnt FROM ai_chat_messages WHERE hospital_id = ? AND staff_id = ? AND created_at >= NOW() - INTERVAL 1 MINUTE");
-    if ($stmt) {
-        $stmt->bind_param("ii", $hospitalId, $staffId);
-        $stmt->execute();
-        $result = $stmt->get_result()->fetch_assoc();
-        return $result['cnt'] < $limit;
+function checkRateLimit($conn, $hospitalId, $staffId = null, $limit = 30) {
+    if (!$conn || !($conn instanceof mysqli)) return true;
+    $hospitalId = (int)$hospitalId;
+    if ($hospitalId <= 0) return true;
+    $maxLimit = (int)$limit > 0 ? (int)$limit : 30;
+
+    try {
+        $stmt = $conn->prepare("SELECT COUNT(*) as cnt FROM ai_chat_messages m JOIN ai_conversations c ON m.conversation_id = c.id WHERE c.hospital_id = ? AND m.role = 'user' AND m.created_at >= NOW() - INTERVAL 1 MINUTE");
+        if ($stmt) {
+            $stmt->bind_param("i", $hospitalId);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            return ($result['cnt'] ?? 0) < $maxLimit;
+        }
+    } catch (Exception $e) {
+        return true;
     }
-    return true; // Default to allow if query fails
+    return true;
 }

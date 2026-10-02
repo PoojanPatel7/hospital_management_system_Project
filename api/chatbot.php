@@ -1,16 +1,16 @@
 <?php
 // c:\xampp\htdocs\Hospital Management System\api\chatbot.php
 session_start();
-require_once '../db.php';
+require_once __DIR__ . '/../db.php';
 
 // Include AI components silently
-@require_once '../ai/config.php';
-@require_once '../ai/ollama_client.php';
-@require_once '../ai/schema_provider.php';
-@require_once '../ai/context_builder.php';
-@require_once '../ai/sql_sanitizer.php';
-@require_once '../ai/security_guard.php';
-@require_once '../ai/prompt_templates.php';
+@require_once __DIR__ . '/../ai/config.php';
+@require_once __DIR__ . '/../ai/ollama_client.php';
+@require_once __DIR__ . '/../ai/schema_provider.php';
+@require_once __DIR__ . '/../ai/context_builder.php';
+@require_once __DIR__ . '/../ai/sql_sanitizer.php';
+@require_once __DIR__ . '/../ai/security_guard.php';
+@require_once __DIR__ . '/../ai/prompt_templates.php';
 
 if (!isset($_SESSION['hospital_id'])) {
     http_response_code(401);
@@ -26,7 +26,13 @@ $userId = $_SESSION['username'] ?? $_SESSION['hospital_name'] ?? 'admin'; // VAR
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
+    $rawInput = file_get_contents('php://input');
+    $jsonInput = !empty($rawInput) ? json_decode($rawInput, true) : null;
+    if (is_array($jsonInput)) {
+        $input = array_merge($_POST, $jsonInput);
+    } else {
+        $input = $_POST;
+    }
     $action = $input['action'] ?? '';
 } else {
     $action = $_GET['action'] ?? '';
@@ -72,6 +78,8 @@ switch ($action) {
         $stmt->bind_param("is", $conversationId, $message);
         $stmt->execute();
 
+        session_write_close();
+
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('Connection: keep-alive');
@@ -113,7 +121,7 @@ switch ($action) {
             $messages[] = $h;
         }
 
-        $model = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen3:4b';
+        $model = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen2.5:3b';
         $fullResponse = "";
         
         if (function_exists('ollamaChatStream')) {
@@ -159,7 +167,7 @@ switch ($action) {
                         while ($r = $res->fetch_assoc()) {
                             $results[] = $r;
                         }
-                        echo "data: " . json_encode(['type' => 'data', 'results' => $results, 'summary' => count($results) . ' record(s) found.']) . "\n\n";
+                        echo "data: " . json_encode(['type' => 'data', 'results' => $results, 'content' => $results, 'sql' => $sqlToExecute, 'summary' => count($results) . ' record(s) found.']) . "\n\n";
                         flush();
                     } else {
                         echo "data: " . json_encode(['type' => 'error', 'message' => 'Query execution failed.']) . "\n\n";
@@ -298,7 +306,8 @@ switch ($action) {
     case 'status':
         $ollamaOnline = function_exists('checkOllamaStatus') ? checkOllamaStatus() : false;
         $models = function_exists('listOllamaModels') ? listOllamaModels() : [];
-        echo json_encode(['ollama' => $ollamaOnline, 'model' => DEFAULT_MODEL ?? 'qwen3:4b', 'models' => $models]);
+        $defModel = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen2.5:3b';
+        echo json_encode(['ollama' => $ollamaOnline, 'model' => $defModel, 'models' => $models, 'status' => $ollamaOnline ? 'online' : 'offline']);
         break;
 
     default:
