@@ -81,10 +81,10 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 </style>
 
 <!-- Floating AI Button -->
-<div id="bhooma-ai-btn-container" class="fixed bottom-6 right-6 z-50">
-    <button id="bhooma-ai-toggle" title="BHOOMA AI Assistant (Ctrl+K)" 
-        class="bhooma-btn-pulse flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
-        <i class="fa-solid fa-robot text-2xl"></i>
+<div id="bhooma-ai-btn-container" class="fixed bottom-6 right-6 z-[9999]">
+    <button id="bhooma-ai-toggle" onclick="BhoomaAI.toggle()" title="BHOOMA AI Assistant (Ctrl+K)" 
+        class="bhooma-btn-pulse flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer">
+        <i class="fa-solid fa-robot text-2xl pointer-events-none"></i>
         <span id="bhooma-ai-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">
             1
         </span>
@@ -92,7 +92,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 </div>
 
 <!-- Chat Panel -->
-<div id="bhooma-ai-panel" class="hidden fixed bottom-24 right-6 z-50 w-[420px] h-[600px] max-h-[80vh] max-w-[calc(100vw-3rem)] rounded-2xl shadow-2xl border border-slate-200 bg-white/95 backdrop-blur-md flex flex-col overflow-hidden sm:right-6 right-0 left-0 mx-auto sm:mx-0 sm:left-auto sm:w-[420px]">
+<div id="bhooma-ai-panel" class="hidden fixed bottom-24 right-6 z-[9999] w-[420px] h-[600px] max-h-[80vh] max-w-[calc(100vw-3rem)] rounded-2xl shadow-2xl border border-slate-200 bg-white/95 backdrop-blur-md flex flex-col overflow-hidden sm:right-6 right-0 left-0 mx-auto sm:mx-0 sm:left-auto sm:w-[420px]">
     
     <!-- Header -->
     <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 p-4 text-white flex items-center justify-between cursor-move" id="bhooma-ai-header">
@@ -104,19 +104,19 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
             <div>
                 <h3 class="font-bold text-sm leading-tight">BHOOMA AI</h3>
                 <div class="flex items-center space-x-1">
-                    <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md" id="bhooma-ai-model">Qwen3-4B</span>
+                    <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md" id="bhooma-ai-model">Qwen 2.5</span>
                     <span id="bhooma-ai-status-text" class="text-[10px] text-white/80">Ready</span>
                 </div>
             </div>
         </div>
         <div class="flex items-center space-x-1">
-            <button id="bhooma-ai-new" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="New Chat">
+            <button id="bhooma-ai-new" onclick="BhoomaAI.newConversation()" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="New Chat">
                 <i class="fa-solid fa-plus"></i>
             </button>
-            <button id="bhooma-ai-minimize" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="Minimize">
+            <button id="bhooma-ai-minimize" onclick="BhoomaAI.toggle(false)" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="Minimize">
                 <i class="fa-solid fa-minus"></i>
             </button>
-            <button id="bhooma-ai-close" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="Close">
+            <button id="bhooma-ai-close" onclick="BhoomaAI.toggle(false)" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="Close">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -146,7 +146,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
             <textarea id="bhooma-ai-input" rows="1" 
                 class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[100px] text-sm p-3 bhooma-scrollbar" 
                 placeholder="Ask BHOOMA AI anything... (Enter to send)"></textarea>
-            <button id="bhooma-ai-send" class="shrink-0 w-8 h-8 mb-2 mr-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="bhooma-ai-send" onclick="BhoomaAI.handleSend()" class="shrink-0 w-8 h-8 mb-2 mr-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 <i class="fa-solid fa-paper-plane text-xs"></i>
             </button>
         </div>
@@ -173,7 +173,7 @@ const BhoomaAI = {
         this.loadConversation();
         this.renderSuggestions();
         this.checkStatus();
-        this.autoResize(this.dom.input);
+        if (this.dom.input) this.autoResize(this.dom.input);
     },
     
     cacheDOM() {
@@ -195,24 +195,26 @@ const BhoomaAI = {
     },
     
     bindEvents() {
-        this.dom.toggle.addEventListener('click', () => this.toggle());
-        this.dom.close.addEventListener('click', () => this.toggle(false));
-        this.dom.minimize.addEventListener('click', () => this.toggle(false));
-        this.dom.newBtn.addEventListener('click', () => this.newConversation());
+        if (this.dom.toggle) this.dom.toggle.addEventListener('click', () => this.toggle());
+        if (this.dom.close) this.dom.close.addEventListener('click', () => this.toggle(false));
+        if (this.dom.minimize) this.dom.minimize.addEventListener('click', () => this.toggle(false));
+        if (this.dom.newBtn) this.dom.newBtn.addEventListener('click', () => this.newConversation());
         
-        this.dom.send.addEventListener('click', () => this.handleSend());
+        if (this.dom.send) this.dom.send.addEventListener('click', () => this.handleSend());
         
-        this.dom.input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.handleSend();
-            }
-        });
-        
-        this.dom.input.addEventListener('input', () => {
-            this.autoResize(this.dom.input);
-            this.updateCounter();
-        });
+        if (this.dom.input) {
+            this.dom.input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSend();
+                }
+            });
+            
+            this.dom.input.addEventListener('input', () => {
+                this.autoResize(this.dom.input);
+                this.updateCounter();
+            });
+        }
         
         // Ctrl+K shortcut
         document.addEventListener('keydown', (e) => {
@@ -223,29 +225,36 @@ const BhoomaAI = {
         });
 
         // Event delegation for confirm/cancel buttons
-        this.dom.messages.addEventListener('click', (e) => {
-            if (e.target.closest('.bhooma-confirm-btn')) {
-                const id = e.target.closest('.bhooma-confirm-btn').dataset.id;
-                this.confirmAction(id);
-            } else if (e.target.closest('.bhooma-cancel-btn')) {
-                const id = e.target.closest('.bhooma-cancel-btn').dataset.id;
-                this.cancelAction(id);
-            }
-        });
+        if (this.dom.messages) {
+            this.dom.messages.addEventListener('click', (e) => {
+                if (e.target.closest('.bhooma-confirm-btn')) {
+                    const id = e.target.closest('.bhooma-confirm-btn').dataset.id;
+                    this.confirmAction(id);
+                } else if (e.target.closest('.bhooma-cancel-btn')) {
+                    const id = e.target.closest('.bhooma-cancel-btn').dataset.id;
+                    this.cancelAction(id);
+                }
+            });
+        }
     },
     
     toggle(forceState = null) {
+        if (!this.dom || !this.dom.panel) this.cacheDOM();
         this.isOpen = forceState !== null ? forceState : !this.isOpen;
         if (this.isOpen) {
-            this.dom.panel.classList.remove('hidden');
-            this.dom.panel.classList.add('bhooma-chat-panel');
-            this.dom.badge.classList.add('hidden');
-            this.dom.toggle.classList.remove('bhooma-btn-pulse');
-            setTimeout(() => this.dom.input.focus(), 100);
+            if (this.dom.panel) {
+                this.dom.panel.classList.remove('hidden');
+                this.dom.panel.classList.add('bhooma-chat-panel');
+            }
+            if (this.dom.badge) this.dom.badge.classList.add('hidden');
+            if (this.dom.toggle) this.dom.toggle.classList.remove('bhooma-btn-pulse');
+            setTimeout(() => { if (this.dom.input) this.dom.input.focus(); }, 100);
             this.scrollToBottom();
         } else {
-            this.dom.panel.classList.add('hidden');
-            this.dom.panel.classList.remove('bhooma-chat-panel');
+            if (this.dom.panel) {
+                this.dom.panel.classList.add('hidden');
+                this.dom.panel.classList.remove('bhooma-chat-panel');
+            }
         }
     },
     
@@ -253,17 +262,18 @@ const BhoomaAI = {
         try {
             const res = await fetch(this.apiUrl + '?action=status');
             const data = await res.json();
-            if (data.status === 'online') {
-                this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-600';
-                this.dom.statusText.textContent = 'Online';
-                if(data.model) document.getElementById('bhooma-ai-model').textContent = data.model;
+            if (data.ollama || data.status === 'online') {
+                if (this.dom.statusDot) this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-600';
+                if (this.dom.statusText) this.dom.statusText.textContent = 'Online';
+                const modelBadge = document.getElementById('bhooma-ai-model');
+                if (modelBadge && data.model) modelBadge.textContent = data.model;
             } else {
-                this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-rose-400 rounded-full border-2 border-indigo-600';
-                this.dom.statusText.textContent = 'Offline';
+                if (this.dom.statusDot) this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-rose-400 rounded-full border-2 border-indigo-600';
+                if (this.dom.statusText) this.dom.statusText.textContent = 'Offline';
             }
         } catch (e) {
-            this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-slate-400 rounded-full border-2 border-indigo-600';
-            this.dom.statusText.textContent = 'Error';
+            if (this.dom.statusDot) this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-slate-400 rounded-full border-2 border-indigo-600';
+            if (this.dom.statusText) this.dom.statusText.textContent = 'Ready';
         }
     },
     
@@ -301,7 +311,7 @@ const BhoomaAI = {
         const len = this.dom.input.value.length;
         if (len > 100) {
             this.dom.counter.classList.remove('hidden');
-            this.dom.counter.textContent = \`\${len}/2000\`;
+            this.dom.counter.textContent = `${len}/2000`;
             if (len >= 2000) this.dom.counter.classList.add('text-rose-500');
             else this.dom.counter.classList.remove('text-rose-500');
         } else {
@@ -323,8 +333,8 @@ const BhoomaAI = {
             .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
             .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
             .replace(/\\n/g, '<br>')
-            .replace(/\\`\\`\\`([\\s\\S]*?)\\`\\`\\`/g, '<pre><code>$1</code></pre>')
-            .replace(/\\`([^\\`]+)\\`/g, '<code>$1</code>');
+            .replace(/\`\`\`([\\s\\S]*?)\`\`\`/g, '<pre><code>$1</code></pre>')
+            .replace(/\`([^\`]+)\`/g, '<code>$1</code>');
         return formatted;
     },
     
@@ -333,25 +343,25 @@ const BhoomaAI = {
         const msgId = 'msg-' + Date.now();
         
         const wrapper = document.createElement('div');
-        wrapper.className = \`flex items-start max-w-[85%] \${isUser ? 'ml-auto flex-row-reverse' : ''}\`;
+        wrapper.className = `flex items-start max-w-[85%] ${isUser ? 'ml-auto flex-row-reverse' : ''}`;
         wrapper.id = msgId;
         
         let html = '';
         if (isUser) {
-            html = \`
+            html = `
                 <div class="ml-2 mr-0 bg-gradient-to-r from-indigo-600 to-blue-500 text-white text-sm py-2 px-3 rounded-2xl rounded-tr-sm shadow-sm bhooma-markdown w-full">
-                    \${this.formatMarkdown(content)}
+                    ${this.formatMarkdown(content)}
                 </div>
-            \`;
+            `;
         } else {
-            html = \`
-                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm \${isUser ? 'ml-2' : 'mr-2'}">
+            html = `
+                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm ${isUser ? 'ml-2' : 'mr-2'}">
                     <i class="fa-solid fa-robot"></i>
                 </div>
                 <div class="content-box bg-white border border-slate-200 text-slate-700 text-sm py-2 px-3 rounded-2xl rounded-tl-sm shadow-sm bhooma-markdown w-full overflow-x-auto">
-                    \${this.formatMarkdown(content)}
+                    ${this.formatMarkdown(content)}
                 </div>
-            \`;
+            `;
         }
         
         wrapper.innerHTML = html;
@@ -364,7 +374,7 @@ const BhoomaAI = {
         const wrapper = document.createElement('div');
         wrapper.id = 'bhooma-typing';
         wrapper.className = 'flex items-start max-w-[85%]';
-        wrapper.innerHTML = \`
+        wrapper.innerHTML = `
             <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
                 <i class="fa-solid fa-robot"></i>
             </div>
@@ -373,7 +383,7 @@ const BhoomaAI = {
                 <div class="w-2 h-2 bg-slate-400 rounded-full bhooma-typing-dot"></div>
                 <div class="w-2 h-2 bg-slate-400 rounded-full bhooma-typing-dot"></div>
             </div>
-        \`;
+        `;
         this.dom.messages.appendChild(wrapper);
         this.scrollToBottom();
     },
@@ -449,7 +459,7 @@ const BhoomaAI = {
                                     isFirstChunk = false;
                                 }
                                 aiMsgContent += data.content;
-                                const msgEl = document.querySelector(\`#\${aiMsgId} .content-box\`);
+                                const msgEl = document.querySelector(`#${aiMsgId} .content-box`);
                                 if (msgEl) {
                                     msgEl.innerHTML = this.formatMarkdown(aiMsgContent);
                                     this.scrollToBottom();
@@ -468,7 +478,7 @@ const BhoomaAI = {
                                 }
                             }
                             else if (data.type === 'error') {
-                                this.appendMessage('assistant', '⚠️ ' + data.message);
+                                this.appendMessage('assistant', 'âš ï¸ ' + data.message);
                             }
                         } catch (e) {
                             console.error('Error parsing SSE data:', e, dataStr);
@@ -491,37 +501,37 @@ const BhoomaAI = {
         if (!dataArr || !dataArr.length) return;
         const columns = Object.keys(dataArr[0]);
         
-        let tableHTML = \`<div class="w-full overflow-x-auto mt-2 mb-2 border border-slate-200 rounded-lg">
+        let tableHTML = `<div class="w-full overflow-x-auto mt-2 mb-2 border border-slate-200 rounded-lg">
             <table class="w-full text-left text-xs whitespace-nowrap">
                 <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>\`;
+                    <tr>`;
         columns.forEach(col => {
-            tableHTML += \`<th class="px-3 py-2">\${col}</th>\`;
+            tableHTML += `<th class="px-3 py-2">${col}</th>`;
         });
-        tableHTML += \`</tr></thead><tbody class="divide-y divide-slate-100">\`;
+        tableHTML += `</tr></thead><tbody class="divide-y divide-slate-100">`;
         
         dataArr.forEach((row, i) => {
             const bg = i % 2 === 0 ? 'bg-white' : 'bg-slate-50';
-            tableHTML += \`<tr class="\${bg} hover:bg-indigo-50">\`;
+            tableHTML += `<tr class="${bg} hover:bg-indigo-50">`;
             columns.forEach(col => {
-                tableHTML += \`<td class="px-3 py-1.5 text-slate-700">\${row[col] !== null ? row[col] : '-'}</td>\`;
+                tableHTML += `<td class="px-3 py-1.5 text-slate-700">${row[col] !== null ? row[col] : '-'}</td>`;
             });
-            tableHTML += \`</tr>\`;
+            tableHTML += `</tr>`;
         });
         
-        tableHTML += \`</tbody></table></div>\`;
+        tableHTML += `</tbody></table></div>`;
         
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-start max-w-[95%]';
-        wrapper.innerHTML = \`
+        wrapper.innerHTML = `
             <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
                 <i class="fa-solid fa-table"></i>
             </div>
             <div class="bg-white border border-slate-200 py-2 px-3 rounded-2xl rounded-tl-sm shadow-sm w-full overflow-x-auto">
-                \${tableHTML}
-                \${sql ? \`<div class="text-[9px] text-slate-400 mt-1 font-mono cursor-pointer" onclick="this.textContent = '\${sql.replace(/'/g, "\\'")}'">Show Query</div>\` : ''}
+                ${tableHTML}
+                ${sql ? `<div class="text-[9px] text-slate-400 mt-1 font-mono cursor-pointer" onclick="this.textContent = '${sql.replace(/'/g, "\\'")}'">Show Query</div>` : ''}
             </div>
-        \`;
+        `;
         
         this.dom.messages.appendChild(wrapper);
         this.scrollToBottom();
@@ -530,31 +540,31 @@ const BhoomaAI = {
     renderActionCard(actionId, details) {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-start max-w-[85%] mt-2 mb-2';
-        wrapper.innerHTML = \`
+        wrapper.innerHTML = `
             <div class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
                 <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
-            <div class="bg-amber-50 border-2 border-amber-200 py-3 px-4 rounded-xl shadow-sm w-full" id="action-card-\${actionId}">
+            <div class="bg-amber-50 border-2 border-amber-200 py-3 px-4 rounded-xl shadow-sm w-full" id="action-card-${actionId}">
                 <h4 class="font-bold text-amber-800 text-sm mb-1">Confirm Action</h4>
-                <p class="text-xs text-amber-700 mb-3">\${details}</p>
+                <p class="text-xs text-amber-700 mb-3">${details}</p>
                 <div class="flex space-x-2">
-                    <button class="bhooma-confirm-btn bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1" data-id="\${actionId}">
+                    <button class="bhooma-confirm-btn bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1" data-id="${actionId}">
                         <i class="fa-solid fa-check mr-1"></i> Confirm
                     </button>
-                    <button class="bhooma-cancel-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1" data-id="\${actionId}">
+                    <button class="bhooma-cancel-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1" data-id="${actionId}">
                         Cancel
                     </button>
                 </div>
             </div>
-        \`;
+        `;
         this.dom.messages.appendChild(wrapper);
         this.scrollToBottom();
     },
     
     async confirmAction(actionId) {
-        const card = document.getElementById(\`action-card-\${actionId}\`);
+        const card = document.getElementById(`action-card-${actionId}`);
         if (card) {
-            card.innerHTML = \`<div class="text-xs text-slate-500 flex items-center"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Executing...</div>\`;
+            card.innerHTML = `<div class="text-xs text-slate-500 flex items-center"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Executing...</div>`;
         }
         
         try {
@@ -568,29 +578,29 @@ const BhoomaAI = {
             if (data.status === 'success') {
                 if (card) {
                     card.className = 'bg-emerald-50 border border-emerald-200 py-2 px-3 rounded-xl shadow-sm w-full';
-                    card.innerHTML = \`<div class="text-xs text-emerald-700 font-semibold flex items-center"><i class="fa-solid fa-check-circle mr-1.5"></i> Action Executed Successfully</div>\`;
+                    card.innerHTML = `<div class="text-xs text-emerald-700 font-semibold flex items-center"><i class="fa-solid fa-check-circle mr-1.5"></i> Action Executed Successfully</div>`;
                 }
-                this.appendMessage('assistant', '✅ ' + (data.message || 'Action executed successfully.'));
+                this.appendMessage('assistant', 'âœ… ' + (data.message || 'Action executed successfully.'));
             } else {
                 if (card) {
                     card.className = 'bg-rose-50 border border-rose-200 py-2 px-3 rounded-xl shadow-sm w-full';
-                    card.innerHTML = \`<div class="text-xs text-rose-700 font-semibold flex items-center"><i class="fa-solid fa-xmark-circle mr-1.5"></i> Execution Failed</div>\`;
+                    card.innerHTML = `<div class="text-xs text-rose-700 font-semibold flex items-center"><i class="fa-solid fa-xmark-circle mr-1.5"></i> Execution Failed</div>`;
                 }
-                this.appendMessage('assistant', '❌ ' + (data.message || 'Failed to execute action.'));
+                this.appendMessage('assistant', 'âŒ ' + (data.message || 'Failed to execute action.'));
             }
         } catch (e) {
             console.error(e);
             if (card) {
-                card.innerHTML = \`<div class="text-xs text-rose-700">Error connecting to server.</div>\`;
+                card.innerHTML = `<div class="text-xs text-rose-700">Error connecting to server.</div>`;
             }
         }
     },
     
     async cancelAction(actionId) {
-        const card = document.getElementById(\`action-card-\${actionId}\`);
+        const card = document.getElementById(`action-card-${actionId}`);
         if (card) {
             card.className = 'bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl shadow-sm w-full';
-            card.innerHTML = \`<div class="text-xs text-slate-500 flex items-center"><i class="fa-solid fa-ban mr-1.5"></i> Action Cancelled</div>\`;
+            card.innerHTML = `<div class="text-xs text-slate-500 flex items-center"><i class="fa-solid fa-ban mr-1.5"></i> Action Cancelled</div>`;
         }
         
         try {
@@ -618,5 +628,9 @@ const BhoomaAI = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => BhoomaAI.init());
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => BhoomaAI.init());
+} else {
+    BhoomaAI.init();
+}
 </script>
