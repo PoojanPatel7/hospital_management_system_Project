@@ -218,6 +218,19 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
           </a>
         </div>
       </div>
+      <!-- Prominent Separator Line -->
+      <div class="h-px bg-slate-200 my-2 mx-1"></div>
+
+      <!-- AI Assistant Button in Sidebar -->
+      <div class="px-1">
+        <button type="button" onclick="if(window.BhoomaAI) BhoomaAI.toggle();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 hover:from-blue-100 hover:to-indigo-100 text-indigo-700 transition shadow-sm font-semibold text-left cursor-pointer">
+          <div class="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs shrink-0 shadow-sm">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <span class="text-sm font-semibold">BHOOMA AI</span>
+          <span class="ml-auto text-[10px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded border border-indigo-200">Ctrl+K</span>
+        </button>
+      </div>
 
     </nav>
 
@@ -389,7 +402,20 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
             <span class="text-sm font-semibold">About Hospital</span>
           </a>
         </div>
+      <!-- Prominent Separator Line -->
+      <div class="h-px bg-slate-200 my-2 mx-1"></div>
+
+      <!-- AI Assistant Button in Sidebar -->
+      <div class="px-1">
+        <button type="button" onclick="if(window.BhoomaAI) BhoomaAI.toggle();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 hover:from-blue-100 hover:to-indigo-100 text-indigo-700 transition shadow-sm font-semibold text-left cursor-pointer">
+          <div class="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs shrink-0 shadow-sm">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <span class="text-sm font-semibold">BHOOMA AI</span>
+          <span class="ml-auto text-[10px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded border border-indigo-200">Ctrl+K</span>
+        </button>
       </div>
+
     </nav>
 
     <!-- Drawer Footer -->
@@ -445,10 +471,10 @@ $hospital_name = $_SESSION['hospital_name'] ?? 'CarePulse';
         <button onclick="closeToast()" class="text-slate-400 hover:text-slate-600 ml-3 shrink-0"><i class="fa-solid fa-xmark"></i></button>
       </div>
       
-      <!-- Include Confirm & Logout Modals -->
-      <?php include_once 'includes/confirm_modal.php'; ?>
-      <?php include_once 'includes/logout_modal.php'; ?>
-      <?php include_once 'includes/chatbot_widget.php'; ?>
+      <!-- Include Confirm, Logout Modals & Chatbot Widget -->
+      <?php include_once __DIR__ . '/confirm_modal.php'; ?>
+      <?php include_once __DIR__ . '/logout_modal.php'; ?>
+      <?php include_once __DIR__ . '/chatbot_widget.php'; ?>
 
       <script>
         function toggleMobileNav(open) {
