@@ -4,9 +4,16 @@
 define('ALLOWED_READ_OPERATIONS', ['SELECT']);
 define('ALLOWED_WRITE_OPERATIONS', ['INSERT', 'UPDATE']);
 define('BLOCKED_OPERATIONS', ['DROP', 'ALTER', 'TRUNCATE', 'CREATE', 'GRANT', 'REVOKE', 'DELETE']);
-define('ALLOWED_TABLES', ['hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules', 'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files', 'system_state']);
+define('ALLOWED_TABLES', [
+    'hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments',
+    'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules',
+    'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files',
+    'system_state', 'ai_config', 'ai_action_log', 'ai_conversations',
+    'ai_chat_messages', 'ai_pending_actions'
+]);
 
 function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
+    global $conn;
     $type = detectSqlType($sql);
     if ($type !== 'SELECT') {
         return ['valid' => false, 'error' => 'Only SELECT operations are allowed for read queries.'];
@@ -14,8 +21,17 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
     
     $tables = extractTablesFromSql($sql);
     foreach ($tables as $table) {
-        if (!in_array($table, $allowedTables) || !in_array($table, ALLOWED_TABLES)) {
-            return ['valid' => false, 'error' => "Access denied to table: $table"];
+        $cleanTable = strtolower($table);
+        $isAllowed = in_array($cleanTable, array_map('strtolower', $allowedTables)) || 
+                     in_array($cleanTable, ALLOWED_TABLES);
+        if (!$isAllowed && isset($conn) && $conn instanceof mysqli) {
+            $tblCheck = $conn->query("SHOW TABLES LIKE '" . $conn->real_escape_string($cleanTable) . "'");
+            if ($tblCheck && $tblCheck->num_rows > 0) {
+                $isAllowed = true;
+            }
+        }
+        if (!$isAllowed) {
+            return ['valid' => false, 'error' => "Access denied to table: $cleanTable"];
         }
     }
     

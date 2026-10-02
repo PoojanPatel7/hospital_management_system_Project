@@ -373,12 +373,14 @@ const BhoomaAI = {
     
     formatMarkdown(text) {
         if (!text) return '';
-        let formatted = text
+        // Completely strip any leaked ```sql ... ``` code blocks
+        let clean = text.replace(/```sql[\s\S]*?```/gi, '');
+        let formatted = clean
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/\n/g, '<br>')
-            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-            .replace(/`([^`]+)`/g, '<code>$1</code>');
+            .replace(/```([\s\S]*?)```/g, '<pre class="bg-slate-800 text-white p-2 rounded text-xs overflow-x-auto my-1"><code>$1</code></pre>')
+            .replace(/`([^`]+)`/g, '<code class="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded font-mono text-xs">$1</code>');
         return formatted;
     },
     
@@ -541,39 +543,64 @@ const BhoomaAI = {
         }
     },
     
-    renderDataTable(dataArr, sql = null) {
+    renderDataTable(dataArr) {
         if (!dataArr || !dataArr.length) return;
         const columns = Object.keys(dataArr[0]);
         
-        let tableHTML = `<div class="w-full overflow-x-auto mt-2 mb-2 border border-slate-200 rounded-lg">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-                <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>`;
-        columns.forEach(col => {
-            tableHTML += `<th class="px-3 py-2">${col}</th>`;
-        });
-        tableHTML += `</tr></thead><tbody class="divide-y divide-slate-100">`;
+        let visualHTML = '';
         
-        dataArr.forEach((row, i) => {
-            const bg = i % 2 === 0 ? 'bg-white' : 'bg-slate-50';
-            tableHTML += `<tr class="${bg} hover:bg-indigo-50">`;
+        // Single metric / KPI (e.g. [{"patient_count": 2}] or [{"count": 5}])
+        if (dataArr.length === 1 && columns.length === 1) {
+            const key = columns[0];
+            const val = dataArr[0][key];
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            visualHTML = `
+                <div class="inline-flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 my-1 shadow-xs">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                        <i class="fa-solid fa-chart-simple"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500">${label}</div>
+                        <div class="text-xl font-black text-indigo-900 leading-tight">${val}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            let tableHTML = `<div class="w-full overflow-x-auto mt-2 mb-1 border border-slate-200 rounded-xl shadow-xs">
+                <div class="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
+                    <span><i class="fa-solid fa-table-list text-indigo-500 mr-1.5"></i> Hospital Records</span>
+                    <span class="bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.2 rounded font-semibold">${dataArr.length} items</span>
+                </div>
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                        <tr>`;
             columns.forEach(col => {
-                tableHTML += `<td class="px-3 py-1.5 text-slate-700">${row[col] !== null ? row[col] : '-'}</td>`;
+                const colLabel = col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                tableHTML += `<th class="px-3 py-2 text-[11px] tracking-tight">${colLabel}</th>`;
             });
-            tableHTML += `</tr>`;
-        });
-        
-        tableHTML += `</tbody></table></div>`;
+            tableHTML += `</tr></thead><tbody class="divide-y divide-slate-100 bg-white">`;
+            
+            dataArr.forEach((row, i) => {
+                const bg = i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+                tableHTML += `<tr class="${bg} hover:bg-indigo-50/70 transition-colors">`;
+                columns.forEach(col => {
+                    tableHTML += `<td class="px-3 py-1.5 text-slate-700">${row[col] !== null ? row[col] : '-'}</td>`;
+                });
+                tableHTML += `</tr>`;
+            });
+            
+            tableHTML += `</tbody></table></div>`;
+            visualHTML = tableHTML;
+        }
         
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-start max-w-[95%]';
         wrapper.innerHTML = `
             <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
-                <i class="fa-solid fa-table"></i>
+                <i class="fa-solid fa-database"></i>
             </div>
-            <div class="bg-white border border-slate-200 py-2 px-3 rounded-2xl rounded-tl-sm shadow-sm w-full overflow-x-auto">
-                ${tableHTML}
-                ${sql ? `<div class="text-[9px] text-slate-400 mt-1 font-mono cursor-pointer" onclick="this.textContent = decodeURIComponent('${encodeURIComponent(sql)}')">Show Query</div>` : ''}
+            <div class="bg-white border border-slate-200 py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm w-full overflow-x-auto">
+                ${visualHTML}
             </div>
         `;
         

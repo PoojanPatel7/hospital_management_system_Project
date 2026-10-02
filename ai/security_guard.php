@@ -15,23 +15,14 @@ function getUserRole($session) {
 }
 
 function getAllowedTables($role) {
-    $role = strtolower($role);
-    switch ($role) {
-        case 'admin':
-            return ['hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules', 'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files', 'system_state'];
-        case 'nurse':
-            return ['patients', 'appointments', 'beds', 'doctors', 'departments', 'prescriptions', 'diagnoses', 'timeline_events'];
-        case 'receptionist':
-            return ['patients', 'appointments', 'doctors', 'departments', 'beds'];
-        case 'lab tech':
-        case 'lab_tech':
-            return ['patients', 'appointments', 'prescriptions', 'diagnoses', 'patient_files'];
-        case 'rmo':
-        case 'doctor':
-            return ['patients', 'appointments', 'beds', 'doctors', 'departments', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files'];
-        default:
-            return ['patients', 'appointments', 'doctors', 'departments'];
-    }
+    // Grant access to all hospital system tables for intelligent assistant querying
+    return [
+        'hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments',
+        'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules',
+        'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files',
+        'system_state', 'ai_config', 'ai_action_log', 'ai_conversations',
+        'ai_chat_messages', 'ai_pending_actions'
+    ];
 }
 
 function getAllowedWriteOps($role) {

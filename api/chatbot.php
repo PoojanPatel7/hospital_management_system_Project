@@ -18,10 +18,10 @@ if (!isset($_SESSION['hospital_id'])) {
     exit;
 }
 
-$hospitalId = $_SESSION['hospital_id'];
+$hospitalId = (int)$_SESSION['hospital_id'];
 $staffId = $_SESSION['staff_id'] ?? null;
 $staffRole = $_SESSION['staff_role'] ?? 'Admin';
-$userId = $_SESSION['username'] ?? $_SESSION['hospital_name'] ?? 'admin'; // VARCHAR user identifier
+$userId = $_SESSION['username'] ?? $_SESSION['hospital_name'] ?? 'admin';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -42,9 +42,9 @@ if ($method === 'POST') {
 switch ($action) {
     case 'chat':
         set_time_limit(120);
-        $message = $input['message'] ?? '';
-        $conversationId = $input['conversation_id'] ?? null;
-        $pageContext = $input['page_context'] ?? '';
+        $message = trim($input['message'] ?? '');
+        $conversationId = isset($input['conversation_id']) ? (int)$input['conversation_id'] : null;
+        $pageContext = $input['page_context'] ?? 'dashboard.php';
 
         if (empty($message)) {
             echo json_encode(['error' => 'Empty message']);
@@ -52,7 +52,7 @@ switch ($action) {
         }
 
         if (function_exists('checkRateLimit')) {
-            if (!checkRateLimit($conn, $hospitalId, $staffId)) {
+            if (!checkRateLimit($conn, $hospitalId, $staffId, 30)) {
                 echo json_encode(['error' => 'Rate limit exceeded']);
                 exit;
             }
@@ -83,105 +83,75 @@ switch ($action) {
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('Connection: keep-alive');
+        header('X-Accel-Buffering: no');
         
         while (ob_get_level() > 0) ob_end_flush();
 
-        // Build schema context - use relevant schema based on user message keywords
-        $schema = '';
-        if (function_exists('getRelevantSchema')) {
-            $schema = getRelevantSchema($conn, strtolower($message));
-        } elseif (function_exists('getFullSchema')) {
-            $schema = getFullSchema($conn);
-        }
-        
-        $context = function_exists('buildPageContext') ? buildPageContext($conn, $hospitalId, $pageContext) : ['stats' => '', 'focus_tables' => []];
+        // Build context with full typo tolerance
+        $schema = function_exists('getRelevantSchema') ? getRelevantSchema($conn, $message) : '';
         $todayStats = function_exists('getTodayStats') ? getTodayStats($conn, $hospitalId) : '';
         $hospitalName = $_SESSION['hospital_name'] ?? 'BHOOMA';
         $dateTime = date('Y-m-d H:i:s');
-        
-        $systemPrompt = '';
-        if (function_exists('getSystemPrompt')) {
-            $systemPrompt = getSystemPrompt($hospitalName, $hospitalId, $staffRole, $pageContext, $dateTime, $schema, $todayStats);
-        } else {
-            $systemPrompt = "You are BHOOMA AI, a helpful assistant for a hospital management system.\nSchema: $schema\nContext: {$context['stats']}";
-        }
+        $model = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen2.5:3b';
 
-        $stmt = $conn->prepare("SELECT role, content FROM ai_chat_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 10");
+        // Retrieve last 6 messages of conversation history for conversational context
+        $stmt = $conn->prepare("SELECT role, content FROM ai_chat_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 6");
         $stmt->bind_param("i", $conversationId);
         $stmt->execute();
         $historyRes = $stmt->get_result();
         $history = [];
         while ($row = $historyRes->fetch_assoc()) {
-            $history[] = ['role' => $row['role'], 'content' => $row['content']];
-        }
-
-        $messages = [];
-        $messages[] = ['role' => 'system', 'content' => $systemPrompt];
-        foreach ($history as $h) {
-            $messages[] = $h;
-        }
-
-        $model = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen2.5:3b';
-        $fullResponse = "";
-        
-        if (function_exists('ollamaChatStream')) {
-            ollamaChatStream($model, $messages, $systemPrompt, function($chunk) use (&$fullResponse) {
-                $text = is_array($chunk) ? ($chunk['message']['content'] ?? '') : (string)$chunk;
-                if ($text === '') return;
-                $fullResponse .= $text;
-                echo "data: " . json_encode(['type' => 'chunk', 'content' => $text]) . "\n\n";
-                flush();
-            });
-        } else {
-            // Mock response if ollama_client is missing
-            $mock = "I am processing your request... System components not fully loaded.";
-            $fullResponse .= $mock;
-            echo "data: " . json_encode(['type' => 'chunk', 'content' => $mock]) . "\n\n";
-            flush();
-        }
-
-        // Process SQL
-        if (preg_match('/```sql\s*(.*?)\s*```/is', $fullResponse, $matches)) {
-            $rawSql = trim($matches[1]);
-            $sqlToExecute = null;
-            
-            if (function_exists('sanitizeReadQuery')) {
-                $role = function_exists('getUserRole') ? getUserRole($_SESSION) : 'Admin';
-                $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($role) : [];
-                $result = sanitizeReadQuery($rawSql, $hospitalId, $allowedTables);
-                if ($result['valid']) {
-                    $sqlToExecute = $result['sql'];
-                } else {
-                    echo "data: " . json_encode(['type' => 'error', 'message' => 'Query blocked: ' . ($result['error'] ?? 'Security policy')]) . "\n\n";
-                    flush();
-                }
-            } elseif (stripos($rawSql, 'SELECT') === 0) {
-                $sqlToExecute = $rawSql;
+            $cleanContent = preg_replace('/```sql[\s\S]*?```/i', '', $row['content']);
+            if (!empty(trim($cleanContent))) {
+                $history[] = ['role' => $row['role'], 'content' => $cleanContent];
             }
+        }
+
+        // ========================================================
+        // PHASE 1: SILENT SERVER-SIDE INTENT & SQL EXTRACTION
+        // ========================================================
+        $phase1Prompt = function_exists('getQueryGenerationPrompt')
+            ? getQueryGenerationPrompt($hospitalName, $hospitalId, $staffRole, $pageContext, $dateTime, $schema, $todayStats)
+            : "Generate SQL query for $message";
+
+        $phase1Messages = [
+            ['role' => 'system', 'content' => $phase1Prompt],
+            ['role' => 'user', 'content' => $message]
+        ];
+
+        $dbResults = null;
+        $pendingAction = null;
+        $sqlExecuted = null;
+
+        $intentResp = function_exists('ollamaChat') ? ollamaChat($model, $phase1Messages, '', false, ['temperature' => 0.1, 'num_predict' => 200]) : null;
+        $intentContent = $intentResp['message']['content'] ?? '';
+
+        // Check if a read SQL query was generated
+        if (preg_match('/```sql\s*(.*?)\s*```/is', $intentContent, $matches)) {
+            $rawSql = trim($matches[1]);
+            $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($staffRole) : [];
+            $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($rawSql, $hospitalId, $allowedTables) : ['valid' => true, 'sql' => $rawSql];
             
-            if ($sqlToExecute) {
+            if ($sanitizeResult['valid']) {
+                $sqlToExecute = $sanitizeResult['sql'];
                 try {
                     $res = $conn->query($sqlToExecute);
                     if ($res) {
-                        $results = [];
+                        $dbResults = [];
                         while ($r = $res->fetch_assoc()) {
-                            $results[] = $r;
+                            unset($r['password']);
+                            $dbResults[] = $r;
                         }
-                        echo "data: " . json_encode(['type' => 'data', 'results' => $results, 'content' => $results, 'sql' => $sqlToExecute, 'summary' => count($results) . ' record(s) found.']) . "\n\n";
-                        flush();
-                    } else {
-                        echo "data: " . json_encode(['type' => 'error', 'message' => 'Query execution failed.']) . "\n\n";
-                        flush();
+                        $sqlExecuted = $sqlToExecute;
                     }
                 } catch (Exception $e) {
-                    echo "data: " . json_encode(['type' => 'error', 'message' => $e->getMessage()]) . "\n\n";
-                    flush();
+                    $dbResults = ['note' => 'No direct matching record found.'];
                 }
             }
         }
 
-        // Process Action JSON
-        if (preg_match('/```json\s*(.*?)\s*```/is', $fullResponse, $matches)) {
+        // Check if a write action plan was generated
+        if (preg_match('/```json\s*(.*?)\s*```/is', $intentContent, $matches)) {
             $jsonStr = trim($matches[1]);
             $json = json_decode($jsonStr, true);
             if ($json && isset($json['action_type'])) {
@@ -195,15 +165,81 @@ switch ($action) {
                 $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
                 $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
                 $stmt->execute();
-                $actionId = $stmt->insert_id;
-
-                echo "data: " . json_encode(['type' => 'action', 'action_id' => $actionId, 'details' => $json]) . "\n\n";
-                flush();
+                $pendingAction = [
+                    'action_id' => $stmt->insert_id,
+                    'details' => $json,
+                    'description' => $aDesc
+                ];
             }
         }
 
-        $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
-        $stmt->bind_param("is", $conversationId, $fullResponse);
+        // ========================================================
+        // PHASE 2: STREAM HUMAN-GRADE, STYLED RESPONSE (ZERO SQL)
+        // ========================================================
+        $synthesisSysPrompt = function_exists('getSynthesisPrompt')
+            ? getSynthesisPrompt($hospitalName, $hospitalId, $staffRole, $pageContext, $dateTime, $todayStats)
+            : "You are BHOOMA AI. Never show SQL. Provide friendly, properly styled hospital responses with emojis and bullet points.";
+
+        $synthesisUserContent = "User Message: \"$message\"\n\n";
+        if ($dbResults !== null) {
+            $synthesisUserContent .= "FACTUAL HOSPITAL DATABASE DATA RETRIEVED:\n" . json_encode($dbResults, JSON_UNESCAPED_UNICODE) . "\n\n";
+            $synthesisUserContent .= "Provide a clear, warm, and professional answer based on this data. Use bold headings, bullet points, and appropriate emojis. NEVER output SQL code or mention table names.\n";
+        } elseif ($pendingAction !== null) {
+            $synthesisUserContent .= "An action has been prepared: " . $pendingAction['description'] . "\n";
+            $synthesisUserContent .= "Warmly summarize what will happen and advise the user to confirm using the card below.\n";
+        } else {
+            $synthesisUserContent .= "Answer the user in a helpful, friendly, and professional healthcare manner.\n";
+        }
+
+        $synthesisMessages = [
+            ['role' => 'system', 'content' => $synthesisSysPrompt]
+        ];
+        foreach ($history as $h) {
+            $synthesisMessages[] = $h;
+        }
+        $synthesisMessages[] = ['role' => 'user', 'content' => $synthesisUserContent];
+
+        $fullResponse = "";
+
+        if (function_exists('ollamaChatStream')) {
+            ollamaChatStream($model, $synthesisMessages, $synthesisSysPrompt, function($chunk) use (&$fullResponse) {
+                $text = is_array($chunk) ? ($chunk['message']['content'] ?? '') : (string)$chunk;
+                if ($text === '') return;
+                $fullResponse .= $text;
+                echo "data: " . json_encode(['type' => 'chunk', 'content' => $text]) . "\n\n";
+                flush();
+            }, ['temperature' => 0.35]);
+        } else {
+            $mock = "I am processing your hospital request with real-time data.";
+            $fullResponse .= $mock;
+            echo "data: " . json_encode(['type' => 'chunk', 'content' => $mock]) . "\n\n";
+            flush();
+        }
+
+        // Send structured visual data card if results contain rows
+        if (is_array($dbResults) && !empty($dbResults) && !isset($dbResults['note'])) {
+            echo "data: " . json_encode([
+                'type' => 'data', 
+                'results' => $dbResults, 
+                'summary' => count($dbResults) . ' record(s) found.'
+            ]) . "\n\n";
+            flush();
+        }
+
+        // Send action card if action was initiated
+        if ($pendingAction !== null) {
+            echo "data: " . json_encode([
+                'type' => 'action', 
+                'action_id' => $pendingAction['action_id'], 
+                'content' => $pendingAction['description'], 
+                'details' => $pendingAction['details']
+            ]) . "\n\n";
+            flush();
+        }
+
+        // Save assistant message to conversation history
+        $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content, sql_executed) VALUES (?, 'assistant', ?, ?)");
+        $stmt->bind_param("iss", $conversationId, $fullResponse, $sqlExecuted);
         $stmt->execute();
 
         echo "data: " . json_encode(['type' => 'done', 'conversation_id' => $conversationId]) . "\n\n";
@@ -277,6 +313,8 @@ switch ($action) {
         $res = $stmt->get_result();
         $msgs = [];
         while ($r = $res->fetch_assoc()) {
+            // Strip any raw SQL from displayed content
+            $r['content'] = preg_replace('/```sql[\s\S]*?```/i', '', $r['content']);
             $msgs[] = $r;
         }
         echo json_encode($msgs);
