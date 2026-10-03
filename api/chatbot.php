@@ -1,6 +1,8 @@
 <?php
 // c:\xampp\htdocs\Hospital Management System\api\chatbot.php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/../db.php';
 
 // Include AI components silently
@@ -25,7 +27,7 @@ $staffId = $_SESSION['staff_id'] ?? null;
 $staffRole = $_SESSION['staff_role'] ?? 'Admin';
 $userId = $_SESSION['username'] ?? $_SESSION['hospital_name'] ?? 'admin';
 
-$method = $_SERVER['REQUEST_METHOD'];
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'POST') {
     $rawInput = file_get_contents('php://input');
@@ -229,7 +231,7 @@ switch ($action) {
             
             if ($rawSql !== null) {
                 $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($staffRole) : [];
-                $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($rawSql, $hospitalId, $allowedTables) : ['valid' => true, 'sql' => $rawSql];
+                $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($rawSql, $hospitalId, $allowedTables, $message) : ['valid' => true, 'sql' => $rawSql];
                 
                 if ($sanitizeResult['valid']) {
                     $sqlToExecute = $sanitizeResult['sql'];
@@ -284,7 +286,7 @@ switch ($action) {
                     // CRITICAL FIX: If model wrapped a SELECT query inside JSON, execute it as a READ query!
                     if ($aType === 'SELECT' || stripos(ltrim($aSql), 'SELECT') === 0) {
                         $allowedTables = function_exists('getAllowedTables') ? getAllowedTables($staffRole) : [];
-                        $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($aSql, $hospitalId, $allowedTables) : ['valid' => true, 'sql' => $aSql];
+                        $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($aSql, $hospitalId, $allowedTables, $message) : ['valid' => true, 'sql' => $aSql];
                         if ($sanitizeResult['valid']) {
                             $sqlToExecute = $sanitizeResult['sql'];
                             try {
@@ -382,7 +384,8 @@ switch ($action) {
             $synthesisUserContent .= "Description: " . $pendingAction['description'] . "\n\n";
             $synthesisUserContent .= "CRITICAL INSTRUCTION: You MUST NOT say 'I have marked them' or 'Done'. You MUST warmly explain the action that was prepared and instruct the user to click the Confirm button on the card below to execute it in the hospital database.\n";
         } else {
-            $synthesisUserContent .= "Answer the user in a helpful, friendly, and professional healthcare manner.\n";
+            $synthesisUserContent .= "MODE: GENERAL CONVERSATION (NO DATABASE RECORDS & NO ACTIONS)\n";
+            $synthesisUserContent .= "CRITICAL INSTRUCTION: DO NOT say 'Action:', 'Response Expected:', 'click Confirm', or mention any buttons or action cards. Answer the user naturally, warmly, and helpfully as BHOOMA Hospital AI.\n";
         }
 
         $synthesisMessages = [
@@ -513,47 +516,89 @@ switch ($action) {
         break;
 
     case 'history':
-        $conversationId = $input['conversation_id'] ?? 0;
-        $stmt = $conn->prepare("SELECT id FROM ai_conversations WHERE id = ? AND hospital_id = ?");
+        $conversationId = (int)($input['conversation_id'] ?? 0);
+        $stmt = $conn->prepare("SELECT id, title, created_at FROM ai_conversations WHERE id = ? AND hospital_id = ?");
         $stmt->bind_param("ii", $conversationId, $hospitalId);
         $stmt->execute();
-        if ($stmt->get_result()->num_rows === 0) {
+        $convRes = $stmt->get_result();
+        if ($convRes->num_rows === 0) {
             echo json_encode(['error' => 'Invalid conversation']);
             exit;
         }
+        $convInfo = $convRes->fetch_assoc();
 
-        $stmt = $conn->prepare("SELECT role, content, created_at FROM ai_chat_messages WHERE conversation_id = ? ORDER BY created_at ASC");
+        $stmt = $conn->prepare("SELECT id, role, content, sql_executed, created_at FROM ai_chat_messages WHERE conversation_id = ? ORDER BY id ASC");
         $stmt->bind_param("i", $conversationId);
         $stmt->execute();
         $res = $stmt->get_result();
         $msgs = [];
         while ($r = $res->fetch_assoc()) {
-            // Strip any raw SQL from displayed content
-            $r['content'] = preg_replace('/```sql[\s\S]*?```/i', '', $r['content']);
             $msgs[] = $r;
         }
-        echo json_encode($msgs);
+
+        // Check if there is an active pending action for this conversation
+        $stmt = $conn->prepare("SELECT id, action_type, target_table, description, sql_query, sql_params, status FROM ai_pending_actions WHERE conversation_id = ? AND hospital_id = ? AND status = 'pending' AND expires_at > NOW() ORDER BY id DESC LIMIT 1");
+        $stmt->bind_param("ii", $conversationId, $hospitalId);
+        $stmt->execute();
+        $pendingAct = $stmt->get_result()->fetch_assoc();
+
+        echo json_encode([
+            'success' => true,
+            'conversation_id' => $conversationId,
+            'title' => $convInfo['title'],
+            'created_at' => $convInfo['created_at'],
+            'messages' => $msgs,
+            'pending_action' => $pendingAct
+        ]);
         break;
 
     case 'conversations':
-        $stmt = $conn->prepare("SELECT id, title, created_at FROM ai_conversations WHERE hospital_id = ? AND user_id = ? ORDER BY updated_at DESC");
-        $stmt->bind_param("is", $hospitalId, $userId);
+        $stmt = $conn->prepare("
+            SELECT c.id, c.title, c.created_at, c.updated_at,
+                   COALESCE((SELECT content FROM ai_chat_messages WHERE conversation_id = c.id AND role = 'user' ORDER BY id ASC LIMIT 1), c.title) as first_user_query,
+                   COALESCE((SELECT content FROM ai_chat_messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1), '') as last_message,
+                   (SELECT COUNT(*) FROM ai_chat_messages WHERE conversation_id = c.id) as message_count
+            FROM ai_conversations c 
+            WHERE c.hospital_id = ? 
+            ORDER BY c.updated_at DESC, c.id DESC 
+            LIMIT 40
+        ");
+        $stmt->bind_param("i", $hospitalId);
         $stmt->execute();
         $res = $stmt->get_result();
         $convos = [];
         while ($r = $res->fetch_assoc()) {
+            // Strip any raw SQL code blocks from last message preview
+            $r['last_message'] = trim(preg_replace('/```[\s\S]*?```/i', '', $r['last_message']));
+            if (mb_strlen($r['last_message']) > 80) {
+                $r['last_message'] = mb_substr($r['last_message'], 0, 80) . '...';
+            }
             $convos[] = $r;
         }
-        echo json_encode($convos);
+        echo json_encode(['success' => true, 'conversations' => $convos]);
         break;
-        
+
+    case 'delete_conversation':
+        $conversationId = (int)($input['conversation_id'] ?? 0);
+        $stmt = $conn->prepare("DELETE FROM ai_chat_messages WHERE conversation_id = ?");
+        $stmt->bind_param("i", $conversationId);
+        $stmt->execute();
+        $stmt = $conn->prepare("DELETE FROM ai_pending_actions WHERE conversation_id = ?");
+        $stmt->bind_param("i", $conversationId);
+        $stmt->execute();
+        $stmt = $conn->prepare("DELETE FROM ai_conversations WHERE id = ? AND hospital_id = ?");
+        $stmt->bind_param("ii", $conversationId, $hospitalId);
+        $stmt->execute();
+        echo json_encode(['success' => true, 'message' => 'Conversation deleted successfully']);
+        break;
+
     case 'new_conversation':
         $pageCtx = $input['page_context'] ?? '';
         $title = 'New Conversation';
         $stmt = $conn->prepare("INSERT INTO ai_conversations (hospital_id, user_id, user_role, title, page_context) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("issss", $hospitalId, $userId, $staffRole, $title, $pageCtx);
         $stmt->execute();
-        echo json_encode(['conversation_id' => $stmt->insert_id]);
+        echo json_encode(['success' => true, 'conversation_id' => $stmt->insert_id]);
         break;
 
     case 'get_form_options':

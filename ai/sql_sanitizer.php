@@ -12,7 +12,7 @@ define('ALLOWED_TABLES', [
     'ai_chat_messages', 'ai_pending_actions'
 ]);
 
-function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
+function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
     global $conn;
     $type = detectSqlType($sql);
     if ($type !== 'SELECT') {
@@ -41,9 +41,28 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables) {
     // Auto-correct common LLM schema misconceptions:
     // 1. staff table primary key is `id`, not `staff_id`
     $sql = preg_replace('/\b(staff\.|s\.)?staff_id\b/i', '${1}id AS staff_id', $sql);
-    // 2. appointments date column is `date`, not `appointment_date`
+    // 2. appointments primary key is `id`, not `appointment_id`
+    $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?appointment_id\b/i', '${1}id', $sql);
+    // 3. doctors primary key is `id`, not `doctor_id` (when referring to doctors table)
+    $sql = preg_replace('/\b(doctors\.|d\.)doctor_id\b/i', '${1}id', $sql);
+    // 4. patients primary key is `id`, not `patient_id` (when referring to patients table)
+    $sql = preg_replace('/\b(patients\.|p\.)patient_id\b/i', '${1}id', $sql);
+    // 5. appointments date column is `date`, not `appointment_date`
     $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?appointment_date\b/i', '${1}date', $sql);
-    // 3. staff table has first_name and last_name instead of name
+    // 6. Fix varchar age column sorting to numeric
+    $sql = preg_replace('/\bORDER\s+BY\s+([a-zA-Z0-9_]+\.)?age\s+(DESC|ASC)\b/i', 'ORDER BY CAST(${1}age AS UNSIGNED) $2', $sql);
+    $sql = preg_replace('/\b(MAX|MIN)\(\s*([a-zA-Z0-9_]+\.)?age\s*\)/i', '${1}(CAST(${2}age AS UNSIGNED))', $sql);
+    
+    // Auto-fix inverted sorting direction if user query clearly intended oldest vs youngest
+    if (!empty($userQuery)) {
+        if (preg_match('/\b(oldest|oledst|eldest|maximum age|highest age|most aged)\b/i', $userQuery)) {
+            $sql = preg_replace('/(ORDER\s+BY\s+CAST\([a-zA-Z0-9_.]*age\s+AS\s+UNSIGNED\))\s+ASC\b/i', '$1 DESC', $sql);
+        } elseif (preg_match('/\b(youngest|smallest child|lowest age|minimum age)\b/i', $userQuery)) {
+            $sql = preg_replace('/(ORDER\s+BY\s+CAST\([a-zA-Z0-9_.]*age\s+AS\s+UNSIGNED\))\s+DESC\b/i', '$1 ASC', $sql);
+        }
+    }
+    
+    // 7. staff table has first_name and last_name instead of name
     if (stripos($sql, 'staff') !== false) {
         $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?name\b/i', 'CONCAT(${1}first_name, \' \', COALESCE(${1}last_name, \'\')) AS name', $sql);
     }

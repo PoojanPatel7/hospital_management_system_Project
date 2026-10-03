@@ -41,7 +41,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 }
 
 .bhooma-chat-panel {
-    animation: bhooma-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: bhooma-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     transform-origin: bottom right;
 }
 
@@ -71,18 +71,39 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     background: #94a3b8;
 }
 
-.bhooma-markdown p { margin-bottom: 0.5rem; }
+/* Expanded Workstation Mode */
+#bhooma-ai-panel.bhooma-expanded {
+    width: 900px !important;
+    height: 85vh !important;
+    max-width: 95vw !important;
+    max-height: 92vh !important;
+}
+
+.bhooma-markdown p { margin-bottom: 0.4rem; }
 .bhooma-markdown p:last-child { margin-bottom: 0; }
-.bhooma-markdown strong { font-weight: 600; }
-.bhooma-markdown ul { list-style-type: disc; padding-left: 1.2rem; margin-bottom: 0.5rem; }
-.bhooma-markdown ol { list-style-type: decimal; padding-left: 1.2rem; margin-bottom: 0.5rem; }
-.bhooma-markdown code { background: rgba(0,0,0,0.1); padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.9em; }
-.bhooma-markdown pre code { display: block; padding: 0.5rem; overflow-x: auto; margin-bottom: 0.5rem; }
+.bhooma-markdown strong { font-weight: 700; color: #1e293b; }
+.bhooma-markdown ul { list-style-type: disc; padding-left: 1.2rem; margin-bottom: 0.4rem; }
+.bhooma-markdown ol { list-style-type: decimal; padding-left: 1.2rem; margin-bottom: 0.4rem; }
+.bhooma-markdown code { background: rgba(99, 102, 241, 0.08); color: #4338ca; padding: 0.15rem 0.35rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.88em; }
+.bhooma-markdown pre code { display: block; padding: 0.6rem; overflow-x: auto; margin-bottom: 0.5rem; background: #0f172a; color: #f8fafc; border-radius: 0.5rem; }
+
+/* Executive Callout Style */
+.bhooma-callout {
+    background: linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(240, 253, 250, 0.95));
+    border-left: 4px solid #4f46e5;
+    border-radius: 0 0.75rem 0.75rem 0;
+    padding: 0.65rem 0.85rem;
+    margin: 0.4rem 0;
+    color: #1e1b4b;
+    font-size: 0.83rem;
+    line-height: 1.45;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
 </style>
 
 <!-- Floating AI Button Container -->
 <div id="bhooma-ai-btn-container" class="fixed bottom-6 right-6" style="z-index: 999999 !important;">
-    <button id="bhooma-ai-toggle" type="button" title="BHOOMA AI Assistant (Ctrl+K)" 
+    <button id="bhooma-ai-toggle" type="button" title="BHOOMA AI Clinical Assistant (Ctrl+K)" 
         class="bhooma-btn-pulse flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer">
         <i class="fa-solid fa-robot text-2xl pointer-events-none"></i>
         <span id="bhooma-ai-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">
@@ -91,80 +112,107 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     </button>
 </div>
 
-<!-- Chat Panel -->
-<div id="bhooma-ai-panel" class="hidden fixed bottom-24 right-6 w-[420px] h-[600px] max-h-[80vh] max-w-[calc(100vw-3rem)] rounded-2xl shadow-2xl border border-slate-200 bg-white/95 backdrop-blur-md flex flex-col overflow-hidden sm:right-6 right-0 left-0 mx-auto sm:mx-0 sm:left-auto sm:w-[420px]" style="display: none; z-index: 999999 !important;">
+<!-- Main Chat Panel -->
+<div id="bhooma-ai-panel" class="hidden fixed bottom-24 right-6 w-[460px] h-[660px] max-h-[85vh] max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl border border-slate-200/90 bg-white/95 backdrop-blur-xl flex flex-col overflow-hidden sm:right-6 right-0 left-0 mx-auto sm:mx-0 sm:left-auto transition-all duration-300 relative" style="display: none; z-index: 999999 !important;">
     
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 p-4 text-white flex items-center justify-between cursor-move" id="bhooma-ai-header">
-        <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center relative">
-                <i class="fa-solid fa-robot"></i>
-                <div id="bhooma-ai-status-dot" class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-600" title="Online"></div>
+    <!-- Top Header -->
+    <div class="bg-gradient-to-r from-blue-700 via-indigo-600 to-teal-500 p-3.5 text-white flex items-center justify-between cursor-move select-none shrink-0" id="bhooma-ai-header">
+        <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center relative shadow-xs">
+                <i class="fa-solid fa-robot text-sm"></i>
+                <div id="bhooma-ai-status-dot" class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-700" title="Online"></div>
             </div>
             <div>
-                <h3 class="font-bold text-sm leading-tight">BHOOMA AI</h3>
+                <div class="flex items-center gap-1.5">
+                    <h3 class="font-extrabold text-sm tracking-tight leading-tight">BHOOMA AI</h3>
+                    <span class="text-[9px] bg-white/20 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider" id="bhooma-ai-model">hms-ai</span>
+                </div>
                 <div class="flex items-center space-x-1">
-                    <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md" id="bhooma-ai-model">Qwen 2.5</span>
-                    <span id="bhooma-ai-status-text" class="text-[10px] text-white/80">Ready</span>
+                    <span id="bhooma-ai-status-text" class="text-[11px] text-white/80 font-medium">Ready</span>
                 </div>
             </div>
         </div>
+
+        <!-- Header Actions -->
         <div class="flex items-center space-x-1">
-            <button id="bhooma-ai-new" type="button" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="New Chat">
+            <button id="bhooma-ai-history-btn" type="button" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-all cursor-pointer shadow-2xs" title="Chat History">
+                <i class="fa-solid fa-clock-rotate-left text-xs pointer-events-none"></i>
+                <span class="pointer-events-none">History</span>
+            </button>
+            <button id="bhooma-ai-new" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="New Conversation">
                 <i class="fa-solid fa-plus pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-minimize" type="button" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="Minimize">
+            <button id="bhooma-ai-expand" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Toggle Fullscreen/Workstation Mode">
+                <i id="bhooma-ai-expand-icon" class="fa-solid fa-expand pointer-events-none"></i>
+            </button>
+            <button id="bhooma-ai-minimize" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Minimize">
                 <i class="fa-solid fa-minus pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-close" type="button" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors text-xs" title="Close">
+            <button id="bhooma-ai-close" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Close">
                 <i class="fa-solid fa-xmark pointer-events-none"></i>
             </button>
         </div>
     </div>
 
+    <!-- ======================================================== -->
+    <!-- SLIDE-OUT CONVERSATION HISTORY DRAWER                    -->
+    <!-- ======================================================== -->
+    <div id="bhooma-ai-history-drawer" class="absolute inset-0 top-[56px] bg-slate-50 z-40 flex flex-col transition-all duration-300 transform translate-x-full hidden shadow-2xl">
+        <!-- Drawer Header -->
+        <div class="p-3 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+                <button id="bhooma-history-back" type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm transition-colors cursor-pointer" title="Back to Chat">
+                    <i class="fa-solid fa-arrow-left pointer-events-none"></i>
+                </button>
+                <div>
+                    <h4 class="font-bold text-sm text-slate-800 leading-tight">Conversation History</h4>
+                    <span class="text-[10px] text-slate-400">Past chats and inquiries</span>
+                </div>
+            </div>
+            <button id="bhooma-history-new-btn" type="button" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer">
+                <i class="fa-solid fa-plus text-[10px] pointer-events-none"></i> New Chat
+            </button>
+        </div>
+        <!-- Search Input -->
+        <div class="p-2.5 bg-white border-b border-slate-100 shrink-0">
+            <div class="relative flex items-center">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 text-xs pointer-events-none"></i>
+                <input type="text" id="bhooma-history-search" class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 text-slate-700" placeholder="Search past conversations...">
+            </div>
+        </div>
+        <!-- Conversation List -->
+        <div id="bhooma-history-list" class="flex-1 overflow-y-auto bhooma-scrollbar p-3 space-y-2">
+            <!-- Dynamically populated by JS -->
+        </div>
+    </div>
+
     <!-- Suggestions Bar -->
-    <div id="bhooma-ai-suggestions" class="bg-slate-50 border-b border-slate-100 p-2 flex overflow-x-auto bhooma-scrollbar gap-2 hide-when-chatting">
+    <div id="bhooma-ai-suggestions" class="bg-slate-50 border-b border-slate-100 p-2 flex overflow-x-auto bhooma-scrollbar gap-2 hide-when-chatting shrink-0">
         <!-- populated by JS -->
     </div>
 
     <!-- Messages Area -->
-    <div id="bhooma-ai-messages" class="flex-1 overflow-y-auto bhooma-scrollbar p-4 space-y-4 bg-slate-50/50">
-        <!-- Welcome Message -->
-        <div class="flex items-start max-w-[85%]">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm">
-                <i class="fa-solid fa-robot"></i>
-            </div>
-            <div class="ml-2 bg-white border border-slate-200 text-slate-700 text-sm py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm space-y-2">
-                <p>Hello <?php echo htmlspecialchars($chatbot_user_role); ?>! I'm BHOOMA AI. How can I help you with <?php echo htmlspecialchars($chatbot_hospital_name); ?> today?</p>
-                <div class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
-                    <button type="button" onclick="BhoomaAI.renderInChatForm('book_appointment');" class="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
-                        <i class="fa-solid fa-calendar-plus text-[11px]"></i> Book Appointment Form
-                    </button>
-                    <button type="button" onclick="BhoomaAI.renderInChatForm('admit_patient');" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
-                        <i class="fa-solid fa-bed-pulse text-[11px]"></i> Inpatient Bed Admission
-                    </button>
-                </div>
-            </div>
-        </div>
+    <div id="bhooma-ai-messages" class="flex-1 overflow-y-auto bhooma-scrollbar p-4 space-y-3.5 bg-slate-50/50">
+        <!-- Initial Welcome Message populated by JS renderWelcomeMessage() -->
     </div>
 
     <!-- Input Area -->
-    <div class="border-t border-slate-200 bg-white p-3 relative">
+    <div class="border-t border-slate-200 bg-white p-3 relative shrink-0">
         <!-- Live As-You-Type Suggestions Floating Popup -->
         <div id="bhooma-ai-live-suggestions" class="absolute bottom-full left-3 right-3 mb-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-xl overflow-hidden hidden z-50 divide-y divide-slate-100 max-h-56 overflow-y-auto bhooma-scrollbar">
             <!-- populated dynamically by JS as you type -->
         </div>
 
-        <div class="relative flex items-end bg-slate-50 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
+        <div class="relative flex items-end bg-slate-50 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-2xs">
             <textarea id="bhooma-ai-input" rows="1" 
-                class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[100px] text-sm p-3 bhooma-scrollbar" 
+                class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[120px] text-sm p-3 bhooma-scrollbar text-slate-800 placeholder-slate-400" 
                 placeholder="Ask BHOOMA AI anything... (Enter to send)"></textarea>
-            <button id="bhooma-ai-send" type="button" class="shrink-0 w-8 h-8 mb-2 mr-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="bhooma-ai-send" type="button" class="shrink-0 w-8 h-8 mb-2 mr-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-2xs" title="Send message">
                 <i class="fa-solid fa-paper-plane text-xs pointer-events-none"></i>
             </button>
         </div>
-        <div class="flex justify-between items-center mt-1 px-1">
-            <div class="text-[10px] text-slate-400">Press <kbd class="bg-slate-100 px-1 rounded border">Enter</kbd> to send</div>
+        <div class="flex justify-between items-center mt-1.5 px-1">
+            <div class="text-[10px] text-slate-400">Press <kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Enter</kbd> to send, <kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Shift+Enter</kbd> for newline</div>
             <div id="bhooma-ai-counter" class="text-[10px] text-slate-400 hidden">0/2000</div>
         </div>
     </div>
@@ -234,6 +282,13 @@ const BhoomaAI = {
             document.body.appendChild(this.dom.panel);
         }
 
+        // Restore workstation expansion state
+        if (localStorage.getItem('bhooma_ai_expanded') === '1') {
+            if (this.dom.panel) this.dom.panel.classList.add('bhooma-expanded');
+            if (this.dom.expandIcon) this.dom.expandIcon.className = 'fa-solid fa-compress pointer-events-none';
+            if (this.dom.expandBtn) this.dom.expandBtn.title = 'Restore Window Mode';
+        }
+
         this.bindEvents();
         this.loadConversation();
         this.renderSuggestions();
@@ -249,6 +304,14 @@ const BhoomaAI = {
             close: document.getElementById('bhooma-ai-close'),
             minimize: document.getElementById('bhooma-ai-minimize'),
             newBtn: document.getElementById('bhooma-ai-new'),
+            expandBtn: document.getElementById('bhooma-ai-expand'),
+            expandIcon: document.getElementById('bhooma-ai-expand-icon'),
+            historyBtn: document.getElementById('bhooma-ai-history-btn'),
+            historyDrawer: document.getElementById('bhooma-ai-history-drawer'),
+            historyBack: document.getElementById('bhooma-history-back'),
+            historyNewBtn: document.getElementById('bhooma-history-new-btn'),
+            historySearch: document.getElementById('bhooma-history-search'),
+            historyList: document.getElementById('bhooma-history-list'),
             messages: document.getElementById('bhooma-ai-messages'),
             input: document.getElementById('bhooma-ai-input'),
             send: document.getElementById('bhooma-ai-send'),
@@ -284,6 +347,36 @@ const BhoomaAI = {
             this.dom.newBtn.onclick = (e) => {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
                 this.newConversation();
+            };
+        }
+        if (this.dom.expandBtn) {
+            this.dom.expandBtn.onclick = (e) => {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                this.toggleExpand();
+            };
+        }
+        if (this.dom.historyBtn) {
+            this.dom.historyBtn.onclick = (e) => {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                this.toggleHistoryDrawer();
+            };
+        }
+        if (this.dom.historyBack) {
+            this.dom.historyBack.onclick = (e) => {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                this.closeHistoryDrawer();
+            };
+        }
+        if (this.dom.historyNewBtn) {
+            this.dom.historyNewBtn.onclick = (e) => {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                this.closeHistoryDrawer();
+                this.newConversation();
+            };
+        }
+        if (this.dom.historySearch) {
+            this.dom.historySearch.oninput = (e) => {
+                this.filterHistoryList(e.target.value);
             };
         }
         if (this.dom.send) {
@@ -411,9 +504,287 @@ const BhoomaAI = {
     loadConversation() {
         const saved = localStorage.getItem('bhooma_ai_conv');
         if (saved) {
-            this.conversationId = saved;
-            if (this.dom.suggestions) this.dom.suggestions.classList.add('hidden');
+            this.selectConversation(saved);
+        } else {
+            this.renderWelcomeMessage();
         }
+    },
+
+    toggleExpand() {
+        if (!this.dom.panel) return;
+        const isExp = this.dom.panel.classList.toggle('bhooma-expanded');
+        if (isExp) {
+            if (this.dom.expandIcon) this.dom.expandIcon.className = 'fa-solid fa-compress pointer-events-none';
+            if (this.dom.expandBtn) this.dom.expandBtn.title = 'Restore Window Mode';
+            localStorage.setItem('bhooma_ai_expanded', '1');
+        } else {
+            if (this.dom.expandIcon) this.dom.expandIcon.className = 'fa-solid fa-expand pointer-events-none';
+            if (this.dom.expandBtn) this.dom.expandBtn.title = 'Workstation Mode';
+            localStorage.removeItem('bhooma_ai_expanded');
+        }
+        this.scrollToBottom();
+    },
+
+    allConversations: [],
+
+    toggleHistoryDrawer() {
+        if (!this.dom.historyDrawer) return;
+        const isOpen = !this.dom.historyDrawer.classList.contains('translate-x-full');
+        if (isOpen) {
+            this.closeHistoryDrawer();
+        } else {
+            this.openHistoryDrawer();
+        }
+    },
+
+    openHistoryDrawer() {
+        if (!this.dom.historyDrawer) return;
+        this.dom.historyDrawer.classList.remove('hidden');
+        void this.dom.historyDrawer.offsetWidth;
+        this.dom.historyDrawer.classList.remove('translate-x-full');
+        this.dom.historyDrawer.classList.add('translate-x-0');
+        if (this.dom.historySearch) {
+            this.dom.historySearch.value = '';
+            setTimeout(() => this.dom.historySearch.focus(), 150);
+        }
+        this.loadConversationList();
+    },
+
+    closeHistoryDrawer() {
+        if (!this.dom.historyDrawer) return;
+        this.dom.historyDrawer.classList.remove('translate-x-0');
+        this.dom.historyDrawer.classList.add('translate-x-full');
+        setTimeout(() => {
+            if (this.dom.historyDrawer && this.dom.historyDrawer.classList.contains('translate-x-full')) {
+                this.dom.historyDrawer.classList.add('hidden');
+            }
+        }, 300);
+    },
+
+    async loadConversationList() {
+        if (!this.dom.historyList) return;
+        this.dom.historyList.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-500 mb-2"></i>
+                <span class="text-xs">Loading conversations...</span>
+            </div>
+        `;
+        try {
+            const res = await fetch(this.apiUrl + '?action=conversations');
+            const data = await res.json();
+            if (data.success && Array.isArray(data.conversations)) {
+                this.allConversations = data.conversations;
+                this.renderConversationList(this.allConversations);
+            } else {
+                this.dom.historyList.innerHTML = `<div class="text-center py-8 text-xs text-slate-400">No past conversations found.</div>`;
+            }
+        } catch (e) {
+            console.error('Failed to load conversations:', e);
+            this.dom.historyList.innerHTML = `<div class="text-center py-8 text-xs text-rose-500">Failed to load conversations.</div>`;
+        }
+    },
+
+    filterHistoryList(term) {
+        if (!this.allConversations) return;
+        const q = (term || '').trim().toLowerCase();
+        if (!q) {
+            this.renderConversationList(this.allConversations);
+            return;
+        }
+        const filtered = this.allConversations.filter(c => {
+            const title = (c.title || '').toLowerCase();
+            const first = (c.first_user_query || '').toLowerCase();
+            const last = (c.last_message || '').toLowerCase();
+            return title.includes(q) || first.includes(q) || last.includes(q);
+        });
+        this.renderConversationList(filtered, q);
+    },
+
+    renderConversationList(list, searchTerm = '') {
+        if (!this.dom.historyList) return;
+        if (!list || list.length === 0) {
+            this.dom.historyList.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+                    <i class="fa-regular fa-comments text-3xl mb-2 text-slate-300"></i>
+                    <p class="text-xs font-semibold text-slate-500">${searchTerm ? 'No matching conversations' : 'No chat history yet'}</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">${searchTerm ? 'Try a different search word' : 'Start a conversation to save your inquiries'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        list.forEach(c => {
+            const isActive = this.conversationId && parseInt(this.conversationId, 10) === parseInt(c.id, 10);
+            const title = c.first_user_query || c.title || ('Conversation #' + c.id);
+            const snippet = c.last_message ? c.last_message.replace(/<[^>]*>/g, '') : 'No messages yet';
+            const count = c.message_count || 0;
+            const timeAgo = this.formatRelativeTime(c.updated_at || c.created_at);
+
+            html += `
+                <div class="group relative flex items-start justify-between p-3 rounded-xl border transition-all cursor-pointer ${isActive ? 'bg-indigo-50/80 border-indigo-300 shadow-2xs' : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50/80'}"
+                     onclick="BhoomaAI.selectConversation(${c.id})">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <div class="flex items-center gap-1.5 mb-1">
+                            ${isActive ? '<span class="w-2 h-2 rounded-full bg-indigo-600 shrink-0"></span>' : ''}
+                            <h5 class="text-xs font-bold ${isActive ? 'text-indigo-900' : 'text-slate-800'} truncate leading-tight">${this.escapeHtml(title)}</h5>
+                        </div>
+                        <p class="text-[11px] text-slate-500 line-clamp-1 mb-1.5">${this.escapeHtml(snippet)}</p>
+                        <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                            <span><i class="fa-regular fa-clock text-[9px] mr-1"></i>${timeAgo}</span>
+                            <span>•</span>
+                            <span><i class="fa-regular fa-message text-[9px] mr-1"></i>${count} msgs</span>
+                        </div>
+                    </div>
+                    <button type="button" 
+                            class="opacity-0 group-hover:opacity-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 cursor-pointer" 
+                            title="Delete conversation"
+                            onclick="BhoomaAI.deleteConversation(${c.id}, event)">
+                        <i class="fa-regular fa-trash-can text-xs pointer-events-none"></i>
+                    </button>
+                </div>
+            `;
+        });
+        this.dom.historyList.innerHTML = html;
+    },
+
+    formatRelativeTime(dateStr) {
+        if (!dateStr) return '';
+        try {
+            const date = new Date(dateStr.replace(/-/g, '/'));
+            const now = new Date();
+            const diffSec = Math.floor((now - date) / 1000);
+            if (diffSec < 60) return 'Just now';
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return diffMin + 'm ago';
+            const diffHours = Math.floor(diffMin / 60);
+            if (diffHours < 24) return diffHours + 'h ago';
+            const diffDays = Math.floor(diffHours / 24);
+            if (diffDays < 7) return diffDays + 'd ago';
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        } catch (e) {
+            return dateStr;
+        }
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
+    async selectConversation(convId) {
+        this.closeHistoryDrawer();
+        if (!convId) return;
+
+        this.conversationId = convId;
+        localStorage.setItem('bhooma_ai_conv', convId);
+
+        if (this.dom.suggestions) this.dom.suggestions.classList.add('hidden');
+        if (this.dom.messages) {
+            this.dom.messages.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-500 mb-2"></i>
+                    <span class="text-xs">Restoring conversation...</span>
+                </div>
+            `;
+        }
+
+        try {
+            const res = await fetch(this.apiUrl + '?action=history&conversation_id=' + encodeURIComponent(convId));
+            const data = await res.json();
+
+            if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
+                if (this.dom.messages) this.dom.messages.innerHTML = '';
+                data.messages.forEach(msg => {
+                    this.appendMessage(msg.role, msg.content);
+                });
+
+                if (data.pending_action) {
+                    this.renderActionCard(data.pending_action.id, data.pending_action.description);
+                }
+                this.scrollToBottom();
+            } else {
+                this.conversationId = null;
+                localStorage.removeItem('bhooma_ai_conv');
+                this.renderWelcomeMessage();
+            }
+        } catch (e) {
+            console.error('Error restoring conversation:', e);
+            this.conversationId = null;
+            localStorage.removeItem('bhooma_ai_conv');
+            this.renderWelcomeMessage();
+        }
+        setTimeout(() => { if (this.dom.input) this.dom.input.focus(); }, 120);
+    },
+
+    async deleteConversation(convId, event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        if (!confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'delete_conversation');
+            formData.append('conversation_id', convId);
+            const res = await fetch(this.apiUrl, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (this.conversationId && parseInt(this.conversationId, 10) === parseInt(convId, 10)) {
+                    this.newConversation();
+                }
+                this.loadConversationList();
+            } else {
+                alert(data.error || 'Failed to delete conversation.');
+            }
+        } catch (e) {
+            console.error('Delete conversation error:', e);
+            alert('Error deleting conversation.');
+        }
+    },
+
+    renderWelcomeMessage() {
+        if (!this.dom.messages) return;
+        this.dom.messages.innerHTML = `
+            <div class="flex items-start max-w-[85%]">
+                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="bg-white border border-slate-200 text-slate-700 text-sm py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm space-y-2.5 w-full">
+                    <p class="font-medium text-slate-800">Hello <?php echo htmlspecialchars($chatbot_user_role); ?>! I'm <strong class="text-indigo-600 font-bold">BHOOMA AI</strong>. How can I help you manage <?php echo htmlspecialchars($chatbot_hospital_name); ?> today?</p>
+                    <p class="text-xs text-slate-500 leading-relaxed">Ask any question about patients, doctors, beds, billing, or appointments. You can also trigger actions and forms directly in chat.</p>
+                    <div class="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                        <button type="button" onclick="BhoomaAI.renderInChatForm('book_appointment');" class="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-calendar-plus text-[11px]"></i> Book Appointment
+                        </button>
+                        <button type="button" onclick="BhoomaAI.renderInChatForm('admit_patient');" class="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-bed text-[11px]"></i> Admit Patient
+                        </button>
+                        <button type="button" onclick="BhoomaAI.quickPrompt('Hospital overview dashboard metrics');" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-chart-pie text-[11px]"></i> Hospital Overview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    quickPrompt(text) {
+        if (!this.dom.input) return;
+        this.dom.input.value = text;
+        this.autoResize(this.dom.input);
+        this.handleSend();
     },
     
     renderSuggestions() {
@@ -594,12 +965,21 @@ const BhoomaAI = {
         if (!text) return '';
         // Completely strip any leaked ```sql ... ``` code blocks
         let clean = text.replace(/```sql[\s\S]*?```/gi, '');
+        
+        // Render executive callouts for > quotes or direct answers
+        clean = clean.replace(/^>\s*(.*?)(?=\n|$)/gm, (match, p1) => {
+            return `<div class="bhooma-callout my-1.5 p-2.5 bg-indigo-50/90 border-l-4 border-indigo-600 rounded-r-xl text-slate-800 text-xs font-semibold shadow-2xs">${p1}</div>`;
+        });
+
+        // Convert markdown bullet points to clean list items
+        clean = clean.replace(/^[•\-\*]\s+(.*)$/gm, '<div class="flex items-start gap-1.5 my-0.5 text-xs text-slate-700"><span class="text-indigo-500 font-bold">•</span><span>$1</span></div>');
+
         let formatted = clean
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n/g, '<br>')
-            .replace(/```([\s\S]*?)```/g, '<pre class="bg-slate-800 text-white p-2 rounded text-xs overflow-x-auto my-1"><code>$1</code></pre>')
-            .replace(/`([^`]+)`/g, '<code class="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded font-mono text-xs">$1</code>');
+            .replace(/```([\s\S]*?)```/g, '<pre class="bg-slate-800 text-white p-2.5 rounded-xl text-xs overflow-x-auto my-1.5 font-mono"><code>$1</code></pre>')
+            .replace(/`([^`]+)`/g, '<code class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-xs border border-indigo-100">$1</code>')
+            .replace(/\n/g, '<br>');
         return formatted;
     },
     
@@ -2008,9 +2388,8 @@ const BhoomaAI = {
         localStorage.removeItem('bhooma_ai_conv');
         
         if (this.dom.messages) {
-            while (this.dom.messages.children.length > 1) {
-                this.dom.messages.removeChild(this.dom.messages.lastChild);
-            }
+            this.dom.messages.innerHTML = '';
+            this.renderWelcomeMessage();
         }
         
         if (this.dom.suggestions) {
