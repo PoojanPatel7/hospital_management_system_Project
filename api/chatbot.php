@@ -112,6 +112,34 @@ switch ($action) {
         }
 
         // ========================================================
+        // INSTANT GREETING RESPONSE (Zero Lag for "hi", "hello", etc.)
+        // ========================================================
+        $trimmedMsg = trim($message);
+        if (preg_match('/^(hi+|hello+|hey+|hola|namaste|good\s*(morning|afternoon|evening))\b[\s!.,?]*$/i', $trimmedMsg)) {
+            $greetingText = "> 💡 **Direct Answer:** Hello! 👋 Welcome to **" . htmlspecialchars($hospitalName) . "** Clinical AI Assistant.\n\n"
+                . "How can I help you today? You can query hospital records, manage appointments, check bed availability, or track staff attendance.";
+            echo "data: " . json_encode(['type' => 'chunk', 'content' => $greetingText]) . "\n\n";
+            flush();
+
+            $quickSuggestions = [
+                "Show today's appointments",
+                "How many patients are admitted?",
+                "Which doctor has most appointments?",
+                "Show available beds by ward"
+            ];
+            echo "data: " . json_encode(['type' => 'suggestions', 'suggestions' => $quickSuggestions]) . "\n\n";
+            flush();
+
+            $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
+            $stmt->bind_param("is", $conversationId, $greetingText);
+            $stmt->execute();
+
+            echo "data: " . json_encode(['type' => 'done', 'conversation_id' => $conversationId]) . "\n\n";
+            flush();
+            break;
+        }
+
+        // ========================================================
         // PRE-PROCESSING: ANALYZE ACTION INTENT & AMBIGUITY
         // ========================================================
         $pendingAction = null;
