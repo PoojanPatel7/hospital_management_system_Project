@@ -156,12 +156,45 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     background: #94a3b8;
 }
 
+/* Main Chat Panel Container - Guaranteed In-Viewport Positioning */
+#bhooma-ai-panel {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    left: auto !important;
+    top: auto !important;
+    width: 450px !important;
+    max-width: calc(100vw - 32px) !important;
+    height: min(640px, calc(100vh - 40px)) !important;
+    max-height: calc(100vh - 40px) !important;
+    border-radius: 1.25rem !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(226, 232, 240, 0.95) !important;
+    z-index: 999999 !important;
+}
+
 /* Expanded Workstation Mode */
 #bhooma-ai-panel.bhooma-expanded {
-    width: 920px !important;
-    height: 86vh !important;
-    max-width: 96vw !important;
-    max-height: 94vh !important;
+    width: min(920px, calc(100vw - 32px)) !important;
+    height: min(840px, calc(100vh - 40px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 40px) !important;
+    bottom: 20px !important;
+    right: 20px !important;
+}
+
+/* Eliminate native textarea borders, outlines, and box-shadows */
+#bhooma-ai-input {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
+#bhooma-ai-input:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 /* Mobile Responsive Adaptation */
@@ -213,7 +246,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 </div>
 
 <!-- Main Chat Panel -->
-<div id="bhooma-ai-panel" class="hidden fixed bottom-24 right-6 w-[470px] h-[670px] max-h-[86vh] max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl border border-slate-200/90 bg-white/95 backdrop-blur-xl flex flex-col overflow-hidden sm:right-6 right-0 left-0 mx-auto sm:mx-0 sm:left-auto transition-all duration-300 relative" style="display: none; z-index: 999999 !important;">
+<div id="bhooma-ai-panel" class="hidden bg-white/95 backdrop-blur-xl flex flex-col overflow-hidden transition-all duration-300" style="display: none; z-index: 999999 !important;">
     
     <!-- Top Header -->
     <div class="bg-gradient-to-r from-blue-700 via-indigo-600 to-teal-500 p-3.5 text-white flex items-center justify-between cursor-move select-none shrink-0 shadow-xs" id="bhooma-ai-header">
@@ -331,6 +364,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
         <div class="relative flex items-end bg-slate-50 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-2xs">
             <textarea id="bhooma-ai-input" rows="1" 
                 class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[120px] text-sm p-3 bhooma-scrollbar text-slate-800 placeholder-slate-400" 
+                style="border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important;"
                 placeholder="Ask BHOOMA AI anything... (Enter to send)"></textarea>
             
             <!-- Voice Dictation Mic Button -->
@@ -905,12 +939,14 @@ const BhoomaAI = {
             this.dom.panel.classList.add('bhooma-chat-panel');
             if (this.dom.badge) this.dom.badge.classList.add('hidden');
             if (this.dom.toggle) this.dom.toggle.classList.remove('bhooma-btn-pulse');
+            if (this.dom.btnContainer) this.dom.btnContainer.classList.add('hidden');
             setTimeout(() => { if (this.dom.input) this.dom.input.focus(); }, 120);
             this.scrollToBottom();
         } else {
             this.dom.panel.classList.add('hidden');
             this.dom.panel.style.display = 'none';
             this.dom.panel.classList.remove('bhooma-chat-panel');
+            if (this.dom.btnContainer) this.dom.btnContainer.classList.remove('hidden');
         }
     },
     

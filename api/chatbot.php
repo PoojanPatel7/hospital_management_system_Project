@@ -140,6 +140,50 @@ switch ($action) {
         }
 
         // ========================================================
+        // DATABASE CAPABILITIES & ACCESS INQUIRY
+        // ========================================================
+        if (preg_match('/\b(full\s*access|access\s*(of|to)?\s*(the\s*)?database|database\s*access|what\s*(can\s*you|data\s*can\s*you)\s*(do|access|query))\b/i', $trimmedMsg)) {
+            $patCount = 0;
+            $docCount = 0;
+            $appCount = 0;
+            $pRes = $conn->query("SELECT COUNT(*) AS c FROM patients WHERE hospital_id = $hospitalId");
+            if ($pRes && $row = $pRes->fetch_assoc()) $patCount = $row['c'];
+            $dRes = $conn->query("SELECT COUNT(*) AS c FROM doctors WHERE hospital_id = $hospitalId");
+            if ($dRes && $row = $dRes->fetch_assoc()) $docCount = $row['c'];
+            $aRes = $conn->query("SELECT COUNT(*) AS c FROM appointments WHERE hospital_id = $hospitalId");
+            if ($aRes && $row = $aRes->fetch_assoc()) $appCount = $row['c'];
+
+            $dbAnswer = "> 💡 **Direct Answer:** Yes! I have full, real-time access to the **" . htmlspecialchars($hospitalName) . "** hospital database across all operational modules.\n\n"
+                . "Currently connected live to:\n"
+                . "• **Patients:** " . $patCount . " registered patients (demographics, blood group, age, contact)\n"
+                . "• **Doctors:** " . $docCount . " active medical specialists and department schedules\n"
+                . "• **Appointments:** " . $appCount . " total appointments and tokens\n"
+                . "• **Bed Wards:** Real-time general & ICU bed occupancy and assignments\n"
+                . "• **Staff & Attendance:** Employee rosters, daily shifts, and presence logs\n\n"
+                . "You can ask me to search, filter, analyze, or update any hospital data directly!";
+
+            echo "data: " . json_encode(['type' => 'chunk', 'content' => $dbAnswer]) . "\n\n";
+            flush();
+
+            $quickSuggestions = [
+                "How many patients are registered total?",
+                "Which doctor has most appointments?",
+                "Show available beds by ward",
+                "Who is present today in staff?"
+            ];
+            echo "data: " . json_encode(['type' => 'suggestions', 'suggestions' => $quickSuggestions]) . "\n\n";
+            flush();
+
+            $stmt = $conn->prepare("INSERT INTO ai_chat_messages (conversation_id, role, content) VALUES (?, 'assistant', ?)");
+            $stmt->bind_param("is", $conversationId, $dbAnswer);
+            $stmt->execute();
+
+            echo "data: " . json_encode(['type' => 'done', 'conversation_id' => $conversationId]) . "\n\n";
+            flush();
+            break;
+        }
+
+        // ========================================================
         // PRE-PROCESSING: ANALYZE ACTION INTENT & AMBIGUITY
         // ========================================================
         $pendingAction = null;
