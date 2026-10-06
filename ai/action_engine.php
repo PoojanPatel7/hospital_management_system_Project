@@ -44,10 +44,11 @@ function analyzeActionIntent($conn, $hospitalId, $message, $history = []) {
     if ($isDeleteIntent && $isDoctorMentioned) {
         $doc = resolveDoctorFromMessageOrHistory($conn, $hospitalId, $msg, $history);
         if ($doc) {
-            $docId = (int)$doc['id'];
+            $docId = $doc['id'];
+            $escDocId = $conn->real_escape_string($docId);
             $docName = $doc['name'];
             $degree = $doc['degree'] ?? 'Specialist';
-            $sql = "DELETE FROM doctors WHERE id = $docId AND hospital_id = $hospitalId";
+            $sql = "DELETE FROM doctors WHERE id = '$escDocId' AND hospital_id = $hospitalId";
             return [
                 'type' => 'action',
                 'plan' => [
@@ -148,8 +149,9 @@ function analyzeActionIntent($conn, $hospitalId, $message, $history = []) {
         $pat = resolvePatientFromMessageOrHistory($conn, $hospitalId, $msg, $history);
         if ($pat) {
             $patId = $pat['id'];
+            $escPatId = $conn->real_escape_string($patId);
             $patName = $pat['name'] . ' ' . ($pat['surname'] ?? '');
-            $sql = "DELETE FROM patients WHERE id = '$patId' AND hospital_id = $hospitalId";
+            $sql = "DELETE FROM patients WHERE id = '$escPatId' AND hospital_id = $hospitalId";
             return [
                 'type' => 'action',
                 'plan' => [

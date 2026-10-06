@@ -90,14 +90,20 @@ if ($action === 'login') {
             if ($isMatch) {
                 $_SESSION['hospital_id'] = (int)$row['id'];
                 $_SESSION['hospital_name'] = $row['name'];
+                $_SESSION['username'] = $row['username'] ?: 'Gopalbhai';
+                $_SESSION['user_full_name'] = $row['username'] ?: 'Gopalbhai';
+                $_SESSION['role_title'] = 'Hospital Owner & Super Administrator';
                 $_SESSION['user_type'] = 'admin';
-                jsonResponse(['status' => 'success', 'message' => 'Login successful']);
+                $_SESSION['is_admin'] = true;
+                $redir = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
+                unset($_SESSION['redirect_after_login']);
+                jsonResponse(['status' => 'success', 'message' => 'Welcome ' . ($_SESSION['username']) . '! Login successful', 'redirect' => $redir]);
             } else {
                 jsonResponse(['status' => 'error', 'message' => 'Invalid password.']);
             }
         } else {
             // Check if it's a staff member user account
-            $stfStmt = $conn->prepare("SELECT s.id, s.hospital_id, s.first_name, s.last_name, s.role, s.department, s.username, s.password, s.is_user, s.status, h.name AS hospital_name 
+            $stfStmt = $conn->prepare("SELECT s.id, s.hospital_id, s.first_name, s.last_name, s.role, s.department, s.username, s.password, s.is_user, s.status, s.account_status, h.name AS hospital_name 
                                        FROM staff s 
                                        JOIN hospitals h ON s.hospital_id = h.id 
                                        WHERE LOWER(s.username) = LOWER(?) AND s.is_user = 1");
@@ -106,8 +112,8 @@ if ($action === 'login') {
                 $stfStmt->execute();
                 $stfRes = $stfStmt->get_result();
                 if ($stfRow = $stfRes->fetch_assoc()) {
-                    if ($stfRow['status'] === 'Inactive') {
-                        jsonResponse(['status' => 'error', 'message' => 'This staff user account has been deactivated. Please contact hospital admin.']);
+                    if ($stfRow['status'] === 'Inactive' || in_array(strtolower($stfRow['account_status'] ?? ''), ['blocked', 'suspended'])) {
+                        jsonResponse(['status' => 'error', 'message' => 'This staff user account is deactivated, suspended, or blocked. Please contact hospital administrator.']);
                     }
                     $isMatch = false;
                     if (password_verify($password, $stfRow['password'])) {
@@ -127,7 +133,10 @@ if ($action === 'login') {
                         $_SESSION['staff_name'] = $stfRow['first_name'] . ' ' . $stfRow['last_name'];
                         $_SESSION['staff_role'] = $stfRow['role'];
                         $_SESSION['user_type'] = 'staff';
-                        jsonResponse(['status' => 'success', 'message' => 'Welcome ' . $stfRow['first_name'] . '! Staff login successful']);
+                        $_SESSION['is_admin'] = false;
+                        $redir = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
+                        unset($_SESSION['redirect_after_login']);
+                        jsonResponse(['status' => 'success', 'message' => 'Welcome ' . $stfRow['first_name'] . '! Staff login successful', 'redirect' => $redir]);
                     } else {
                         jsonResponse(['status' => 'error', 'message' => 'Invalid staff password.']);
                     }

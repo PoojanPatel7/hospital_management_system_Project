@@ -43,6 +43,114 @@ if ($method === 'POST') {
     $input = $_GET;
 }
 
+/**
+ * Resolves an existing patient or cleanly registers a new patient with sanitized name.
+ * Guaranteed to NEVER create duplicate patients when selecting an existing one,
+ * and guaranteed to store ONLY clean patient names without IDs, parentheses, or digits.
+ */
+function resolveHospitalPatientRecord($conn, $hospitalId, $patIdHint = '', $patNameInput = '', $autoCreate = true) {
+    $patIdHint = trim((string)$patIdHint);
+    $patNameInput = trim((string)$patNameInput);
+
+    // 1. Direct ID hint match (e.g. from hidden form field or selected dropdown)
+    if (!empty($patIdHint)) {
+        $cleanId = $patIdHint;
+        if (preg_match('/(CP-\d{4}-\d+|PAT-\d+)/i', $patIdHint, $m)) {
+            $cleanId = strtoupper($m[1]);
+        }
+        $stmt = $conn->prepare("SELECT id, name, surname, phone, gender, blood_group, age FROM patients WHERE id = ? AND (hospital_id = ? OR hospital_id IS NULL) LIMIT 1");
+        $stmt->bind_param("si", $cleanId, $hospitalId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) return ['record' => $row, 'created' => false];
+    }
+
+    // 2. Extract MRN/ID from name input if user typed or pasted "CP-2026-002 (Kishan Patel)"
+    $composite = trim($patNameInput . ' ' . $patIdHint);
+    if (preg_match('/(CP-\d{4}-\d+|PAT-\d+)/i', $composite, $m)) {
+        $extractedId = strtoupper($m[1]);
+        $stmt = $conn->prepare("SELECT id, name, surname, phone, gender, blood_group, age FROM patients WHERE id = ? AND (hospital_id = ? OR hospital_id IS NULL) LIMIT 1");
+        $stmt->bind_param("si", $extractedId, $hospitalId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) return ['record' => $row, 'created' => false];
+    }
+
+    // 3. Search by Phone number if 10+ digits are detected
+    $digits = preg_replace('/\D/', '', $composite);
+    if (strlen($digits) >= 10) {
+        $last10 = substr($digits, -10);
+        $likePhone = '%' . $last10 . '%';
+        $stmt = $conn->prepare("SELECT id, name, surname, phone, gender, blood_group, age FROM patients WHERE (hospital_id = ? OR hospital_id IS NULL) AND (REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+91', '') LIKE ? OR phone LIKE ?) LIMIT 1");
+        $stmt->bind_param("iss", $hospitalId, $likePhone, $likePhone);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) return ['record' => $row, 'created' => false];
+    }
+
+    // 4. Clean the input to get ONLY patient name (strip IDs, parentheses, digits, special characters)
+    $cleanName = preg_replace('/\((.*?)\)|\[(.*?)\]/i', ' $1 ', $composite);
+    $cleanName = preg_replace('/(CP-\d{4}-\d+|PAT-\d+)/i', ' ', $cleanName);
+    $cleanName = preg_replace('/[\d\+\-\#\:\/\@\_\*\.\,\;]/', ' ', $cleanName);
+    $cleanName = trim(preg_replace('/\s+/', ' ', $cleanName));
+
+    if (!empty($cleanName)) {
+        // 4a. Exact full name match
+        $stmt = $conn->prepare("SELECT id, name, surname, phone, gender, blood_group, age FROM patients WHERE (hospital_id = ? OR hospital_id IS NULL) AND LOWER(TRIM(CONCAT(name, ' ', COALESCE(surname, '')))) = LOWER(?) LIMIT 1");
+        $stmt->bind_param("is", $hospitalId, $cleanName);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) return ['record' => $row, 'created' => false];
+
+        // 4b. Exact first name or LIKE name match
+        $likeTerm = '%' . $cleanName . '%';
+        $stmt = $conn->prepare("SELECT id, name, surname, phone, gender, blood_group, age FROM patients WHERE (hospital_id = ? OR hospital_id IS NULL) AND (LOWER(TRIM(name)) = LOWER(?) OR LOWER(CONCAT(name, ' ', COALESCE(surname, ''))) LIKE LOWER(?)) ORDER BY id DESC LIMIT 1");
+        $stmt->bind_param("iss", $hospitalId, $cleanName, $likeTerm);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) return ['record' => $row, 'created' => false];
+    }
+
+    if (!$autoCreate) {
+        return null;
+    }
+
+    // 5. TRULY A NEW PATIENT: Register cleanly storing ONLY patient name in name/surname
+    $words = explode(' ', $cleanName ?: 'Patient');
+    $firstName = ucfirst(strtolower(trim($words[0] ?? 'Patient')));
+    $firstName = preg_replace('/[^a-zA-Z]/', '', $firstName) ?: 'Patient';
+    $surname = '';
+    if (count($words) > 1) {
+        $surnameParts = array_slice($words, 1);
+        $surname = ucfirst(strtolower(trim(implode(' ', $surnameParts))));
+        $surname = preg_replace('/[^a-zA-Z\s]/', '', $surname);
+    }
+
+    // Generate standard MRN matching system standard: CP-YYYY-XXX
+    $year = date('Y');
+    $maxRes = $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(id, '-', -1) AS UNSIGNED)) as max_num FROM patients WHERE id LIKE 'CP-$year-%'");
+    $maxRow = $maxRes ? $maxRes->fetch_assoc() : null;
+    $nextNum = ($maxRow['max_num'] ?? 0) + 1;
+    $newPatId = "CP-$year-" . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
+
+    $insP = $conn->prepare("INSERT INTO patients (id, name, surname, demographics, hospital_id) VALUES (?, ?, ?, 'Registered via AI Assistant', ?)");
+    $insP->bind_param("sssi", $newPatId, $firstName, $surname, $hospitalId);
+    $insP->execute();
+
+    return [
+        'record' => [
+            'id' => $newPatId,
+            'name' => $firstName,
+            'surname' => $surname,
+            'phone' => '',
+            'gender' => 'Other',
+            'blood_group' => '',
+            'age' => ''
+        ],
+        'created' => true
+    ];
+}
+
 switch ($action) {
     case 'chat':
         set_time_limit(120);
@@ -377,60 +485,137 @@ switch ($action) {
                             }
                         }
                     } else {
-                        // Genuine WRITE action (DELETE, UPDATE, INSERT)
-                        // Resilient normalization if model didn't write full SQL
-                        if (empty($aSql)) {
-                            $rawAct = strtolower($json['action'] ?? $aType);
-                            if (strpos($rawAct, 'discharge') !== false) {
-                                $bedNum = $json['bed_number'] ?? ($json['action']['bed_number'] ?? '');
-                                if (!empty($bedNum)) {
-                                    $aType = 'UPDATE';
-                                    $aTable = 'beds';
-                                    $aDesc = "Discharge patient from Bed $bedNum and mark bed Available";
-                                    $aSql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE bed_number = '$bedNum' AND hospital_id = $hospitalId; UPDATE appointments SET status = 'Discharged from Bed', bed_number = NULL WHERE bed_number = '$bedNum' AND hospital_id = $hospitalId;";
+                        // Check if the user's message actually requested a write operation (mutation)
+                        $hasMutationVerb = preg_match('/\b(delete|delate|delet|remove|erase|cancel|discharge|update|edit|change|modify|set|mark|insert|add|create|register|book|admit|hatao|nikalo|badlo|karo|banao|allot)\b/i', $message);
+                        
+                        if (!$hasMutationVerb) {
+                            // The user message does NOT contain any mutation verb!
+                            // This is a SEARCH / FILTER / READ inquiry (e.g. "i need blood A+", "now all male with A+", "who is oldest").
+                            // Never create a pending action or confirmation box. Instead, formulate and run a SELECT query!
+                            $readSql = null;
+                            $userLower = strtolower($message);
+
+                            // Detect blood group filter
+                            $bg = null;
+                            if (preg_match('/\b(A\+|A-|B\+|B-|AB\+|AB-|O\+|O-)(?=[^a-zA-Z0-9]|$)/i', $message, $bgM) || preg_match('/\bblood\s+(?:group\s+)?(A\+|A-|B\+|B-|AB\+|AB-|O\+|O-)(?=[^a-zA-Z0-9]|$)/i', $message, $bgM)) {
+                                $bg = strtoupper($bgM[1]);
+                            } elseif (!empty($json['blood_group'])) {
+                                $bg = strtoupper($json['blood_group']);
+                            }
+
+                            // Detect gender filter
+                            $gender = null;
+                            if (preg_match('/\b(male|purush|men|man|boy)\b/i', $message)) {
+                                $gender = 'Male';
+                            } elseif (preg_match('/\b(female|mahila|women|woman|girl)\b/i', $message)) {
+                                $gender = 'Female';
+                            } elseif (!empty($json['gender'])) {
+                                $gender = ucfirst(strtolower($json['gender']));
+                            }
+
+                            // Oldest patient
+                            if (preg_match('/\b(oldest|oledst|eldest|maximum age|highest age|most aged)\b/i', $message)) {
+                                $readSql = "SELECT id, name, surname, gender, blood_group, age, phone FROM patients WHERE hospital_id = $hospitalId AND age IS NOT NULL AND age != '' ORDER BY CAST(age AS UNSIGNED) DESC LIMIT 1;";
+                            } elseif (preg_match('/\b(youngest|smallest child|lowest age)\b/i', $message)) {
+                                $readSql = "SELECT id, name, surname, gender, blood_group, age, phone FROM patients WHERE hospital_id = $hospitalId AND CAST(age AS UNSIGNED) > 0 ORDER BY CAST(age AS UNSIGNED) ASC LIMIT 1;";
+                            } elseif ($bg !== null || $gender !== null || stripos($userLower, 'patient') !== false) {
+                                // Patient search / filter
+                                $whereClauses = ["hospital_id = $hospitalId"];
+                                if ($bg !== null) {
+                                    $whereClauses[] = "(blood_group = '$bg' OR blood_group LIKE '%$bg%')";
                                 }
-                            } elseif (strpos($rawAct, 'delete') !== false && ($aTable === 'doctors' || isset($json['doctor_id']) || isset($json['name']))) {
-                                $docId = (int)($json['doctor_id'] ?? ($json['id'] ?? 0));
-                                $docName = $json['name'] ?? 'Doctor';
-                                if ($docId > 0) {
-                                    $aType = 'DELETE';
-                                    $aTable = 'doctors';
-                                    $aDesc = "Permanently delete $docName (ID: $docId) from hospital database";
-                                    $aSql = "DELETE FROM doctors WHERE id = $docId AND hospital_id = $hospitalId;";
+                                if ($gender !== null) {
+                                    $whereClauses[] = "gender = '$gender'";
                                 }
-                            } elseif (strpos($rawAct, 'cancel') !== false && ($aTable === 'appointments' || isset($json['appointment_id']))) {
-                                $appId = (int)($json['appointment_id'] ?? ($json['id'] ?? 0));
-                                if ($appId > 0) {
-                                    $aType = 'UPDATE';
-                                    $aTable = 'appointments';
-                                    $aDesc = "Cancel Appointment #APP-$appId";
-                                    $aSql = "UPDATE appointments SET status = 'Cancelled' WHERE id = $appId AND hospital_id = $hospitalId;";
+                                $readSql = "SELECT id, name, surname, gender, blood_group, age, phone FROM patients WHERE " . implode(' AND ', $whereClauses) . " LIMIT 100;";
+                            } elseif (stripos($userLower, 'doctor') !== false) {
+                                if (preg_match('/\b(most|top|maximum|highest)\s+(?:appointment|booking)/i', $message) || preg_match('/witch docter haave most/i', $message)) {
+                                    $readSql = "SELECT d.id, d.name, d.degree, d.experience, COUNT(a.id) AS total_appointments FROM doctors d LEFT JOIN appointments a ON d.id = a.doctor_id WHERE d.hospital_id = $hospitalId GROUP BY d.id, d.name, d.degree, d.experience ORDER BY total_appointments DESC LIMIT 5;";
+                                } else {
+                                    $readSql = "SELECT id, name, degree, experience, phone FROM doctors WHERE hospital_id = $hospitalId LIMIT 50;";
+                                }
+                            } elseif (stripos($userLower, 'bed') !== false || stripos($userLower, 'room') !== false) {
+                                $readSql = "SELECT bed_number, type, wing, status, patient_id FROM beds WHERE hospital_id = $hospitalId LIMIT 50;";
+                            } elseif (stripos($userLower, 'staff') !== false || stripos($userLower, 'attendance') !== false) {
+                                $readSql = "SELECT s.first_name, s.last_name, s.role, s.department, sa.status, sa.check_in_time FROM staff s LEFT JOIN staff_attendance sa ON s.id = sa.staff_id AND sa.date = CURDATE() WHERE s.hospital_id = $hospitalId LIMIT 50;";
+                            }
+
+                            if ($readSql !== null) {
+                                $sanitizeResult = function_exists('sanitizeReadQuery') ? sanitizeReadQuery($readSql, $hospitalId, getAllowedTables($staffRole), $message) : ['valid' => true, 'sql' => $readSql];
+                                if ($sanitizeResult['valid']) {
+                                    try {
+                                        $res = $conn->query($sanitizeResult['sql']);
+                                        if ($res && $res instanceof mysqli_result) {
+                                            $dbResults = [];
+                                            while ($r = $res->fetch_assoc()) {
+                                                unset($r['password']);
+                                                $dbResults[] = $r;
+                                            }
+                                            $sqlExecuted = $sanitizeResult['sql'];
+                                        }
+                                    } catch (Exception $e) {
+                                        error_log("HMS AI intercepted query error: " . $e->getMessage());
+                                    }
                                 }
                             }
-                        }
-
-                        // SAFETY GUARD: Never allow unconstrained batch updates without an entity ID
-                        // (e.g. model mistakenly updating all patients' gender or blood group)
-                        if ($aType === 'UPDATE' && !empty($aSql)) {
-                            $hasTargetId = preg_match('/\b(id|bed_number|staff_id|appointment_id)\s*=\s*/i', $aSql);
-                            if (!$hasTargetId && ($aTable === 'patients' || $aTable === 'doctors')) {
-                                error_log("HMS AI Safety Guard: Blocked dangerous unconstrained $aTable UPDATE: $aSql");
-                                $aSql = ''; // Block execution
+                        } else {
+                            // Genuine WRITE action (DELETE, UPDATE, INSERT)
+                            // Resilient normalization if model didn't write full SQL
+                            if (empty($aSql)) {
+                                $rawAct = strtolower($json['action'] ?? $aType);
+                                if (strpos($rawAct, 'discharge') !== false) {
+                                    $bedNum = trim($json['bed_number'] ?? ($json['action']['bed_number'] ?? ''));
+                                    if (!empty($bedNum)) {
+                                        $escBed = $conn->real_escape_string($bedNum);
+                                        $aType = 'UPDATE';
+                                        $aTable = 'beds';
+                                        $aDesc = "Discharge patient from Bed $bedNum and mark bed Available";
+                                        $aSql = "UPDATE beds SET status = 'Available', patient_id = NULL WHERE bed_number = '$escBed' AND hospital_id = $hospitalId; UPDATE appointments SET status = 'Discharged from Bed', bed_number = NULL WHERE bed_number = '$escBed' AND hospital_id = $hospitalId;";
+                                    }
+                                } elseif (strpos($rawAct, 'delete') !== false && ($aTable === 'doctors' || isset($json['doctor_id']) || isset($json['name']))) {
+                                    $docId = trim($json['doctor_id'] ?? ($json['id'] ?? ''));
+                                    $docName = $json['name'] ?? 'Doctor';
+                                    if (!empty($docId)) {
+                                        $escId = $conn->real_escape_string($docId);
+                                        $aType = 'DELETE';
+                                        $aTable = 'doctors';
+                                        $aDesc = "Permanently delete doctor: $docName [ID: $docId] from hospital database";
+                                        $aSql = "DELETE FROM doctors WHERE id = '$escId' AND hospital_id = $hospitalId;";
+                                    }
+                                } elseif (strpos($rawAct, 'cancel') !== false && ($aTable === 'appointments' || isset($json['appointment_id']))) {
+                                    $appId = (int)($json['appointment_id'] ?? ($json['id'] ?? 0));
+                                    if ($appId > 0) {
+                                        $aType = 'UPDATE';
+                                        $aTable = 'appointments';
+                                        $aDesc = "Cancel Appointment #APP-$appId";
+                                        $aSql = "UPDATE appointments SET status = 'Cancelled' WHERE id = $appId AND hospital_id = $hospitalId;";
+                                    }
+                                }
                             }
-                        }
 
-                        if (!empty($aSql)) {
-                            $aParams = isset($json['params']) ? json_encode($json['params']) : null;
-                            $lastMsgId = 0;
-                            
-                            $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
-                            $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
-                            $stmt->execute();
-                            $pendingAction = [
-                                'action_id' => $stmt->insert_id,
-                                'details' => $json,
-                                'description' => $aDesc
-                            ];
+                            // SAFETY GUARD: Never allow unconstrained batch updates without an entity ID
+                            // (e.g. model mistakenly updating all patients' gender or blood group)
+                            if ($aType === 'UPDATE' && !empty($aSql)) {
+                                $hasTargetId = preg_match('/\b(id|bed_number|staff_id|appointment_id)\s*=\s*/i', $aSql);
+                                if (!$hasTargetId && ($aTable === 'patients' || $aTable === 'doctors')) {
+                                    error_log("HMS AI Safety Guard: Blocked dangerous unconstrained $aTable UPDATE: $aSql");
+                                    $aSql = ''; // Block execution
+                                }
+                            }
+
+                            if (!empty($aSql)) {
+                                $aParams = isset($json['params']) ? json_encode($json['params']) : null;
+                                $lastMsgId = 0;
+                                
+                                $stmt = $conn->prepare("INSERT INTO ai_pending_actions (conversation_id, message_id, hospital_id, action_type, target_table, description, sql_query, sql_params, status, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE))");
+                                $stmt->bind_param("iiisssss", $conversationId, $lastMsgId, $hospitalId, $aType, $aTable, $aDesc, $aSql, $aParams);
+                                $stmt->execute();
+                                $pendingAction = [
+                                    'action_id' => $stmt->insert_id,
+                                    'details' => $json,
+                                    'description' => $aDesc
+                                ];
+                            }
                         }
                     }
                 }
@@ -710,12 +895,12 @@ switch ($action) {
         break;
 
     case 'patient_quick_search':
-        $q = trim($input['query'] ?? '');
+        $q = trim($input['query'] ?? $_GET['query'] ?? '');
         $patients = [];
         if (strlen($q) >= 1) {
             $like = "%$q%";
-            $pStmt = $conn->prepare("SELECT id, name, surname, phone, age, gender FROM patients WHERE hospital_id = ? AND (id LIKE ? OR name LIKE ? OR surname LIKE ? OR phone LIKE ?) ORDER BY id DESC LIMIT 8");
-            $pStmt->bind_param("issss", $hospitalId, $like, $like, $like, $like);
+            $pStmt = $conn->prepare("SELECT id, name, surname, phone, age, gender, blood_group, father_name FROM patients WHERE (hospital_id = ? OR hospital_id IS NULL) AND (id LIKE ? OR name LIKE ? OR surname LIKE ? OR phone LIKE ? OR CONCAT(name, ' ', surname) LIKE ?) ORDER BY id DESC LIMIT 10");
+            $pStmt->bind_param("isssss", $hospitalId, $like, $like, $like, $like, $like);
             $pStmt->execute();
             $pRes = $pStmt->get_result();
             while ($r = $pRes->fetch_assoc()) $patients[] = $r;
@@ -725,7 +910,8 @@ switch ($action) {
 
     case 'book_appointment_form':
         $docId = trim($input['doctor_id'] ?? '');
-        $patIdent = trim($input['patient_id'] ?? '');
+        $patIdHint = trim($input['patient_id'] ?? '');
+        $patNameInput = trim($input['patient_name'] ?? '');
         $appDate = trim($input['date'] ?? date('Y-m-d'));
         $appSlot = trim($input['slot'] ?? '09:00 AM');
         $appType = trim($input['type'] ?? 'General Consultation');
@@ -735,8 +921,8 @@ switch ($action) {
             echo json_encode(['status' => 'error', 'message' => 'Please select a doctor.']);
             exit;
         }
-        if (empty($patIdent)) {
-            echo json_encode(['status' => 'error', 'message' => 'Please enter a Patient MRN or Name.']);
+        if (empty($patIdHint) && empty($patNameInput)) {
+            echo json_encode(['status' => 'error', 'message' => 'Please select or enter a Patient name.']);
             exit;
         }
         if (empty($appDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $appDate)) {
@@ -744,34 +930,14 @@ switch ($action) {
             exit;
         }
 
-        $patientId = null;
-        $patientName = '';
-        $chkP = $conn->prepare("SELECT id, name, surname FROM patients WHERE (id = ? OR phone = ? OR CONCAT(name, ' ', surname) LIKE ?) AND hospital_id = ? LIMIT 1");
-        $likeName = "%$patIdent%";
-        $chkP->bind_param("sssi", $patIdent, $patIdent, $likeName, $hospitalId);
-        $chkP->execute();
-        $pRow = $chkP->get_result()->fetch_assoc();
-        if ($pRow) {
-            $patientId = $pRow['id'];
-            $patientName = trim($pRow['name'] . ' ' . ($pRow['surname'] ?? ''));
-        } else {
-            $cntRow = $conn->query("SELECT MAX(CAST(SUBSTRING(id, 5) AS UNSIGNED)) as max_id FROM patients WHERE id LIKE 'PAT-%'")->fetch_assoc();
-            $nextNum = max(1101, (int)($cntRow['max_id'] ?? 1000) + 1);
-            $newPatId = sprintf("PAT-%04d", $nextNum);
-            $parts = explode(' ', $patIdent, 2);
-            $fName = $parts[0];
-            $lName = $parts[1] ?? 'Patient';
-            $insP = $conn->prepare("INSERT INTO patients (id, name, surname, demographics, hospital_id) VALUES (?, ?, ?, 'Registered via AI', ?)");
-            $insP->bind_param("sssi", $newPatId, $fName, $lName, $hospitalId);
-            $insP->execute();
-            $patientId = $newPatId;
-            $patientName = "$fName $lName";
-        }
+        $patRes = resolveHospitalPatientRecord($conn, $hospitalId, $patIdHint, $patNameInput, true);
+        $patientId = $patRes['record']['id'];
+        $patientName = trim($patRes['record']['name'] . ' ' . ($patRes['record']['surname'] ?? ''));
 
-        $docRow = $conn->query("SELECT name FROM doctors WHERE id = '$docId' AND hospital_id = $hospitalId")->fetch_assoc();
+        $docRow = $conn->query("SELECT name FROM doctors WHERE id = '$docId' AND (hospital_id = $hospitalId OR hospital_id IS NULL)")->fetch_assoc();
         $docName = $docRow['name'] ?? 'Doctor';
 
-        $dupStmt = $conn->prepare("SELECT id FROM appointments WHERE doctor_id = ? AND date = ? AND slot = ? AND status NOT IN ('Cancelled', 'Discharged from Bed') AND hospital_id = ?");
+        $dupStmt = $conn->prepare("SELECT id FROM appointments WHERE doctor_id = ? AND date = ? AND slot = ? AND status NOT IN ('Cancelled', 'Discharged from Bed') AND (hospital_id = ? OR hospital_id IS NULL)");
         $dupStmt->bind_param("sssi", $docId, $appDate, $appSlot, $hospitalId);
         $dupStmt->execute();
         if ($dupStmt->get_result()->num_rows > 0) {
@@ -785,7 +951,7 @@ switch ($action) {
             $appId = $insApp->insert_id;
             
             $timeNow = date('h:i A');
-            $evDesc = "Appointment scheduled for $appType with $docName on $appDate ($appSlot). Status: Pre-Booked.";
+            $evDesc = "Appointment scheduled for $appType with $docName on $appDate ($appSlot). Assigned to patient $patientName ($patientId). Status: Pre-Booked.";
             $tStmt = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
             $tStmt->bind_param("isss", $appId, $patientId, $timeNow, $evDesc);
             $tStmt->execute();
@@ -806,7 +972,7 @@ switch ($action) {
                 'date' => $appDate,
                 'slot' => $appSlot,
                 'type' => $appType,
-                'message' => "Appointment #$appId confirmed successfully for $patientName with $docName."
+                'message' => "Appointment #$appId confirmed successfully for $patientName ($patientId) with Dr. $docName."
             ]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Failed to book appointment: ' . $conn->error]);
@@ -814,12 +980,13 @@ switch ($action) {
         break;
 
     case 'admit_patient_form':
-        $patIdent = trim($input['patient_id'] ?? '');
+        $patIdHint = trim($input['patient_id'] ?? '');
+        $patNameInput = trim($input['patient_name'] ?? '');
         $bedNumber = trim($input['bed_number'] ?? '');
         $docId = trim($input['doctor_id'] ?? '');
         $reason = trim($input['reason'] ?? 'Emergency Clinical Admission');
 
-        if (empty($patIdent)) {
+        if (empty($patIdHint) && empty($patNameInput)) {
             echo json_encode(['status' => 'error', 'message' => 'Please provide a valid Patient MRN or Name.']);
             exit;
         }
@@ -828,7 +995,7 @@ switch ($action) {
             exit;
         }
 
-        $bedChk = $conn->prepare("SELECT id, bed_number, type, status FROM beds WHERE bed_number = ? AND hospital_id = ?");
+        $bedChk = $conn->prepare("SELECT id, bed_number, type, status FROM beds WHERE bed_number = ? AND (hospital_id = ? OR hospital_id IS NULL)");
         $bedChk->bind_param("si", $bedNumber, $hospitalId);
         $bedChk->execute();
         $bedRow = $bedChk->get_result()->fetch_assoc();
@@ -841,17 +1008,9 @@ switch ($action) {
             exit;
         }
 
-        $chkP = $conn->prepare("SELECT id, name, surname FROM patients WHERE (id = ? OR phone = ? OR CONCAT(name, ' ', surname) LIKE ?) AND hospital_id = ? LIMIT 1");
-        $likeName = "%$patIdent%";
-        $chkP->bind_param("sssi", $patIdent, $patIdent, $likeName, $hospitalId);
-        $chkP->execute();
-        $pRow = $chkP->get_result()->fetch_assoc();
-        if (!$pRow) {
-            echo json_encode(['status' => 'error', 'message' => "Patient not found. Please register or verify the patient ID first."]);
-            exit;
-        }
-        $patientId = $pRow['id'];
-        $patientName = trim($pRow['name'] . ' ' . ($pRow['surname'] ?? ''));
+        $patRes = resolveHospitalPatientRecord($conn, $hospitalId, $patIdHint, $patNameInput, true);
+        $patientId = $patRes['record']['id'];
+        $patientName = trim($patRes['record']['name'] . ' ' . ($patRes['record']['surname'] ?? ''));
 
         $upBed = $conn->prepare("UPDATE beds SET status = 'Occupied', patient_id = ? WHERE bed_number = ? AND hospital_id = ?");
         $upBed->bind_param("ssi", $patientId, $bedNumber, $hospitalId);
@@ -938,12 +1097,16 @@ switch ($action) {
         $age = (int)($input['age'] ?? 0);
         $gender = trim($input['gender'] ?? 'Other');
 
+        // Sanitize names to guarantee only pure letters and spaces
+        $name = trim(preg_replace('/[^\p{L}\s\']/u', '', $name));
+        $surname = trim(preg_replace('/[^\p{L}\s\']/u', '', $surname));
+
         if (empty($patId) || empty($name)) {
             echo json_encode(['status' => 'error', 'message' => 'Invalid patient record or name.']);
             exit;
         }
 
-        $upStmt = $conn->prepare("UPDATE patients SET name = ?, surname = ?, phone = ?, blood_group = ?, age = ?, gender = ? WHERE id = ? AND hospital_id = ?");
+        $upStmt = $conn->prepare("UPDATE patients SET name = ?, surname = ?, phone = ?, blood_group = ?, age = ?, gender = ? WHERE id = ? AND (hospital_id = ? OR hospital_id IS NULL)");
         $upStmt->bind_param("ssssissi", $name, $surname, $phone, $bloodGroup, $age, $gender, $patId, $hospitalId);
         if ($upStmt->execute()) {
             $actSql = "UPDATE patients SET name='$name', surname='$surname', phone='$phone', blood_group='$bloodGroup', age=$age, gender='$gender' WHERE id='$patId'";
@@ -970,7 +1133,7 @@ switch ($action) {
             exit;
         }
 
-        $upStmt = $conn->prepare("UPDATE beds SET type = ?, wing = ?, status = ? WHERE bed_number = ? AND hospital_id = ?");
+        $upStmt = $conn->prepare("UPDATE beds SET type = ?, wing = ?, status = ? WHERE bed_number = ? AND (hospital_id = ? OR hospital_id IS NULL)");
         $upStmt->bind_param("ssssi", $type, $wing, $status, $bedNumber, $hospitalId);
         if ($upStmt->execute()) {
             $actSql = "UPDATE beds SET type='$type', wing='$wing', status='$status' WHERE bed_number='$bedNumber'";
@@ -996,12 +1159,21 @@ switch ($action) {
         $emergName = trim($input['emergency_contact_name'] ?? '');
         $emergPhone = trim($input['emergency_contact_phone'] ?? '');
 
+        // Sanitize names to guarantee only pure letters and spaces
+        $name = trim(preg_replace('/[^\p{L}\s\']/u', '', $name));
+        $surname = trim(preg_replace('/[^\p{L}\s\']/u', '', $surname));
+
         if (empty($name)) {
             echo json_encode(['status' => 'error', 'message' => 'Patient name is required.']);
             exit;
         }
 
-        $mrn = 'PAT-' . rand(3000, 9999);
+        $year = date('Y');
+        $maxRes = $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(id, '-', -1) AS UNSIGNED)) as max_num FROM patients WHERE id LIKE 'CP-$year-%'");
+        $maxRow = $maxRes ? $maxRes->fetch_assoc() : null;
+        $nextNum = ($maxRow['max_num'] ?? 0) + 1;
+        $mrn = "CP-$year-" . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
+
         $ins = $conn->prepare("INSERT INTO patients (id, name, surname, gender, blood_group, age, phone, emergency_contact_name, emergency_contact_phone, hospital_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $ins->bind_param("sssssisssi", $mrn, $name, $surname, $gender, $bloodGroup, $age, $phone, $emergName, $emergPhone, $hospitalId);
         if ($ins->execute()) {

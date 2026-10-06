@@ -24,7 +24,7 @@
         <div class="flex flex-col gap-3 w-full sm:w-auto sm:min-w-[280px]">
           <div class="relative w-full shadow-sm">
             <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
-            <input type="text" id="directory-search" oninput="renderPatients()" placeholder="Search patients..." class="w-full text-sm font-semibold text-slate-800 border border-slate-200 rounded-2xl pl-10 pr-10 py-3.5 focus:ring-2 focus:ring-blue-500/50 outline-none transition bg-white placeholder-slate-400">
+            <input type="text" id="directory-search" oninput="handleSearchInput()" onkeydown="if(event.key==='Enter'){event.preventDefault(); triggerSearchNow();}" placeholder="Search patients..." class="w-full text-sm font-semibold text-slate-800 border border-slate-200 rounded-2xl pl-10 pr-10 py-3.5 focus:ring-2 focus:ring-blue-500/50 outline-none transition bg-white placeholder-slate-400">
             <button id="search-clear-btn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
               <i class="fa-solid fa-xmark text-xs"></i>
             </button>
@@ -44,10 +44,10 @@
   </div>
 
   <!-- Grid View -->
-  <div id="pat-container-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+  <div id="pat-container-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity duration-200"></div>
 
   <!-- Table View -->
-  <div id="pat-container-table" class="hidden bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+  <div id="pat-container-table" class="hidden bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm transition-opacity duration-200">
     <div class="overflow-x-auto">
       <table class="w-full text-left text-xs text-slate-600">
         <thead class="bg-slate-50 text-slate-700 uppercase font-bold border-b border-slate-200">
@@ -65,96 +65,249 @@
       </table>
     </div>
   </div>
+
+  <!-- Pagination Bar (< and >) -->
+  <div id="pat-pagination-bar" class="bg-white rounded-2xl border border-slate-200 px-5 py-3.5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="text-xs font-semibold text-slate-500">
+      Showing <span id="pat-page-start" class="font-extrabold text-slate-900">0</span> – <span id="pat-page-end" class="font-extrabold text-slate-900">0</span> of <span id="pat-page-total" class="font-extrabold text-slate-900">0</span> patients (10 per page)
+    </div>
+
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <!-- First Page -->
+      <button id="pat-btn-first" onclick="goToPage(1)" title="First Page" class="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-xs font-bold transition shadow-sm">
+        <i class="fa-solid fa-angles-left"></i>
+      </button>
+
+      <!-- Previous Page (<) -->
+      <button id="pat-btn-prev" onclick="goToPage(currentPage - 1)" title="Previous 10 Patients" class="h-9 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-1 text-xs font-bold transition shadow-sm">
+        <i class="fa-solid fa-chevron-left text-[10px]"></i>
+        <span>&lt; Prev</span>
+      </button>
+
+      <!-- Page Numbers Container -->
+      <div id="pat-page-numbers" class="flex items-center gap-1"></div>
+
+      <!-- Next Page (>) -->
+      <button id="pat-btn-next" onclick="goToPage(currentPage + 1)" title="Next 10 Patients" class="h-9 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-1 text-xs font-bold transition shadow-sm">
+        <span>Next &gt;</span>
+        <i class="fa-solid fa-chevron-right text-[10px]"></i>
+      </button>
+
+      <!-- Last Page -->
+      <button id="pat-btn-last" onclick="goToPage(totalPages)" title="Last Page" class="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-xs font-bold transition shadow-sm">
+        <i class="fa-solid fa-angles-right"></i>
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
   let allPatients = [];
   let displayMode = 'grid';
+  let currentPage = 1;
+  const pageSize = 10;
+  let totalPatients = 0;
+  let totalPages = 1;
+  let isLoading = false;
+  let searchDebounceTimer = null;
 
-  window.addEventListener('DOMContentLoaded', fetchPatients);
+  window.addEventListener('DOMContentLoaded', () => {
+    fetchPatients(1);
+  });
 
   function setPatDisplayMode(mode) {
     displayMode = mode;
-    document.getElementById('btn-pat-view-grid').className = mode === 'grid' ? "px-3 py-1.5 rounded-lg bg-white shadow-sm text-slate-900 font-bold" : "px-3 py-1.5 rounded-lg text-slate-600 font-semibold";
-    document.getElementById('btn-pat-view-table').className = mode === 'table' ? "px-3 py-1.5 rounded-lg bg-white shadow-sm text-slate-900 font-bold" : "px-3 py-1.5 rounded-lg text-slate-600 font-semibold";
+    document.getElementById('btn-pat-view-grid').className = mode === 'grid' 
+      ? "flex-1 py-2 rounded-xl bg-white shadow-sm text-slate-900 flex items-center justify-center gap-2 transition font-bold" 
+      : "flex-1 py-2 rounded-xl text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2 transition font-medium";
+    document.getElementById('btn-pat-view-table').className = mode === 'table' 
+      ? "flex-1 py-2 rounded-xl bg-white shadow-sm text-slate-900 flex items-center justify-center gap-2 transition font-bold" 
+      : "flex-1 py-2 rounded-xl text-slate-500 hover:text-slate-700 flex items-center justify-center gap-2 transition font-medium";
     
     document.getElementById('pat-container-grid').classList.toggle('hidden', mode !== 'grid');
     document.getElementById('pat-container-table').classList.toggle('hidden', mode !== 'table');
     renderPatients();
   }
 
-  async function fetchPatients() {
-      try {
-          const res = await fetch('api/patients.php?action=get_all');
-          const data = await res.json();
-          if (data.status === 'success') {
-              allPatients = data.patients;
-              renderPatients();
-          }
-      } catch (e) { console.error(e); }
+  function handleSearchInput() {
+    const rawQ = (document.getElementById('directory-search').value || '').trim();
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) clearBtn.classList.toggle('hidden', rawQ.length === 0);
+
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      fetchPatients(1);
+    }, 280);
+  }
+
+  function triggerSearchNow() {
+    clearTimeout(searchDebounceTimer);
+    fetchPatients(1);
   }
 
   function clearSearch() {
     const input = document.getElementById('directory-search');
     input.value = '';
-    renderPatients();
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    clearTimeout(searchDebounceTimer);
+    fetchPatients(1);
     input.focus();
   }
 
-  function renderPatients() {
-    const rawQ = (document.getElementById('directory-search').value || '').trim().toLowerCase();
-    const clearBtn = document.getElementById('search-clear-btn');
-    if (clearBtn) {
-      clearBtn.classList.toggle('hidden', rawQ.length === 0);
-    }
-
-    // Split search query by space into terms so user can type "dev patel" or "raj ab+"
-    const terms = rawQ.split(/\s+/).filter(Boolean);
-
-    const filtered = allPatients.filter(p => {
-      if (terms.length === 0) return true;
-
-      // Construct exhaustive searchable text containing every single field/data of the patient
-      const searchable = [
-        p.id,
-        p.name,
-        p.surname,
-        `${p.name || ''} ${p.surname || ''}`,
-        `${p.surname || ''} ${p.name || ''}`,
-        `${p.name || ''} ${p.father_name || ''} ${p.surname || ''}`,
-        p.father_name,
-        p.phone,
-        p.blood_group,
-        `blood ${p.blood_group || ''}`,
-        p.gender,
-        p.age ? `${p.age}` : '',
-        p.age ? `${p.age} y` : '',
-        p.age ? `${p.age} years` : '',
-        p.demographics,
-        p.emergency_contact_name,
-        p.emergency_contact_phone,
-        p.reg_date
-      ].filter(Boolean).join(' ').toLowerCase();
-
-      // Ensure every typed term is found somewhere in any of the patient's data
-      return terms.every(term => searchable.includes(term));
-    });
-
+  function showLoadingUI(loading) {
+    const grid = document.getElementById('pat-container-grid');
+    const table = document.getElementById('pat-container-table');
     const badge = document.getElementById('patient-count-badge');
+    const prevBtn = document.getElementById('pat-btn-prev');
+    const nextBtn = document.getElementById('pat-btn-next');
+    const firstBtn = document.getElementById('pat-btn-first');
+    const lastBtn = document.getElementById('pat-btn-last');
+
+    if (loading) {
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+      if (firstBtn) firstBtn.disabled = true;
+      if (lastBtn) lastBtn.disabled = true;
+
+      if (allPatients.length === 0) {
+        if (badge) badge.textContent = 'Loading patients...';
+        if (grid) grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-16 text-sm flex flex-col items-center justify-center gap-3"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-500"></i><span class="font-medium">Loading patients...</span></div>`;
+        const tbody = document.getElementById('pat-table-tbody');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-400 py-16 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500 mr-2 align-middle"></i><span class="font-medium">Loading patients...</span></td></tr>`;
+      } else {
+        if (grid) grid.classList.add('opacity-40', 'pointer-events-none');
+        if (table) table.classList.add('opacity-40', 'pointer-events-none');
+      }
+    } else {
+      if (grid) grid.classList.remove('opacity-40', 'pointer-events-none');
+      if (table) table.classList.remove('opacity-40', 'pointer-events-none');
+    }
+  }
+
+  async function fetchPatients(page = 1) {
+    if (isLoading) return;
+    isLoading = true;
+    currentPage = page;
+    showLoadingUI(true);
+
+    const searchVal = (document.getElementById('directory-search')?.value || '').trim();
+
+    try {
+      const res = await fetch(`api/patients.php?action=get_all&page=${encodeURIComponent(page)}&limit=${pageSize}&search=${encodeURIComponent(searchVal)}`);
+      const data = await res.json();
+      if (data.status === 'success') {
+        allPatients = data.patients || [];
+        totalPatients = Number(data.total ?? allPatients.length);
+        totalPages = Math.max(1, Number(data.total_pages ?? Math.ceil(totalPatients / pageSize)));
+        currentPage = Math.min(Math.max(1, Number(data.page ?? page)), totalPages);
+        renderPatients();
+        renderPagination();
+      } else {
+        showToast('Error', data.message || 'Failed to fetch patients', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error', 'Unable to connect to server', 'error');
+    } finally {
+      isLoading = false;
+      showLoadingUI(false);
+    }
+  }
+
+  function goToPage(page) {
+    if (page < 1 || page > totalPages || page === currentPage || isLoading) return;
+    fetchPatients(page);
+    const container = document.getElementById('pat-container-grid') || document.getElementById('pat-container-table');
+    if (container) {
+      window.scrollTo({
+        top: Math.max(0, container.getBoundingClientRect().top + window.pageYOffset - 120),
+        behavior: 'smooth'
+      });
+    }
+  }
+
+  function renderPagination() {
+    const startSpan = document.getElementById('pat-page-start');
+    const endSpan = document.getElementById('pat-page-end');
+    const totalSpan = document.getElementById('pat-page-total');
+    const prevBtn = document.getElementById('pat-btn-prev');
+    const nextBtn = document.getElementById('pat-btn-next');
+    const firstBtn = document.getElementById('pat-btn-first');
+    const lastBtn = document.getElementById('pat-btn-last');
+    const numbersContainer = document.getElementById('pat-page-numbers');
+
+    const start = totalPatients === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalPatients);
+
+    if (startSpan) startSpan.textContent = start;
+    if (endSpan) endSpan.textContent = end;
+    if (totalSpan) totalSpan.textContent = totalPatients;
+
+    if (prevBtn) prevBtn.disabled = (currentPage <= 1 || isLoading);
+    if (nextBtn) nextBtn.disabled = (currentPage >= totalPages || isLoading);
+    if (firstBtn) firstBtn.disabled = (currentPage <= 1 || isLoading);
+    if (lastBtn) lastBtn.disabled = (currentPage >= totalPages || isLoading);
+
+    if (numbersContainer) {
+      numbersContainer.innerHTML = '';
+      if (totalPages <= 1) {
+        numbersContainer.innerHTML = `<span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 text-xs font-bold border border-blue-100 flex items-center justify-center">1</span>`;
+        return;
+      }
+
+      const maxVisible = 5;
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+      if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+
+      if (startPage > 1) {
+        numbersContainer.innerHTML += `<button onclick="goToPage(1)" class="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center justify-center">1</button>`;
+        if (startPage > 2) {
+          numbersContainer.innerHTML += `<span class="px-1 text-slate-400 text-xs">…</span>`;
+        }
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        if (p === currentPage) {
+          numbersContainer.innerHTML += `<button class="w-8 h-8 rounded-xl bg-blue-600 text-white text-xs font-black shadow-md shadow-blue-200 cursor-default flex items-center justify-center">${p}</button>`;
+        } else {
+          numbersContainer.innerHTML += `<button onclick="goToPage(${p})" class="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center justify-center">${p}</button>`;
+        }
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          numbersContainer.innerHTML += `<span class="px-1 text-slate-400 text-xs">…</span>`;
+        }
+        numbersContainer.innerHTML += `<button onclick="goToPage(${totalPages})" class="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center justify-center">${totalPages}</button>`;
+      }
+    }
+  }
+
+  function renderPatients() {
+    const badge = document.getElementById('patient-count-badge');
+    const searchVal = (document.getElementById('directory-search')?.value || '').trim();
     if (badge) {
-      badge.textContent = terms.length > 0 
-        ? `Showing ${filtered.length} of ${allPatients.length} patients`
-        : `${allPatients.length} patient${allPatients.length === 1 ? '' : 's'}`;
+      if (totalPatients === 0) {
+        badge.textContent = '0 patients found';
+      } else if (searchVal.length > 0) {
+        badge.textContent = `Found ${totalPatients} patient${totalPatients === 1 ? '' : 's'} (Page ${currentPage} of ${totalPages})`;
+      } else {
+        badge.textContent = `${totalPatients} patient${totalPatients === 1 ? '' : 's'} (Page ${currentPage} of ${totalPages})`;
+      }
     }
 
     if (displayMode === 'grid') {
       const grid = document.getElementById('pat-container-grid');
       grid.innerHTML = '';
-      if (filtered.length === 0) {
-          grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-8 text-sm">No patients found.</div>`;
-          return;
+      if (allPatients.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-16 text-sm font-semibold"><i class="fa-solid fa-user-slash text-3xl block mb-2 text-slate-300"></i>No patients found.</div>`;
+        return;
       }
-      filtered.forEach(p => {
+      allPatients.forEach(p => {
         const initials = (((p.name ? p.name.charAt(0) : '') + (p.surname ? p.surname.charAt(0) : '')) || 'P').toUpperCase();
         grid.innerHTML += `
           <div class="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 relative group flex flex-col">
@@ -203,11 +356,14 @@
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="flex gap-2 mt-auto">
-                    <button onclick="openBookingModal('${p.id}', '${p.name}', '${p.surname}')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+                <div class="flex gap-1.5 mt-auto">
+                    <button onclick="openBookingModal('${p.id}', '${p.name}', '${p.surname}')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-sm">
                         <i class="fa-solid fa-calendar-plus"></i> Book
                     </button>
-                    <button onclick="window.location.href='patient_profile.php?id=${p.id}'" class="flex-1 bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+                    <button onclick="showPatientQRCode('${p.id}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold py-2 px-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-sm" title="Lifetime Patient QR Card">
+                        <i class="fa-solid fa-qrcode"></i> QR
+                    </button>
+                    <button onclick="window.location.href='patient_profile.php?id=${p.id}'" class="flex-1 bg-slate-900 hover:bg-black text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-md">
                         Profile <i class="fa-solid fa-arrow-right text-[10px]"></i>
                     </button>
                 </div>
@@ -218,11 +374,11 @@
     } else {
       const tbody = document.getElementById('pat-table-tbody');
       tbody.innerHTML = '';
-      if (filtered.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-400 py-8 text-sm">No patients found.</td></tr>`;
-          return;
+      if (allPatients.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-400 py-16 text-sm font-semibold"><i class="fa-solid fa-user-slash text-2xl inline-block mr-2 text-slate-300"></i>No patients found.</td></tr>`;
+        return;
       }
-      filtered.forEach(p => {
+      allPatients.forEach(p => {
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50 transition">
             <td class="py-3 px-4 font-mono font-bold">${p.id}</td>
@@ -232,6 +388,7 @@
             <td class="py-3 px-4">🩸 ${p.blood_group || '-'}</td>
             <td class="py-3 px-4">${p.reg_date || '-'}</td>
             <td class="py-3 px-4 text-right flex justify-end gap-1.5 items-center">
+              <button onclick="showPatientQRCode('${p.id}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1" title="Lifetime QR Card"><i class="fa-solid fa-qrcode"></i> QR</button>
               <button onclick="openBookingModal('${p.id}', '${p.name}', '${p.surname}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-[10px] font-bold transition">Book</button>
               <button onclick="window.location.href='patient_profile.php?id=${p.id}'" class="bg-slate-50 hover:bg-slate-100 text-blue-700 px-3 py-1.5 rounded-lg text-[10px] font-bold transition">Profile</button>
               <button onclick="editPatient('${p.id}')" class="bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg text-[10px] transition"><i class="fa-solid fa-pen"></i></button>
@@ -308,7 +465,7 @@
               const data = await res.json();
               if (data.status === 'success') {
                   showToast('Success', 'Patient updated successfully.');
-                  fetchPatients();
+                  fetchPatients(currentPage);
               } else {
                   showToast('Error', data.message, 'error');
               }
@@ -333,7 +490,11 @@
           const data = await res.json();
           if (data.status === 'success') {
               showToast('Deleted', 'Patient removed successfully');
-              fetchPatients();
+              if (allPatients.length <= 1 && currentPage > 1) {
+                  fetchPatients(currentPage - 1);
+              } else {
+                  fetchPatients(currentPage);
+              }
           } else {
               showToast('Error', data.message, 'error');
           }
@@ -418,5 +579,6 @@
 </div>
 
 <?php include 'includes/booking_modal.php'; ?>
+<?php include 'includes/patient_qr_card_modal.php'; ?>
 
 <?php include 'includes/footer.php'; ?>

@@ -26,7 +26,9 @@ if ($method === 'GET') {
               AND a.status NOT IN ('Cancelled', 'Discharged (Normal Medicine)', 'Discharged from Bed')
               AND (a.date <= CURDATE() OR a.stage >= 1)
               AND (a.hospital_id = ? OR a.hospital_id IS NULL)
-            ORDER BY a.created_at ASC
+            ORDER BY 
+              CASE WHEN a.token_number IS NOT NULL AND a.token_number > 0 THEN a.token_number ELSE 999999 END ASC,
+              a.id ASC
         ";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $hospital_id);
@@ -34,10 +36,11 @@ if ($method === 'GET') {
         $res = $stmt->get_result();
         
         $patients = [];
-        $token_no = 1;
         while ($row = $res->fetch_assoc()) {
+            $assignedToken = (!empty($row['token_number']) && (int)$row['token_number'] > 0) ? (int)$row['token_number'] : null;
             $patients[] = [
-                'token_no' => $token_no++,
+                'token_no' => $assignedToken,
+                'token_display' => $assignedToken ? ('TOKEN #' . str_pad($assignedToken, 2, '0', STR_PAD_LEFT)) : 'No Token',
                 'id' => $row['patient_id'],
                 'appointment_id' => $row['id'],
                 'appointment_code' => sprintf("APP-%04d", (int)$row['id']),
@@ -144,27 +147,43 @@ else if ($method === 'POST') {
             jsonResponse(['status' => 'error', 'message' => 'Appointment ID required']);
         }
         
-        $pRes = $conn->query("SELECT patient_id, date, slot FROM appointments WHERE id = $appointment_id");
-        $pid = '';
-        $date = '';
-        $slot = '';
-        if ($pRow = $pRes->fetch_assoc()) {
-            $pid = $pRow['patient_id'];
-            $date = $pRow['date'];
-            $slot = $pRow['slot'];
+        $pRes = $conn->query("SELECT a.*, d.name as doctor_name FROM appointments a LEFT JOIN doctors d ON a.doctor_id = d.id WHERE a.id = $appointment_id");
+        $appt = $pRes->fetch_assoc();
+        if (!$appt) {
+            jsonResponse(['status' => 'error', 'message' => 'Appointment not found']);
         }
+        $pid = $appt['patient_id'];
+        $date = $appt['date'] ?: date('Y-m-d');
+        $slot = $appt['slot'];
+        $doc_id = $appt['doctor_id'];
         
-        $stmt = $conn->prepare("UPDATE appointments SET status = 'Checked-In', stage = 1 WHERE id = ?");
-        $stmt->bind_param("i", $appointment_id);
+        // Calculate next token number for this doctor on this date
+        $tokStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM appointments WHERE doctor_id = ? AND date = ? AND status NOT IN ('Cancelled', 'Online-Booked', 'Pre-Booked') AND stage >= 1");
+        $tokStmt->bind_param("ss", $doc_id, $date);
+        $tokStmt->execute();
+        $tokRow = $tokStmt->get_result()->fetch_assoc();
+        $token_number = (int)($tokRow['cnt'] ?? 0) + 1;
+        $token_str = str_pad($token_number, 2, '0', STR_PAD_LEFT);
+
+        $staff_id = $_SESSION['staff_id'] ?? 0;
+        $staff_name = $_SESSION['staff_name'] ?? 'Admin';
+
+        $stmt = $conn->prepare("UPDATE appointments SET status = 'Checked-In', stage = 1, token_number = ?, token_assigned_at = NOW(), token_assigned_by = ? WHERE id = ?");
+        $stmt->bind_param("iii", $token_number, $staff_id, $appointment_id);
         if ($stmt->execute()) {
             $time_now = date('h:i A');
-            $desc = "Pre-booked patient arrived at hospital and checked in at desk (Date: $date, Slot: $slot).";
+            $desc = "Patient arrived at hospital and checked in at desk. Token #{$token_str} assigned by {$staff_name} (Date: $date, Slot: $slot).";
             if ($pid) {
                 $tStmt = $conn->prepare("INSERT INTO timeline_events (appointment_id, patient_id, event_time, event_description) VALUES (?, ?, ?, ?)");
                 $tStmt->bind_param("isss", $appointment_id, $pid, $time_now, $desc);
                 $tStmt->execute();
             }
-            jsonResponse(['status' => 'success', 'message' => 'Patient checked in successfully!']);
+            jsonResponse([
+                'status' => 'success', 
+                'message' => "Patient checked in! Token #{$token_str} assigned.",
+                'token_number' => $token_number,
+                'token_str' => $token_str
+            ]);
         } else {
             jsonResponse(['status' => 'error', 'message' => $conn->error]);
         }
@@ -185,7 +204,7 @@ else if ($method === 'POST') {
             $slot = $pRow['slot'];
         }
         
-        $stmt = $conn->prepare("UPDATE appointments SET status = 'Pre-Booked', stage = 0 WHERE id = ?");
+        $stmt = $conn->prepare("UPDATE appointments SET status = 'Pre-Booked', stage = 0, token_number = NULL, token_assigned_at = NULL, token_assigned_by = NULL WHERE id = ?");
         $stmt->bind_param("i", $appointment_id);
         if ($stmt->execute()) {
             $time_now = date('h:i A');

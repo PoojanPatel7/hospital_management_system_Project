@@ -135,8 +135,11 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_FILES['files']) && count($_FILES['files']['name']) > 0) {
                 $titles = $_POST['file_titles'] ?? [];
                 $dates = $_POST['file_dates'] ?? [];
+                $categories = $_POST['file_categories'] ?? [];
+                $staff_id = $_SESSION['staff_id'] ?? null;
+                $staff_name = $_SESSION['staff_name'] ?? ($_SESSION['username'] ?? 'Doctor');
                 
-                $stmtFile = $conn->prepare("INSERT INTO patient_files (patient_id, appointment_id, title, file_name, mime_type, file_size, file_data, file_path, record_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmtFile = $conn->prepare("INSERT INTO patient_files (patient_id, appointment_id, title, file_name, mime_type, file_size, file_data, file_path, record_date, category, uploaded_by_id, uploaded_by_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 
                 for ($i = 0; $i < count($_FILES['files']['name']); $i++) {
                     if ($_FILES['files']['error'][$i] === UPLOAD_ERR_OK) {
@@ -147,8 +150,9 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $binaryContent = file_get_contents($tmpName);
                         $fileSize = strlen($binaryContent);
                         $mimeType = mime_content_type($tmpName) ?: ($_FILES['files']['type'][$i] ?? 'application/octet-stream');
-                        $title = $titles[$i] ?? 'Untitled';
-                        $date = $dates[$i] ?? date('Y-m-d H:i:s');
+                        $title = !empty($titles[$i]) ? $titles[$i] : 'Doctor Letterhead Pad';
+                        $date = !empty($dates[$i]) ? $dates[$i] : date('Y-m-d H:i:s');
+                        $category = !empty($categories[$i]) ? $categories[$i] : 'Doctor Letterhead';
                         
                         // Local cache copy in uploads directory
                         $newFileName = uniqid($patient_id . "_") . "." . $ext;
@@ -157,7 +161,7 @@ else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         // Insert binary BLOB
                         $initialPath = "api/file.php?file=" . urlencode($origFileName);
-                        $stmtFile->bind_param("sisssisss", $patient_id, $app_id, $title, $origFileName, $mimeType, $fileSize, $binaryContent, $initialPath, $date);
+                        $stmtFile->bind_param("sisssissssis", $patient_id, $app_id, $title, $origFileName, $mimeType, $fileSize, $binaryContent, $initialPath, $date, $category, $staff_id, $staff_name);
                         $stmtFile->execute();
                         $newFileId = $stmtFile->insert_id;
                         

@@ -5,24 +5,181 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 header('Content-Type: application/json');
 $action = $_GET['action'] ?? '';
 $hospital_id = $_SESSION['hospital_id'] ?? 0;
+$is_admin = $_SESSION['is_admin'] ?? false;
+$staff_id = $_SESSION['staff_id'] ?? 0;
 
 if ($action === 'get_all') {
     try {
+        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : null;
+        $limit = isset($_GET['limit']) ? max(1, (int)$_GET['limit']) : 10;
+        $search = trim($_GET['search'] ?? '');
+
+        $where = [];
+        $params = [];
+        $types = "";
+
         if ($hospital_id) {
-            $stmt = $conn->prepare("SELECT id, name, surname, father_name, phone, demographics, gender, blood_group, age, emergency_contact_name, emergency_contact_phone, DATE_FORMAT(created_at, '%b %d, %Y') as reg_date FROM patients WHERE (hospital_id = ? OR hospital_id IS NULL) ORDER BY created_at DESC");
-            $stmt->bind_param("i", $hospital_id);
+            $where[] = "(hospital_id = ? OR hospital_id IS NULL)";
+            $params[] = (int)$hospital_id;
+            $types .= "i";
+        }
+
+        if ($search !== '') {
+            $terms = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($terms as $term) {
+                $termLike = '%' . $term . '%';
+                $phoneDigits = preg_replace('/\D/', '', $term);
+                if ($phoneDigits !== '') {
+                    $phoneLike = '%' . $phoneDigits . '%';
+                    $where[] = "(id LIKE ? OR name LIKE ? OR surname LIKE ? OR CONCAT(name, ' ', surname) LIKE ? OR CONCAT(surname, ' ', name) LIKE ? OR CONCAT(name, ' ', father_name, ' ', surname) LIKE ? OR father_name LIKE ? OR phone LIKE ? OR demographics LIKE ? OR blood_group LIKE ? OR emergency_contact_name LIKE ? OR emergency_contact_phone LIKE ? OR REPLACE(REPLACE(phone, ' ', ''), '-', '') LIKE ?)";
+                    array_push($params, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $phoneLike);
+                    $types .= "sssssssssssss";
+                } else {
+                    $where[] = "(id LIKE ? OR name LIKE ? OR surname LIKE ? OR CONCAT(name, ' ', surname) LIKE ? OR CONCAT(surname, ' ', name) LIKE ? OR CONCAT(name, ' ', father_name, ' ', surname) LIKE ? OR father_name LIKE ? OR phone LIKE ? OR demographics LIKE ? OR blood_group LIKE ? OR emergency_contact_name LIKE ? OR emergency_contact_phone LIKE ?)";
+                    array_push($params, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike, $termLike);
+                    $types .= "ssssssssssss";
+                }
+            }
+        }
+
+        $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+
+        // Helper function for bind_param reference handling across all PHP versions
+        $bindAll = function($stmt, $typeStr, $paramArr) {
+            if (!empty($typeStr) && !empty($paramArr)) {
+                $refs = [];
+                foreach ($paramArr as $i => $val) {
+                    $refs[$i] = &$paramArr[$i];
+                }
+                $stmt->bind_param($typeStr, ...$refs);
+            }
+        };
+
+        if ($page !== null) {
+            // Count total matching records for pagination
+            $countSql = "SELECT COUNT(*) as total FROM patients $whereSql";
+            $countStmt = $conn->prepare($countSql);
+            $bindAll($countStmt, $types, $params);
+            $countStmt->execute();
+            $countRes = $countStmt->get_result();
+            $totalCount = (int)($countRes->fetch_assoc()['total'] ?? 0);
+            $totalPages = $totalCount > 0 ? (int)ceil($totalCount / $limit) : 1;
+
+            if ($page > $totalPages && $totalPages > 0) {
+                $page = $totalPages;
+            }
+            $offset = ($page - 1) * $limit;
+
+            $dataSql = "SELECT id, name, surname, father_name, phone, demographics, gender, blood_group, age, emergency_contact_name, emergency_contact_phone, DATE_FORMAT(created_at, '%b %d, %Y') as reg_date 
+                        FROM patients 
+                        $whereSql 
+                        ORDER BY created_at DESC, id DESC 
+                        LIMIT ? OFFSET ?";
+            $dataStmt = $conn->prepare($dataSql);
+            $dataTypes = $types . "ii";
+            $dataParams = array_merge($params, [(int)$limit, (int)$offset]);
+            $bindAll($dataStmt, $dataTypes, $dataParams);
+            $dataStmt->execute();
+            $res = $dataStmt->get_result();
+            $patients = [];
+            while ($row = $res->fetch_assoc()) {
+                $patients[] = $row;
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'patients' => $patients,
+                'total' => $totalCount,
+                'page' => $page,
+                'limit' => $limit,
+                'total_pages' => $totalPages
+            ]);
+            exit;
         } else {
-            $stmt = $conn->prepare("SELECT id, name, surname, father_name, phone, demographics, gender, blood_group, age, emergency_contact_name, emergency_contact_phone, DATE_FORMAT(created_at, '%b %d, %Y') as reg_date FROM patients ORDER BY created_at DESC");
+            // Non-paginated legacy request (backward compatible)
+            $dataSql = "SELECT id, name, surname, father_name, phone, demographics, gender, blood_group, age, emergency_contact_name, emergency_contact_phone, DATE_FORMAT(created_at, '%b %d, %Y') as reg_date 
+                        FROM patients 
+                        $whereSql 
+                        ORDER BY created_at DESC, id DESC";
+            $stmt = $conn->prepare($dataSql);
+            $bindAll($stmt, $types, $params);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $patients = [];
+            while ($row = $res->fetch_assoc()) {
+                $patients[] = $row;
+            }
+            echo json_encode([
+                'status' => 'success', 
+                'patients' => $patients,
+                'total' => count($patients),
+                'page' => 1,
+                'limit' => count($patients),
+                'total_pages' => 1
+            ]);
+            exit;
+        }
+    } catch (Throwable $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
+    }
+}
+
+if ($action === 'search') {
+    $q = trim($_GET['q'] ?? '');
+    if (strlen($q) === 0) {
+        echo json_encode(['status' => 'success', 'patients' => []]);
+        exit;
+    }
+    $searchLike = '%' . $q . '%';
+    $phoneDigits = preg_replace('/\D/', '', $q);
+    $phoneLike = '%' . $phoneDigits . '%';
+
+    try {
+        if ($hospital_id) {
+            $stmt = $conn->prepare("
+                SELECT id, name, surname, father_name, phone, demographics, gender, blood_group, age, qr_token, DATE_FORMAT(created_at, '%b %d, %Y') as reg_date 
+                FROM patients 
+                WHERE (hospital_id = ? OR hospital_id IS NULL)
+                  AND (
+                    id LIKE ? 
+                    OR name LIKE ? 
+                    OR surname LIKE ? 
+                    OR CONCAT(name, ' ', surname) LIKE ?
+                    OR phone LIKE ?
+                    OR (? != '' AND REPLACE(REPLACE(phone, ' ', ''), '-', '') LIKE ?)
+                    OR qr_token = ?
+                  )
+                ORDER BY id DESC LIMIT 15
+            ");
+            $stmt->bind_param("issssssss", $hospital_id, $searchLike, $searchLike, $searchLike, $searchLike, $searchLike, $phoneDigits, $phoneLike, $q);
+        } else {
+            $stmt = $conn->prepare("
+                SELECT id, name, surname, father_name, phone, demographics, gender, blood_group, age, qr_token, DATE_FORMAT(created_at, '%b %d, %Y') as reg_date 
+                FROM patients 
+                WHERE id LIKE ? 
+                   OR name LIKE ? 
+                   OR surname LIKE ? 
+                   OR CONCAT(name, ' ', surname) LIKE ?
+                   OR phone LIKE ?
+                   OR (? != '' AND REPLACE(REPLACE(phone, ' ', ''), '-', '') LIKE ?)
+                   OR qr_token = ?
+                ORDER BY id DESC LIMIT 15
+            ");
+            $stmt->bind_param("ssssssss", $searchLike, $searchLike, $searchLike, $searchLike, $searchLike, $phoneDigits, $phoneLike, $q);
         }
         $stmt->execute();
         $res = $stmt->get_result();
         $patients = [];
         while ($row = $res->fetch_assoc()) {
+            $row['full_name'] = trim(($row['name'] ?? '') . ' ' . ($row['surname'] ?? ''));
             $patients[] = $row;
         }
         echo json_encode(['status' => 'success', 'patients' => $patients]);
+        exit;
     } catch (Exception $e) {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
     }
 }
 
@@ -92,6 +249,11 @@ if ($action === 'create') {
 }
 
 if ($action === 'delete') {
+    if (!$is_admin && !checkStaffPermission($conn, $staff_id, 'can_edit_patients')) {
+        echo json_encode(['status' => 'error', 'message' => 'Permission denied: Deleting patient records is restricted to administrators.']);
+        exit;
+    }
+
     $id = $_GET['id'] ?? '';
     if (!$id) {
         echo json_encode(['status' => 'error', 'message' => 'Patient ID is required']);
@@ -157,6 +319,11 @@ if ($action === 'delete') {
 }
 
 if ($action === 'update') {
+    if (!$is_admin && !checkStaffPermission($conn, $staff_id, 'can_edit_patients')) {
+        echo json_encode(['status' => 'error', 'message' => 'Permission denied: Editing patient records is restricted for your staff account.']);
+        exit;
+    }
+
     $input = json_decode(file_get_contents('php://input'), true);
     if (!$input) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid input']);

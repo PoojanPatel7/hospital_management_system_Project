@@ -206,8 +206,8 @@ if (isset($_SESSION['hospital_id'])) {
             const errText = document.getElementById('error-text');
             const password = document.getElementById('log-password').value;
 
-            if (password.length < 8 || password.length > 20) {
-                errText.textContent = "Password must be between 8 and 20 characters.";
+            if (password.length < 4 || password.length > 50) {
+                errText.textContent = "Password must be at least 4 characters.";
                 errBox.classList.remove('hidden');
                 return;
             }
@@ -243,7 +243,7 @@ if (isset($_SESSION['hospital_id'])) {
                     btn.classList.remove('bg-slate-900', 'hover:bg-slate-800', 'shadow-slate-900/20');
                     btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'shadow-emerald-500/30');
                     setTimeout(() => {
-                        window.location.href = 'dashboard.php';
+                        window.location.href = data.redirect || 'dashboard.php';
                     }, 500);
                 } else {
                     errText.textContent = data.message || "Invalid username or password.";

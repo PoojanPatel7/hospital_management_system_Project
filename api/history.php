@@ -43,11 +43,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     else if ($action === 'get_dossier') {
         $patient_id = $_GET['patient_id'] ?? '';
         
+        $is_admin = (!empty($_SESSION['is_admin']) || (!empty($_SESSION['hospital_id']) && empty($_SESSION['staff_id'])));
+        $staff_id = (int)($_SESSION['staff_id'] ?? 0);
+        $token = $_GET['token'] ?? '';
+
+        $can_view_files = $is_admin || ($staff_id > 0 && (
+            checkStaffPermission($conn, $staff_id, 'can_view_files') || 
+            checkStaffPermission($conn, $staff_id, 'can_upload') || 
+            checkStaffPermission($conn, $staff_id, 'can_upload_files')
+        ));
+
         $pRes = $conn->query("SELECT * FROM patients WHERE id = '$patient_id'");
         $patient = $pRes->fetch_assoc();
         
         if (!$patient) {
             jsonResponse(['status' => 'error', 'message' => 'Patient not found']);
+        }
+
+        if (!$can_view_files && !empty($token) && !empty($patient['qr_token']) && $token === $patient['qr_token']) {
+            $can_view_files = true;
         }
         
         $aRes = $conn->query("
@@ -102,17 +116,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             }
             $appt['medicines'] = $medicines;
 
-            // Files specific to this appointment
-            $stmtF = $conn->prepare("SELECT id, title, file_path, file_name, mime_type, file_size, DATE_FORMAT(record_date, '%b %d, %Y %h:%i %p') as file_date FROM patient_files WHERE appointment_id = ? ORDER BY record_date DESC");
-            $stmtF->bind_param("i", $appt['id']);
-            $stmtF->execute();
-            $resF = $stmtF->get_result();
+            // Files specific to this appointment (respect can_view_files permission)
             $files = [];
-            while ($f = $resF->fetch_assoc()) {
-                if (empty($f['file_path']) || strpos($f['file_path'], 'api/file.php') === false) {
-                    $f['file_path'] = 'api/file.php?id=' . $f['id'] . '&file=' . urlencode($f['file_name'] ?: 'file');
+            if ($can_view_files) {
+                $stmtF = $conn->prepare("SELECT id, title, file_path, file_name, mime_type, file_size, DATE_FORMAT(record_date, '%b %d, %Y %h:%i %p') as file_date FROM patient_files WHERE appointment_id = ? ORDER BY record_date DESC");
+                $stmtF->bind_param("i", $appt['id']);
+                $stmtF->execute();
+                $resF = $stmtF->get_result();
+                while ($f = $resF->fetch_assoc()) {
+                    $f['url'] = 'api/file.php?id=' . $f['id'] . '&file=' . urlencode($f['file_name'] ?: 'file');
+                    $f['thumb_url'] = 'api/file.php?id=' . $f['id'] . '&thumb=1';
+                    $f['file_path'] = $f['url'];
+                    $files[] = $f;
                 }
-                $files[] = $f;
             }
             $appt['files'] = $files;
 
@@ -154,19 +170,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $patient['latest_tests_ordered'] = '';
         }
 
-        // Fetch All Files for the patient across all appointments (for the files tab)
-        $stmtFAll = $conn->prepare("SELECT id, title, file_path, file_name, mime_type, file_size, DATE_FORMAT(record_date, '%b %d, %Y %h:%i %p') as file_date FROM patient_files WHERE patient_id = ? ORDER BY record_date DESC");
-        $stmtFAll->bind_param("s", $patient_id);
-        $stmtFAll->execute();
-        $resFAll = $stmtFAll->get_result();
+        // Fetch All Files for the patient across all appointments (respect can_view_files permission)
         $allFiles = [];
-        while ($f = $resFAll->fetch_assoc()) {
-            if (empty($f['file_path']) || strpos($f['file_path'], 'api/file.php') === false) {
-                $f['file_path'] = 'api/file.php?id=' . $f['id'] . '&file=' . urlencode($f['file_name'] ?: 'file');
+        if ($can_view_files) {
+            $stmtFAll = $conn->prepare("SELECT id, title, file_path, file_name, category, highlight, thumbnail_path, mime_type, file_size, DATE_FORMAT(COALESCE(record_date, created_at), '%e-%b-%Y') as formatted_date, DATE_FORMAT(COALESCE(record_date, created_at), '%b %d, %Y %h:%i %p') as file_date, uploaded_by_name FROM patient_files WHERE patient_id = ? ORDER BY COALESCE(record_date, created_at) DESC, id DESC");
+            $stmtFAll->bind_param("s", $patient_id);
+            $stmtFAll->execute();
+            $resFAll = $stmtFAll->get_result();
+            while ($f = $resFAll->fetch_assoc()) {
+                $f['url'] = 'api/file.php?id=' . $f['id'] . '&file=' . urlencode($f['file_name'] ?: 'file');
+                $f['thumb_url'] = 'api/file.php?id=' . $f['id'] . '&thumb=1';
+                $f['file_path'] = $f['url'];
+                $allFiles[] = $f;
             }
-            $allFiles[] = $f;
         }
         $patient['files'] = $allFiles;
+        $patient['can_view_files'] = $can_view_files;
         
         jsonResponse(['status' => 'success', 'dossier' => $patient]);
     }

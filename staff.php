@@ -37,6 +37,11 @@ include 'includes/header.php';
         </button>
       </div>
 
+      <a href="staff_permissions.php" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold py-2 px-3.5 rounded-xl shadow-xs transition flex items-center gap-2 text-xs shrink-0" title="Manage Staff Logins, Passwords & Permissions">
+        <i class="fa-solid fa-user-shield text-indigo-600"></i>
+        <span>Accounts &amp; Permissions</span>
+      </a>
+
       <!-- Quick Action Buttons -->
       <button onclick="quickMarkAllPresent()" id="btn-quick-mark" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3.5 rounded-xl shadow-sm transition flex items-center gap-2 text-xs shrink-0" title="Quick Mark All Active Staff as Present for Selected Date">
         <i class="fa-solid fa-check-double"></i>
@@ -1261,6 +1266,13 @@ include 'includes/header.php';
       if (s.status === 'On Leave') statusClass = 'bg-amber-100 text-amber-800';
       if (s.status === 'Inactive') statusClass = 'bg-slate-200 text-slate-700';
 
+      let accountStatusBadge = '';
+      if (s.account_status === 'Blocked') {
+          accountStatusBadge = '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">Blocked</span>';
+      } else if (s.account_status === 'Suspended') {
+          accountStatusBadge = '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Suspended</span>';
+      }
+
       // Card Grid Item
       gridHtml += `
         <div class="apple-card p-5 flex flex-col justify-between hover:border-blue-300/80 transition group">
@@ -1275,9 +1287,10 @@ include 'includes/header.php';
                   <h4 class="font-extrabold text-slate-900 text-sm group-hover:text-blue-600 transition flex items-center gap-1.5">
                     ${escapeHtml(s.first_name)} ${escapeHtml(s.last_name)}
                   </h4>
-                  <div class="flex items-center gap-2 mt-0.5">
+                  <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <span class="font-mono text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${escapeHtml(s.staff_code)}</span>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">${escapeHtml(s.status)}</span>
+                    ${accountStatusBadge}
                   </div>
                 </div>
               </div>
@@ -1319,8 +1332,11 @@ include 'includes/header.php';
               ₹${Number(s.salary || 0).toLocaleString('en-IN')}/mo
             </span>
             <div class="flex items-center gap-1.5">
-              <button onclick="openStaffDossier(${s.id})" class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80 font-bold text-xs transition flex items-center gap-1">
+              <button onclick="openStaffDossier(${s.id})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80 font-bold text-xs transition flex items-center gap-1">
                 <i class="fa-regular fa-id-card"></i> Dossier
+              </button>
+              <button onclick="openPermissionsModal(${s.id}, '${escapeHtml(s.first_name)} ${escapeHtml(s.last_name)}', '${escapeHtml(s.staff_code)}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/80 font-bold text-xs transition flex items-center gap-1 shadow-xs" title="Manage Account Permissions">
+                <i class="fa-solid fa-shield-halved"></i> Perms
               </button>
               <button onclick="confirmDeleteStaff(${s.id}, '${escapeHtml(s.first_name)} ${escapeHtml(s.last_name)}')" class="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition flex items-center justify-center text-xs" title="Delete Staff">
                 <i class="fa-regular fa-trash-can"></i>
@@ -1356,6 +1372,9 @@ include 'includes/header.php';
             <div class="flex items-center justify-end gap-1.5">
               <button onclick="openStaffDossier(${s.id})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="View Dossier">
                 <i class="fa-regular fa-id-card"></i>
+              </button>
+              <button onclick="openPermissionsModal(${s.id}, '${escapeHtml(s.first_name)} ${escapeHtml(s.last_name)}', '${escapeHtml(s.staff_code)}')" class="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs border border-indigo-200/80 transition flex items-center gap-1" title="Manage Permissions">
+                <i class="fa-solid fa-shield-halved"></i> Perms
               </button>
               <button onclick="openStaffModal(${s.id})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Edit Staff">
                 <i class="fa-solid fa-pen-to-square"></i>
@@ -2044,4 +2063,6 @@ include 'includes/header.php';
   }
 </script>
 
+<?php include 'includes/permissions_modal.php'; ?>
 <?php include 'includes/footer.php'; ?>
+<script src="js/permissions.js"></script>

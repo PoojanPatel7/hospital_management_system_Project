@@ -1,37 +1,111 @@
 <?php 
 require_once 'auth.php'; 
+require_once 'db.php';
 include 'includes/header.php'; 
+
+// Generate dynamic patient booking portal URL
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$dir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+$patientBookUrl = $protocol . $host . $dir . '/patient_book.php';
 ?>
 
-<!-- Header -->
-<div class="mb-6 sm:mb-8 bg-white p-6 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-6 items-center justify-between">
+<!-- ================= SHAREABLE PATIENT PORTAL LINK CARD ================= -->
+<div class="mb-6 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-5 sm:p-6 rounded-3xl shadow-md border border-indigo-700/50 relative overflow-hidden">
+  <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+    <div class="max-w-2xl">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
+          <i class="fa-solid fa-globe"></i> Public Patient Portal Active
+        </span>
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/10 text-indigo-200 border border-white/15">
+          Step-by-Step Patient Booking
+        </span>
+      </div>
+      <h3 class="text-xl sm:text-2xl font-extrabold tracking-tight">Patient Online Booking Portal Link</h3>
+      <p class="text-indigo-200 mt-1 text-xs sm:text-sm font-medium">
+        Share this direct link with patients via SMS, WhatsApp, or embed it on your hospital website so patients can self-book appointments online without front-desk staff.
+      </p>
+    </div>
+
+    <!-- Copy & Open Actions -->
+    <div class="w-full lg:w-auto shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+      <div class="relative flex-1 sm:w-80">
+        <input 
+          type="text" 
+          id="patient-portal-url" 
+          readonly 
+          value="<?php echo htmlspecialchars($patientBookUrl); ?>" 
+          class="w-full pl-3.5 pr-10 py-2.5 bg-indigo-950/60 border border-indigo-400/40 rounded-xl text-xs font-mono font-bold text-indigo-100 select-all focus:outline-none"
+        >
+        <button 
+          type="button" 
+          onclick="copyPatientBookingUrl()" 
+          title="Copy Link to Clipboard" 
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white p-1 text-xs"
+        >
+          <i class="fa-regular fa-clone"></i>
+        </button>
+      </div>
+
+      <button 
+        type="button" 
+        id="btn-copy-portal" 
+        onclick="copyPatientBookingUrl()" 
+        class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+      >
+        <i class="fa-solid fa-copy"></i>
+        <span id="copy-btn-text">Copy Link</span>
+      </button>
+
+      <a 
+        href="<?php echo htmlspecialchars($patientBookUrl); ?>" 
+        target="_blank" 
+        class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs rounded-xl border border-white/20 transition flex items-center justify-center gap-1.5 shrink-0 backdrop-blur-sm"
+        title="Open Patient Portal in New Tab"
+      >
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        <span>Open Portal ↗</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Decorative glow -->
+  <div class="absolute -right-8 -bottom-8 w-60 h-60 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+</div>
+
+<!-- ================= ADMIN HEADER (DOCTOR SEARCH) ================= -->
+<div class="mb-6 sm:mb-8 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-6 items-center justify-between">
     <div class="flex-1">
-        <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">Book Appointment</h2>
-        <p class="text-slate-500 mt-1 text-sm font-medium mb-4">Select a specialist below to schedule a new consultation.</p>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-black px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 uppercase tracking-wider">OPD Reception Hub</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Admin Appointment Booking Desk</h2>
+        <p class="text-slate-500 mt-1 text-xs sm:text-sm font-medium mb-4">Select any doctor below to open the direct front-desk consultation scheduler, live pipeline, and quick patient assignment.</p>
         <div class="w-full max-w-md relative">
-            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-            <input type="text" id="doc-filter-query" oninput="filterDoctorsList()" placeholder="Filter doctor or specialty..." class="w-full text-sm font-semibold border border-slate-200 rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/50 outline-none bg-slate-50 focus:bg-white shadow-sm transition">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+            <input type="text" id="doc-filter-query" oninput="filterDoctorsList()" placeholder="Filter doctor or specialty..." class="w-full text-xs sm:text-sm font-bold border border-slate-200 rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/50 outline-none bg-slate-50 focus:bg-white shadow-2xs transition">
         </div>
     </div>
     <div class="w-full md:w-1/3 flex justify-center md:justify-end shrink-0">
-        <img src="images/Book Appointment.jpg" class="h-40 w-auto object-contain drop-shadow-sm rounded-xl" alt="Book Appointment">
+        <img src="images/Book Appointment.jpg" class="h-36 sm:h-40 w-auto object-contain drop-shadow-sm rounded-2xl border border-slate-100 p-1 bg-white" alt="Book Appointment">
     </div>
 </div>
 
-<!-- Available Doctors Slider with < and > Arrows -->
+<!-- ================= AVAILABLE DOCTORS SLIDER ================= -->
 <div class="mb-8">
-    <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center justify-between mb-3.5">
         <div>
             <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <i class="fa-solid fa-user-doctor text-indigo-600"></i> Available Specialist Doctors
             </h3>
-            <p class="text-xs text-slate-500 mt-0.5">Showing live availability, consultation timings, and free appointment slots.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Showing live OPD availability, consultation hours, and open appointment slots.</p>
         </div>
         <div class="flex items-center gap-1.5">
-            <button type="button" onclick="scrollDoctorSlider('book-page-slider', -1)" class="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center text-xs transition border border-slate-200 shadow-2xs" title="Previous Doctors">
+            <button type="button" onclick="scrollDoctorSlider('book-page-slider', -1)" class="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center text-xs transition border border-slate-200 shadow-2xs cursor-pointer" title="Previous Doctors">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button type="button" onclick="scrollDoctorSlider('book-page-slider', 1)" class="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center text-xs transition border border-slate-200 shadow-2xs" title="Next Doctors">
+            <button type="button" onclick="scrollDoctorSlider('book-page-slider', 1)" class="w-8 h-8 rounded-xl bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center text-xs transition border border-slate-200 shadow-2xs cursor-pointer" title="Next Doctors">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
         </div>
@@ -39,155 +113,69 @@ include 'includes/header.php';
 
     <!-- Slider Track -->
     <div id="book-page-slider" class="flex gap-4 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x custom-scrollbar">
-        <!-- Loaded via JS -->
+        <!-- Loaded via JS in includes/book_popup.php -->
     </div>
 </div>
 
+<!-- ================= ALL SPECIALIST DIRECTORY GRID ================= -->
+<div class="mb-8">
+    <div class="flex items-center justify-between mb-3.5">
+        <div>
+            <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-table-cells text-indigo-600"></i> All Hospital Consultants
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">Comprehensive directory of doctors and their departmental schedules.</p>
+        </div>
+        <span id="book-docs-count-badge" class="px-2.5 py-1 rounded-xl text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
+            Loading...
+        </span>
+    </div>
 
+    <div id="book-docs-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Loaded via JS in includes/book_popup.php -->
+    </div>
+</div>
 
+<!-- Include the Complete Direct Booking Popup Modal & Scripts -->
 <?php include 'includes/book_popup.php'; ?>
+
+<!-- Script for Copying Patient Portal Link -->
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        fetchDoctorsForBooking();
+function copyPatientBookingUrl() {
+    const input = document.getElementById('patient-portal-url');
+    const btnText = document.getElementById('copy-btn-text');
+    const copyBtn = document.getElementById('btn-copy-portal');
+
+    if (!input) return;
+
+    input.select();
+    input.setSelectionRange(0, 99999); // Mobile devices
+
+    navigator.clipboard.writeText(input.value).then(() => {
+        if (btnText) btnText.textContent = 'Copied! ✓';
+        if (copyBtn) {
+            copyBtn.classList.remove('bg-emerald-500', 'hover:bg-emerald-600');
+            copyBtn.classList.add('bg-indigo-600');
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('Link Copied!', 'Patient Booking Portal link copied to clipboard. You can now send it to patients.', 'success');
+        }
+
+        setTimeout(() => {
+            if (btnText) btnText.textContent = 'Copy Link';
+            if (copyBtn) {
+                copyBtn.classList.remove('bg-indigo-600');
+                copyBtn.classList.add('bg-emerald-500', 'hover:bg-emerald-600');
+            }
+        }, 3000);
+    }).catch(err => {
+        console.error('Failed to copy', err);
+        // Fallback
+        document.execCommand('copy');
+        if (btnText) btnText.textContent = 'Copied! ✓';
     });
-
-    function scrollDoctorSlider(sliderId, direction) {
-        const el = document.getElementById(sliderId);
-        if (el) {
-            el.scrollBy({ left: 300 * direction, behavior: 'smooth' });
-        }
-    }
-
-    async function fetchDoctorsForBooking() {
-        try {
-            const res = await fetch('api/booking.php?action=get_doctors_by_category');
-            const data = await res.json();
-            if (data.status === 'success') {
-                allAvailableDoctors = data.doctors || [];
-                renderDoctorsCards(allAvailableDoctors);
-            }
-        } catch (e) { console.error(e); }
-    }
-
-    function filterDoctorsList() {
-        const q = (document.getElementById('doc-filter-query').value || '').toLowerCase().trim();
-        if (!q) {
-            renderDoctorsCards(allAvailableDoctors);
-            return;
-        }
-        const filtered = allAvailableDoctors.filter(d => {
-            const str = \\ \ \\.toLowerCase();
-            return str.includes(q);
-        });
-        renderDoctorsCards(filtered);
-    }
-
-    function renderDoctorsCards(docs) {
-        const slider = document.getElementById('book-page-slider');
-        const container = document.getElementById('book-docs-container');
-        const countBadge = document.getElementById('book-docs-count-badge');
-        
-        if (countBadge) countBadge.textContent = \\ \\;
-        if (container) container.innerHTML = '';
-        if (slider) slider.innerHTML = '';
-
-        if (docs.length === 0) {
-            if (container) container.innerHTML = \<div class="col-span-full text-center text-slate-400 py-12 text-sm">No doctors match your search.</div>\;
-            if (slider) slider.innerHTML = \<div class="text-center text-slate-400 py-6 text-xs w-full">No doctors match your search.</div>\;
-            return;
-        }
-
-        docs.forEach(d => {
-            const initials = (d.name || 'Dr').replace(/^Dr\.?\s*/i, '').substring(0, 2).toUpperCase() || 'DR';
-            const cats = (d.categories || []).map(c => \<span class="inline-block bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded mr-1 mb-1 border border-indigo-100">\</span>\).join('') || '<span class="text-xs text-slate-400 italic">General</span>';
-            const isAvail = (d.is_available !== false && d.is_available !== 0);
-            const availSlots = d.available_count ?? (d.slots || []).length;
-            const totalSlots = d.total_slots ?? (d.slots || []).length;
-            const timingText = d.today_timing || (isAvail ? '09:00 AM - 05:00 PM' : 'Day Off');
-
-            if (slider) {
-                const sliderCard = document.createElement('div');
-                sliderCard.className = "w-[280px] sm:w-[300px] shrink-0 snap-start apple-card p-4 sm:p-5 flex flex-col justify-between border border-slate-200/80 bg-white hover:border-indigo-300 hover:shadow-md transition";
-                sliderCard.innerHTML = \
-                    <div>
-                        <div class="flex items-start gap-3 mb-3">
-                            <div class="relative shrink-0">
-                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-black shadow-inner">
-                                    \
-                                </div>
-                                <span class="w-2.5 h-2.5 rounded-full \ absolute -bottom-0.5 -right-0.5 ring-2 ring-white"></span>
-                            </div>
-                            <div class="min-w-0">
-                                <h4 class="font-extrabold text-slate-900 text-sm truncate" title="\">\</h4>
-                                <p class="text-xs text-slate-500 mt-0.5 truncate"><i class="fa-solid fa-phone text-[10px] mr-1 text-slate-400"></i>\</p>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="flex flex-wrap gap-1">\</div>
-                        </div>
-
-                        <div class="space-y-1 text-xs bg-slate-50 rounded-xl p-2.5 border border-slate-100 mb-3">
-                            <div class="flex items-center justify-between text-slate-600">
-                                <span class="font-medium flex items-center gap-1"><i class="fa-regular fa-clock text-slate-400"></i> Hours:</span>
-                                <strong class="font-bold \">\</strong>
-                            </div>
-                            <div class="flex items-center justify-between text-slate-600">
-                                <span class="font-medium flex items-center gap-1"><i class="fa-solid fa-ticket text-slate-400"></i> Free Slots:</span>
-                                <strong class="font-bold \">\ / \ available</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button onclick="openDirectBook('\', '\')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-md shadow-indigo-600/20 transition text-xs flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-calendar-check"></i> Book Consultation
-                    </button>
-                \;
-                slider.appendChild(sliderCard);
-            }
-
-            if (container) {
-                container.innerHTML += \
-                    <div class="apple-card p-5 sm:p-6 flex flex-col justify-between h-full border border-slate-200/80 bg-white hover:border-indigo-300 hover:shadow-md transition">
-                        <div>
-                            <div class="flex items-start gap-3.5 mb-4">
-                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shadow-inner shrink-0 font-bold">
-                                    \
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="font-extrabold text-slate-900 text-base leading-tight truncate">\</h3>
-                                    <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-phone mr-1"></i> \</p>
-                                </div>
-                            </div>
-                            <div class="mb-4">
-                                <div class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Specialties</div>
-                                <div>\</div>
-                            </div>
-                            <div class="text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-4 space-y-1">
-                                <div class="flex justify-between text-slate-600">
-                                    <span>Hours Today:</span>
-                                    <strong class="\">\</strong>
-                                </div>
-                                <div class="flex justify-between text-slate-600">
-                                    <span>Free Slots:</span>
-                                    <strong class="\">\ available</strong>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="openDirectBook('\', '\')" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl shadow-md transition text-xs sm:text-sm flex items-center justify-center gap-1.5">
-                            <i class="fa-solid fa-calendar-check"></i> Book Consultation
-                        </button>
-                    </div>
-                \;
-            }
-        });
-    }
-
-    function escapeJs(str) {
-        return (str || '').replace(/'/g, "\\\\'");
-    }
+}
 </script>
 
 <?php include 'includes/footer.php'; ?>
-
-

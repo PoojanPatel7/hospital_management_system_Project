@@ -14,19 +14,27 @@ function getFullSchema($conn) {
         }
     }
 
-    $schema .= "\n=== KEY TABLE RELATIONSHIPS & STRICT RULES ===\n";
+    $schema .= "\n=== KEY TABLE RELATIONSHIPS & STRICT FOREIGN KEY RULES ===\n";
     $schema .= "1. doctors (id, name, department_id, experience, degree, hospital_id, phone) -> NO created_at column!\n";
     $schema .= "2. departments (id, name, icon, hospital_id) -> doctors.department_id = departments.id\n";
     $schema .= "3. patients (id, name, surname, father_name, phone, demographics, gender, blood_group, age, hospital_id, created_at)\n";
+    $schema .= "   - Primary key is `id` (e.g. 'PAT-2001'), NOT patient_id!\n";
     $schema .= "4. appointments (id, patient_id, doctor_id, type, date, slot, symptoms, allergies, status, stage, bed_number, created_at, hospital_id)\n";
-    $schema .= "   - Note: column name is `date` (NOT `appointment_date`).\n";
-    $schema .= "   - appointments.patient_id = patients.id, appointments.doctor_id = doctors.id\n";
+    $schema .= "   - Column name is `date` (NOT `appointment_date`).\n";
+    $schema .= "   - JOIN with patients: `appointments.patient_id = patients.id` (NEVER patients.patient_id!)\n";
+    $schema .= "   - JOIN with doctors: `appointments.doctor_id = doctors.id` (NEVER doctors.doctor_id!)\n";
+    $schema .= "   - JOIN with beds: `appointments.bed_number = beds.bed_number` (NEVER appointments.bed_id = beds.id!)\n";
     $schema .= "5. beds (id, bed_number, type, wing, status, patient_id, hospital_id) -> status is 'Available' or 'Occupied'\n";
+    $schema .= "   - JOIN with patients: `beds.patient_id = patients.id`\n";
     $schema .= "6. staff (id, hospital_id, staff_code, first_name, last_name, role, department, shift, status, phone, email)\n";
+    $schema .= "   - Primary key is `id` (NOT staff_id). Name is `CONCAT(first_name, ' ', COALESCE(last_name, ''))`.\n";
     $schema .= "7. staff_attendance (id, hospital_id, staff_id, date, status, check_in_time, check_out_time)\n";
+    $schema .= "   - JOIN with staff: `staff_attendance.staff_id = staff.id`\n";
     $schema .= "8. prescriptions (id, appointment_id, medicine_name, dosage, frequency, duration, instructions)\n";
+    $schema .= "   - Note: NO hospital_id column! JOIN with appointments: `prescriptions.appointment_id = appointments.id`\n";
     $schema .= "9. diagnoses (id, appointment_id, description)\n";
-    $schema .= "10. ALWAYS filter with `WHERE hospital_id = ?` for every hospital table.\n";
+    $schema .= "   - Note: NO hospital_id column! JOIN with appointments: `diagnoses.appointment_id = appointments.id`\n";
+    $schema .= "10. ALWAYS filter with `WHERE hospital_id = ?` on tables that have hospital_id.\n";
 
     $cachedSchema = $schema;
     return $schema;

@@ -1,11 +1,20 @@
 <?php
 // Auto-detect environment: Localhost (XAMPP) vs InfinityFree Live Server
+$httpHost = $_SERVER['HTTP_HOST'] ?? '';
+$hostClean = explode(':', $httpHost)[0];
+$isPrivateIp = (filter_var($hostClean, FILTER_VALIDATE_IP) !== false) && (filter_var($hostClean, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false);
+
 $isLocal = (
-    (isset($_SERVER['HTTP_HOST']) && (
-        strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || 
-        strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false
-    )) || 
-    (php_sapi_name() === 'cli')
+    php_sapi_name() === 'cli' ||
+    PHP_OS_FAMILY === 'Windows' ||
+    strpos(__DIR__, 'xampp') !== false ||
+    $hostClean === 'localhost' ||
+    $hostClean === '127.0.0.1' ||
+    $hostClean === '::1' ||
+    $isPrivateIp ||
+    str_ends_with($hostClean, '.local') ||
+    str_ends_with($hostClean, '.test') ||
+    str_ends_with($hostClean, '.lan')
 );
 
 if ($isLocal) {
@@ -23,7 +32,7 @@ if ($isLocal) {
     $conn = new mysqli($host, $user, $password, $dbname, $port);
 } else {
     // InfinityFree Live Hosting Settings
-    $host = 'sql113.infinityfree.com';
+    $host = 'sql113.infinityfree.com'; // Verify this matches your InfinityFree vPanel (e.g. sqlxxx.infinityfree.com)
     $user = 'if0_42838894';
     $password = 'gDaughDyA4Dnmdw';
     $dbname = 'if0_42838894_HMS';
@@ -61,6 +70,8 @@ if (!in_array('age', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN age V
 if (!in_array('emergency_contact_name', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN emergency_contact_name VARCHAR(255) DEFAULT NULL");
 if (!in_array('emergency_contact_phone', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN emergency_contact_phone VARCHAR(50) DEFAULT NULL");
 if (!in_array('hospital_id', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN hospital_id INT DEFAULT NULL");
+if (!in_array('qr_token', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN qr_token VARCHAR(255) DEFAULT NULL");
+if (!in_array('qr_generated_at', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN qr_generated_at DATETIME DEFAULT NULL");
 
 // Patient Files schema updates for Binary BLOB storage
 $pfCols = [];
@@ -82,14 +93,13 @@ if ($unmigratedRes && $unmigratedRes->num_rows > 0) {
         $uId = (int)$uRow['id'];
         $uPath = $uRow['file_path'];
         $uDiskPath = __DIR__ . '/' . ltrim(preg_replace('/\?.*$/', '', $uPath), '/');
-        if (file_exists($uDiskPath)) {
+        if (strpos($uPath, 'uploads/') !== false && !str_ends_with(strtolower($uPath), '.php') && file_exists($uDiskPath)) {
             $uContent = file_get_contents($uDiskPath);
             $uSize = strlen($uContent);
             $uName = basename($uPath);
             $uMime = mime_content_type($uDiskPath);
-            $uStmt = $conn->prepare("UPDATE patient_files SET file_name = ?, mime_type = ?, file_size = ?, file_data = ?, file_path = ? WHERE id = ?");
-            $uUrl = "api/file.php?id=" . $uId . "&file=" . urlencode($uName);
-            $uStmt->bind_param("ssissi", $uName, $uMime, $uSize, $uContent, $uUrl, $uId);
+            $uStmt = $conn->prepare("UPDATE patient_files SET file_name = ?, mime_type = ?, file_size = ?, file_data = ? WHERE id = ?");
+            $uStmt->bind_param("ssisi", $uName, $uMime, $uSize, $uContent, $uId);
             $uStmt->execute();
         }
     }
@@ -296,6 +306,142 @@ $conn->query("CREATE TABLE IF NOT EXISTS ai_config (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+// --- START OF NEW SCHEMA ADDITIONS ---
+
+// 1. MODIFY: patients
+addColSafe($conn, 'patients', 'qr_token', 'VARCHAR(36) UNIQUE DEFAULT NULL');
+addColSafe($conn, 'patients', 'qr_generated_at', 'DATETIME DEFAULT NULL');
+
+// 2. MODIFY: patient_files
+addColSafe($conn, 'patient_files', 'description', 'TEXT DEFAULT NULL');
+addColSafe($conn, 'patient_files', 'category', 'VARCHAR(50) DEFAULT \'Other\'');
+addColSafe($conn, 'patient_files', 'highlight', 'VARCHAR(255) DEFAULT NULL');
+addColSafe($conn, 'patient_files', 'tags', 'VARCHAR(500) DEFAULT NULL');
+addColSafe($conn, 'patient_files', 'uploaded_by_id', 'INT DEFAULT NULL');
+addColSafe($conn, 'patient_files', 'uploaded_by_name', 'VARCHAR(200) DEFAULT NULL');
+addColSafe($conn, 'patient_files', 'thumbnail_path', 'VARCHAR(255) DEFAULT NULL');
+
+// 3. MODIFY: staff
+addColSafe($conn, 'staff', 'face_descriptor', 'TEXT DEFAULT NULL');
+addColSafe($conn, 'staff', 'account_status', 'VARCHAR(20) DEFAULT \'Active\'');
+addColSafe($conn, 'staff', 'plain_password', 'VARCHAR(100) DEFAULT \'staff123\'');
+
+// 4. MODIFY: staff_attendance
+addColSafe($conn, 'staff_attendance', 'selfie_verified', 'TINYINT(1) DEFAULT 0');
+addColSafe($conn, 'staff_attendance', 'location_verified', 'TINYINT(1) DEFAULT 0');
+addColSafe($conn, 'staff_attendance', 'check_in_lat', 'DECIMAL(10, 8) DEFAULT NULL');
+addColSafe($conn, 'staff_attendance', 'check_in_lng', 'DECIMAL(11, 8) DEFAULT NULL');
+addColSafe($conn, 'staff_attendance', 'check_in_method', 'VARCHAR(20) DEFAULT \'manual\'');
+addColSafe($conn, 'staff_attendance', 'face_confidence', 'DECIMAL(5, 4) DEFAULT NULL');
+
+// 5. MODIFY: appointments
+addColSafe($conn, 'appointments', 'booking_type', 'VARCHAR(20) DEFAULT \'walk-in\'');
+addColSafe($conn, 'appointments', 'booking_ref', 'VARCHAR(50) DEFAULT NULL');
+addColSafe($conn, 'appointments', 'token_assigned_at', 'DATETIME DEFAULT NULL');
+addColSafe($conn, 'appointments', 'token_assigned_by', 'INT DEFAULT NULL');
+
+// 6. NEW TABLE: staff_permissions
+$conn->query("CREATE TABLE IF NOT EXISTS staff_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    staff_id INT NOT NULL,
+    permission_key VARCHAR(50) NOT NULL,
+    permission_value TINYINT(1) DEFAULT 0,
+    granted_by INT DEFAULT NULL,
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_staff_perm (staff_id, permission_key),
+    FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// 7. NEW TABLE: hospital_geofence
+$conn->query("CREATE TABLE IF NOT EXISTS hospital_geofence (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    radius_meters INT DEFAULT 100,
+    name VARCHAR(100) DEFAULT 'Main Building',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// 8. NEW TABLE: file_audit_log
+$conn->query("CREATE TABLE IF NOT EXISTS file_audit_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    file_id INT DEFAULT NULL,
+    action ENUM('upload', 'view', 'edit', 'delete', 'download') NOT NULL,
+    staff_id INT NOT NULL,
+    staff_name VARCHAR(200) NOT NULL,
+    details TEXT DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_patient (patient_id),
+    KEY idx_staff (staff_id),
+    KEY idx_date (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// 9. NEW TABLE: online_consultations
+$conn->query("CREATE TABLE IF NOT EXISTS online_consultations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    doctor_id VARCHAR(50) NOT NULL,
+    appointment_id INT DEFAULT NULL,
+    status ENUM('initiated', 'in_progress', 'completed', 'cancelled') DEFAULT 'initiated',
+    diagnosis TEXT DEFAULT NULL,
+    prescription_notes TEXT DEFAULT NULL,
+    doctor_notes TEXT DEFAULT NULL,
+    consultation_fee DECIMAL(10, 2) DEFAULT 0.00,
+    fee_status ENUM('pending', 'paid', 'waived') DEFAULT 'pending',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL,
+    KEY idx_patient (patient_id),
+    KEY idx_doctor (doctor_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// 10. NEW TABLE: consultation_charges
+$conn->query("CREATE TABLE IF NOT EXISTS consultation_charges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT NOT NULL,
+    charge_type VARCHAR(100) NOT NULL,
+    charge_name VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_hospital (hospital_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// 13. Create upload directories
+$uploadBase = __DIR__ . '/uploads/patients';
+if (!is_dir($uploadBase)) {
+    @mkdir($uploadBase, 0755, true);
+}
+$staffAvatarDir = __DIR__ . '/uploads/staff_avatars';
+if (!is_dir($staffAvatarDir)) {
+    @mkdir($staffAvatarDir, 0755, true);
+}
+
+// 14. Seed default consultation charges
+$ccCheck = $conn->query("SELECT COUNT(*) AS c FROM consultation_charges");
+if ($ccCheck && ($ccRow = $ccCheck->fetch_assoc()) && (int)$ccRow['c'] === 0) {
+    $defaultCharges = [
+        ['online_consultation', 'Online Consultation Fee', 500.00],
+        ['online_follow_up', 'Online Follow-up Fee', 300.00],
+        ['general_opd', 'General OPD Consultation', 200.00],
+        ['specialist', 'Specialist Consultation', 800.00],
+        ['report_download', 'Medical Record PDF Download', 0.00]
+    ];
+    $ccStmt = $conn->prepare("INSERT INTO consultation_charges (hospital_id, charge_type, charge_name, amount) VALUES (?, ?, ?, ?)");
+    if ($ccStmt) {
+        foreach ($defaultCharges as $ch) {
+            $ccStmt->bind_param("issd", $firstHospId, $ch[0], $ch[1], $ch[2]);
+            $ccStmt->execute();
+        }
+    }
+}
+// --- END OF NEW SCHEMA ADDITIONS ---
+
 // Seed realistic hospital staff if table empty
 $staffCount = 0;
 $sCheck = $conn->query("SELECT COUNT(*) AS c FROM staff");
@@ -375,5 +521,25 @@ function jsonResponse($data) {
     header('Content-Type: application/json');
     echo json_encode($data);
     exit;
+}
+
+function checkStaffPermission($conn, $staffId, $permissionKey) {
+    if (!$staffId) return false;
+    $stmt = $conn->prepare("SELECT permission_value FROM staff_permissions WHERE staff_id = ? AND permission_key = ?");
+    $stmt->bind_param("is", $staffId, $permissionKey);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if (!$row) return false;
+    return (bool)$row['permission_value'];
+}
+
+function generateUUIDv4() {
+    return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+        mt_rand(0, 0xffff),
+        mt_rand(0, 0x0fff) | 0x4000,
+        mt_rand(0, 0x3fff) | 0x8000,
+        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+    );
 }
 ?>

@@ -39,17 +39,34 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
     $sql = rtrim(trim($sql), "; \t\n\r\0\x0B");
 
     // Auto-correct common LLM schema misconceptions:
-    // 1. staff table primary key is `id`, not `staff_id`
-    $sql = preg_replace('/\b(staff\.|s\.)?staff_id\b/i', '${1}id AS staff_id', $sql);
-    // 2. appointments primary key is `id`, not `appointment_id`
-    $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?appointment_id\b/i', '${1}id', $sql);
-    // 3. doctors primary key is `id`, not `doctor_id` (when referring to doctors table)
-    $sql = preg_replace('/\b(doctors\.|d\.)doctor_id\b/i', '${1}id', $sql);
-    // 4. patients primary key is `id`, not `patient_id` (when referring to patients table)
-    $sql = preg_replace('/\b(patients\.|p\.)patient_id\b/i', '${1}id', $sql);
-    // 5. appointments date column is `date`, not `appointment_date`
-    $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?appointment_date\b/i', '${1}date', $sql);
-    // 6. Fix varchar age column sorting to numeric
+    // 1. patients table PK is `id`, NOT `patient_id`
+    $sql = preg_replace('/\b(patients|p|pat)\.patient_id\b/i', '${1}.id', $sql);
+    
+    // 2. doctors table PK is `id`, NOT `doctor_id`
+    $sql = preg_replace('/\b(doctors|d|doc)\.doctor_id\b/i', '${1}.id', $sql);
+    
+    // 3. departments table PK is `id`, NOT `department_id`
+    $sql = preg_replace('/\b(departments|dept|dep)\.department_id\b/i', '${1}.id', $sql);
+    
+    // 4. appointments table PK is `id`, NOT `appointment_id`
+    // (Only target appointments table aliases, NEVER prescriptions or diagnoses)
+    $sql = preg_replace('/\b(appointments|a|app|appt)\.appointment_id\b/i', '${1}.id', $sql);
+
+    // 5. appointments bed reference is `bed_number`, NOT `bed_id`
+    $sql = preg_replace('/\b(appointments|a|app|appt)\.bed_id\b/i', '${1}.bed_number', $sql);
+    // Fix joins between appointments and beds:
+    $sql = preg_replace('/\b(a|app|appt|appointments)\.bed_number\s*=\s*(b|bed|beds)\.id\b/i', '${1}.bed_number = ${2}.bed_number', $sql);
+    $sql = preg_replace('/\b(b|bed|beds)\.id\s*=\s*(a|app|appt|appointments)\.bed_number\b/i', '${2}.bed_number = ${1}.bed_number', $sql);
+    $sql = preg_replace('/\b(b|bed|beds)\.patient_id\s*=\s*(p|patients|pat)\.patient_id\b/i', '${1}.patient_id = ${2}.id', $sql);
+
+    // 6. staff table PK is `id`, NOT `staff_id` (Only target staff table aliases, NEVER staff_attendance)
+    $sql = preg_replace('/\b(staff|s)\.staff_id\b/i', '${1}.id', $sql);
+
+    // 7. appointments date column is `date`, not `appointment_date`
+    $sql = preg_replace('/\b(appointments|a|app|appt)\.appointment_date\b/i', '${1}.date', $sql);
+    $sql = preg_replace('/(?<![\.a-zA-Z0-9_])appointment_date\b/i', 'date', $sql);
+
+    // 8. Fix varchar age column sorting to numeric
     $sql = preg_replace('/\bORDER\s+BY\s+([a-zA-Z0-9_]+\.)?age\s+(DESC|ASC)\b/i', 'ORDER BY CAST(${1}age AS UNSIGNED) $2', $sql);
     $sql = preg_replace('/\b(MAX|MIN)\(\s*([a-zA-Z0-9_]+\.)?age\s*\)/i', '${1}(CAST(${2}age AS UNSIGNED))', $sql);
     
@@ -62,11 +79,20 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
         }
     }
     
-    // 7. staff table has first_name and last_name instead of name
+    // 9. staff table has first_name and last_name instead of name
     if (stripos($sql, 'staff') !== false) {
-        $sql = preg_replace('/\b([a-zA-Z0-9_]+\.)?name\b/i', 'CONCAT(${1}first_name, \' \', COALESCE(${1}last_name, \'\')) AS name', $sql);
+        $sql = preg_replace('/\b(staff|s)\.name\b/i', "CONCAT(\${1}.first_name, ' ', COALESCE(\${1}.last_name, '')) AS name", $sql);
+        if (stripos($sql, 'patients') === false) {
+            $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])name\b/i', "CONCAT(first_name, ' ', COALESCE(last_name, '')) AS name", $sql);
+        }
     }
-    // 3. If querying staff table with status = 'Present'/'Absent' without joining staff_attendance:
+
+    // 10. doctors table has NO created_at column
+    if (stripos($sql, 'doctors') !== false || stripos($sql, '`doctors`') !== false) {
+        $sql = preg_replace('/\b(doctors|d|doc)\.created_at\b/i', '${1}.id', $sql);
+    }
+
+    // 11. If querying staff table with status = 'Present'/'Absent' without joining staff_attendance:
     if (preg_match('/FROM\s+`?staff`?\s*(?:as\s+)?([a-zA-Z0-9_]+)?\s+WHERE/i', $sql, $tblM) && 
         preg_match('/(?:[a-zA-Z0-9_]+\.)?status\s*=\s*[\'"](Present|Absent|Late|Half Day|On Leave)[\'"]/i', $sql) && 
         stripos($sql, 'staff_attendance') === false) {
@@ -81,25 +107,35 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
     // Auto-replace placeholder hospital_id = ? with real ID
     $sql = preg_replace('/hospital_id\s*=\s*[\'"]?\?[\'"]?/i', "hospital_id = $hospitalId", $sql);
 
+    // Tables that actually contain hospital_id:
+    $tablesWithHospitalId = ['hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance'];
+
     // Auto-inject WHERE hospital_id = $hospitalId if not present
     if (stripos($sql, 'hospital_id') === false) {
-        // Detect the primary table alias for JOINed queries to avoid ambiguous column errors
-        $hIdCol = 'hospital_id';
-        if (preg_match('/FROM\s+`?([a-zA-Z0-9_]+)`?\s+(?:AS\s+)?([a-zA-Z0-9_]+)?/i', $sql, $aliasM)) {
-            if (stripos($sql, 'JOIN') !== false) {
-                $tblAlias = !empty($aliasM[2]) ? $aliasM[2] : $aliasM[1];
-                $hIdCol = "$tblAlias.hospital_id";
+        // Find which table/alias in the query actually has hospital_id
+        $hIdCol = null;
+        if (preg_match_all('/\b(?:FROM|JOIN)\s+`?([a-zA-Z0-9_]+)`?\s+(?:AS\s+)?([a-zA-Z0-9_]+)?\b/i', $sql, $tblMatches, PREG_SET_ORDER)) {
+            foreach ($tblMatches as $m) {
+                $tName = strtolower($m[1]);
+                $tAlias = !empty($m[2]) ? $m[2] : $m[1];
+                if (in_array($tName, $tablesWithHospitalId)) {
+                    $hIdCol = (count($tblMatches) > 1) ? "$tAlias.hospital_id" : "hospital_id";
+                    break;
+                }
             }
         }
-        if (stripos($sql, 'WHERE') === false) {
-            $insertStr = " WHERE $hIdCol = $hospitalId ";
-            if (preg_match('/\s(GROUP BY|ORDER BY|LIMIT)\s/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
-                $sql = substr_replace($sql, $insertStr, $matches[0][1], 0);
+
+        if ($hIdCol !== null) {
+            if (stripos($sql, 'WHERE') === false) {
+                $insertStr = " WHERE $hIdCol = $hospitalId ";
+                if (preg_match('/\s(GROUP BY|ORDER BY|LIMIT)\s/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
+                    $sql = substr_replace($sql, $insertStr, $matches[0][1], 0);
+                } else {
+                    $sql .= $insertStr;
+                }
             } else {
-                $sql .= $insertStr;
+                $sql = preg_replace('/\sWHERE\s/i', " WHERE $hIdCol = $hospitalId AND ", $sql, 1);
             }
-        } else {
-            $sql = preg_replace('/\sWHERE\s/i', " WHERE $hIdCol = $hospitalId AND ", $sql, 1);
         }
     }
     

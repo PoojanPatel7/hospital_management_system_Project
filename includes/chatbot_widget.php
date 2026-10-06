@@ -249,38 +249,38 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 <div id="bhooma-ai-panel" class="hidden bg-white/95 backdrop-blur-xl flex flex-col overflow-hidden transition-all duration-300" style="display: none; z-index: 999999 !important;">
     
     <!-- Top Header -->
-    <div class="bg-gradient-to-r from-blue-700 via-indigo-600 to-teal-500 p-3.5 text-white flex items-center justify-between cursor-move select-none shrink-0 shadow-xs" id="bhooma-ai-header">
-        <div class="flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center relative shadow-xs">
+    <div class="bg-gradient-to-r from-blue-700 via-indigo-600 to-teal-500 p-3 text-white flex items-center justify-between cursor-move select-none shrink-0 shadow-xs" id="bhooma-ai-header">
+        <div class="flex items-center space-x-2.5 shrink-0 min-w-0">
+            <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center relative shadow-xs shrink-0">
                 <i class="fa-solid fa-robot text-sm"></i>
                 <div id="bhooma-ai-status-dot" class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-700 ring-1 ring-emerald-300" title="Online"></div>
             </div>
-            <div>
-                <div class="flex items-center gap-1.5">
-                    <h3 class="font-extrabold text-sm tracking-tight leading-tight">BHOOMA AI</h3>
-                    <span class="text-[9px] bg-white/20 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider" id="bhooma-ai-model">hms-ai</span>
+            <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-nowrap">
+                    <h3 class="font-extrabold text-sm tracking-tight leading-tight whitespace-nowrap">BHOOMA AI</h3>
+                    <span class="text-[9px] bg-white/20 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap shrink-0 max-w-[90px] truncate" id="bhooma-ai-model" title="hms-ai">hms-ai</span>
                 </div>
                 <div class="flex items-center space-x-1">
-                    <span id="bhooma-ai-status-text" class="text-[11px] text-white/80 font-medium">Ready</span>
+                    <span id="bhooma-ai-status-text" class="text-[11px] text-white/80 font-medium whitespace-nowrap">Ready</span>
                 </div>
             </div>
         </div>
 
         <!-- Header Actions -->
-        <div class="flex items-center space-x-1">
-            <button id="bhooma-ai-history-btn" type="button" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98" title="Chat History">
-                <i class="fa-solid fa-clock-rotate-left text-xs pointer-events-none"></i>
-                <span class="pointer-events-none">History</span>
+        <div class="flex items-center space-x-1 shrink-0">
+            <button id="bhooma-ai-history-btn" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Chat History">
+                <i class="fa-solid fa-clock-rotate-left pointer-events-none"></i>
             </button>
             <button id="bhooma-ai-sound-btn" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Toggle Sound Chimes">
                 <i id="bhooma-ai-sound-icon" class="fa-solid fa-volume-high pointer-events-none"></i>
             </button>
             <button id="bhooma-ai-export-btn" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Export Conversation (.md)">
-                <i class="fa-solid fa-arrow-down-to-bracket pointer-events-none"></i>
+                <i class="fa-solid fa-download pointer-events-none"></i>
             </button>
             <button id="bhooma-ai-new" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="New Conversation">
                 <i class="fa-solid fa-plus pointer-events-none"></i>
             </button>
+            <div class="h-3.5 w-[1px] bg-white/30 mx-0.5 pointer-events-none"></div>
             <button id="bhooma-ai-expand" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Toggle Fullscreen/Workstation Mode">
                 <i id="bhooma-ai-expand-icon" class="fa-solid fa-expand pointer-events-none"></i>
             </button>
@@ -955,16 +955,20 @@ const BhoomaAI = {
             const res = await fetch(this.apiUrl + '?action=status');
             const data = await res.json();
             if (data.ollama || data.status === 'online') {
-                if (this.dom.statusDot) this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-600';
+                if (this.dom.statusDot) this.dom.statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-700 ring-1 ring-emerald-300';
                 if (this.dom.statusText) this.dom.statusText.textContent = 'Online';
                 const modelBadge = document.getElementById('bhooma-ai-model');
-                if (modelBadge && data.model) modelBadge.textContent = data.model;
+                if (modelBadge && data.model) {
+                    const cleanModel = String(data.model).replace(/:latest$/i, '');
+                    modelBadge.textContent = cleanModel.length > 10 ? cleanModel.substring(0, 10) : cleanModel;
+                    modelBadge.title = data.model;
+                }
             } else {
-                if (this.dom.statusDot) this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-rose-400 rounded-full border-2 border-indigo-600';
+                if (this.dom.statusDot) this.dom.statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-400 rounded-full border-2 border-indigo-700 ring-1 ring-rose-300';
                 if (this.dom.statusText) this.dom.statusText.textContent = 'Offline';
             }
         } catch (e) {
-            if (this.dom.statusDot) this.dom.statusDot.className = 'absolute bottom-0 right-0 w-2.5 h-2.5 bg-slate-400 rounded-full border-2 border-indigo-600';
+            if (this.dom.statusDot) this.dom.statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-slate-400 rounded-full border-2 border-indigo-700 ring-1 ring-slate-300';
             if (this.dom.statusText) this.dom.statusText.textContent = 'Ready';
         }
     },
@@ -1799,32 +1803,44 @@ const BhoomaAI = {
     },
     
     renderActionCard(actionId, details) {
-        const isDelete = typeof details === 'string' && (details.toLowerCase().includes('delete') || details.toLowerCase().includes('cancel'));
-        const badgeColor = isDelete ? 'bg-rose-500' : 'bg-amber-400';
-        const cardBg = isDelete ? 'bg-rose-50 border-2 border-rose-300' : 'bg-amber-50 border-2 border-amber-200';
-        const titleText = isDelete ? '⚠️ Confirm Deletion / Cancellation' : '⚡ Confirm Action';
-        const titleColor = isDelete ? 'text-rose-900' : 'text-amber-800';
-        const detailColor = isDelete ? 'text-rose-800' : 'text-amber-700';
-        const confirmBtnClass = isDelete ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-500 hover:bg-emerald-600';
-        const confirmBtnText = isDelete ? '<i class="fa-solid fa-trash-can mr-1"></i> Confirm Delete' : '<i class="fa-solid fa-check mr-1"></i> Confirm';
+        const isDelete = typeof details === 'string' && (details.toLowerCase().includes('delete') || details.toLowerCase().includes('cancel') || details.toLowerCase().includes('remove'));
+        const badgeBg = isDelete ? 'bg-rose-600 text-white' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white';
+        const cardBg = isDelete 
+            ? 'bg-rose-50/90 border border-rose-200' 
+            : 'bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/40 border border-blue-200';
+        const titleText = isDelete ? 'Confirm Permanent Deletion' : 'Confirm Hospital Operation';
+        const titleColor = isDelete ? 'text-rose-900' : 'text-slate-900';
+        const iconClass = isDelete ? 'fa-triangle-exclamation' : 'fa-bolt-lightning';
+        const confirmBtnClass = isDelete 
+            ? 'bg-rose-600 hover:bg-rose-700 active:scale-98 text-white' 
+            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-98 text-white shadow-xs';
+        const confirmBtnText = isDelete 
+            ? '<i class="fa-solid fa-trash-can mr-1.5 text-xs"></i> Confirm Delete' 
+            : '<i class="fa-solid fa-circle-check mr-1.5 text-xs"></i> Confirm & Execute';
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex items-start max-w-[85%] mt-2 mb-2';
+        wrapper.className = 'flex items-start max-w-[92%] mt-2 mb-2 bhooma-msg-anim';
         wrapper.innerHTML = `
-            <div class="w-6 h-6 rounded-full ${badgeColor} flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
-                <i class="fa-solid ${isDelete ? 'fa-triangle-exclamation' : 'fa-bolt'}"></i>
+            <div class="w-7 h-7 rounded-xl ${badgeBg} flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-xs mr-2.5">
+                <i class="fa-solid ${iconClass}"></i>
             </div>
-            <div class="${cardBg} py-3 px-4 rounded-xl shadow-sm w-full" id="action-card-${actionId}">
-                <div class="flex items-center justify-between mb-1">
-                    <h4 class="font-bold ${titleColor} text-sm">${titleText}</h4>
-                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isDelete ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}">Requires Approval</span>
+            <div class="${cardBg} p-3.5 rounded-2xl shadow-sm w-full transition-all" id="action-card-${actionId}">
+                <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/70">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-extrabold ${titleColor} text-xs tracking-tight">${titleText}</span>
+                    </div>
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDelete ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}">
+                        Requires Approval
+                    </span>
                 </div>
-                <p class="text-xs ${detailColor} mb-3 leading-relaxed">${details}</p>
-                <div class="flex space-x-2">
-                    <button type="button" class="bhooma-confirm-btn ${confirmBtnClass} text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1 cursor-pointer" data-id="${actionId}">
+                <div class="text-xs text-slate-700 mb-3 leading-relaxed font-medium">
+                    ${this.escapeHtml(details)}
+                </div>
+                <div class="flex items-center space-x-2 pt-1">
+                    <button type="button" class="bhooma-confirm-btn ${confirmBtnClass} text-xs font-bold py-2 px-3.5 rounded-xl shadow-xs transition-all flex-1 flex items-center justify-center cursor-pointer" data-id="${actionId}">
                         ${confirmBtnText}
                     </button>
-                    <button type="button" class="bhooma-cancel-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition-colors flex-1 cursor-pointer" data-id="${actionId}">
+                    <button type="button" class="bhooma-cancel-btn bg-white hover:bg-slate-50 active:scale-98 text-slate-700 border border-slate-300 text-xs font-semibold py-2 px-3 rounded-xl shadow-2xs transition-all flex items-center justify-center cursor-pointer" data-id="${actionId}">
                         Cancel
                     </button>
                 </div>
@@ -2048,11 +2064,24 @@ const BhoomaAI = {
                         </div>
 
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Patient MRN or Full Name *</label>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Patient MRN, Mobile, or Name *</label>
                             <div class="relative">
-                                <input type="text" id="${formId}-patient" required placeholder="e.g. PAT-1001 or Aarav Patel" autocomplete="off"
+                                <input type="hidden" id="${formId}-patient-id" value="">
+                                <input type="text" id="${formId}-patient" required placeholder="Search existing patient or enter name..." autocomplete="off"
                                     class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50">
-                                <div id="${formId}-pat-hints" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-36 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                                <div id="${formId}-pat-hints" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                            </div>
+                            <div id="${formId}-pat-selected" class="hidden mt-1.5 p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between shadow-2xs">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] shrink-0"><i class="fa-solid fa-check"></i></span>
+                                    <div class="text-[11px] text-emerald-900 leading-tight min-w-0 truncate">
+                                        <span id="${formId}-pat-sel-name" class="font-bold"></span>
+                                        <span id="${formId}-pat-sel-meta" class="text-emerald-700 text-[10px] font-mono ml-1"></span>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="BhoomaAI.clearSelectedPatient('${formId}')" class="text-[10px] text-slate-500 hover:text-rose-600 font-bold px-1.5 py-0.5 rounded hover:bg-white transition cursor-pointer shrink-0">
+                                    Change
+                                </button>
                             </div>
                         </div>
 
@@ -2129,9 +2158,25 @@ const BhoomaAI = {
                         </div>
 
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Patient MRN or Name *</label>
-                            <input type="text" id="${formId}-patient" required placeholder="e.g. PAT-1022 or Patient Name" autocomplete="off"
-                                class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-rose-500/50">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Patient MRN, Mobile, or Name *</label>
+                            <div class="relative">
+                                <input type="hidden" id="${formId}-patient-id" value="">
+                                <input type="text" id="${formId}-patient" required placeholder="Search existing patient or enter name..." autocomplete="off"
+                                    class="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-rose-500/50">
+                                <div id="${formId}-pat-hints" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                            </div>
+                            <div id="${formId}-pat-selected" class="hidden mt-1.5 p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between shadow-2xs">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] shrink-0"><i class="fa-solid fa-check"></i></span>
+                                    <div class="text-[11px] text-emerald-900 leading-tight min-w-0 truncate">
+                                        <span id="${formId}-pat-sel-name" class="font-bold"></span>
+                                        <span id="${formId}-pat-sel-meta" class="text-emerald-700 text-[10px] font-mono ml-1"></span>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="BhoomaAI.clearSelectedPatient('${formId}')" class="text-[10px] text-slate-500 hover:text-rose-600 font-bold px-1.5 py-0.5 rounded hover:bg-white transition cursor-pointer shrink-0">
+                                    Change
+                                </button>
+                            </div>
                         </div>
 
                         <div>
@@ -2355,10 +2400,19 @@ const BhoomaAI = {
 
         const patInput = document.getElementById(`${formId}-patient`);
         const patHints = document.getElementById(`${formId}-pat-hints`);
+        const patIdHidden = document.getElementById(`${formId}-patient-id`);
+        const patSelCard = document.getElementById(`${formId}-pat-selected`);
+        const patSelName = document.getElementById(`${formId}-pat-sel-name`);
+        const patSelMeta = document.getElementById(`${formId}-pat-sel-meta`);
+
         if (patInput && patHints) {
             let debounce = null;
             patInput.addEventListener('input', () => {
                 clearTimeout(debounce);
+                if (patIdHidden && patIdHidden.value) {
+                    patIdHidden.value = '';
+                    if (patSelCard) patSelCard.classList.add('hidden');
+                }
                 const q = patInput.value.trim();
                 if (q.length < 1) {
                     patHints.classList.add('hidden');
@@ -2371,11 +2425,39 @@ const BhoomaAI = {
                         if (data.patients && data.patients.length > 0) {
                             patHints.innerHTML = '';
                             data.patients.forEach(p => {
+                                const patFullName = `${p.name || ''} ${p.surname || ''}`.trim();
+                                const metaParts = [];
+                                if (p.gender) metaParts.push(p.gender);
+                                if (p.age) metaParts.push(p.age + ' Y');
+                                if (p.blood_group) metaParts.push('🩸 ' + p.blood_group);
+
                                 const item = document.createElement('div');
-                                item.className = 'p-2 hover:bg-indigo-50 cursor-pointer flex justify-between items-center';
-                                item.innerHTML = `<span><b>${p.id}</b> - ${p.name} ${p.surname||''}</span><span class="text-[10px] text-slate-400">${p.phone||''}</span>`;
+                                item.className = 'p-2.5 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition-colors text-left';
+                                item.innerHTML = `
+                                    <div class="min-w-0 pr-2">
+                                        <div class="font-bold text-slate-800 text-xs">${this.escapeHtml(patFullName)}</div>
+                                        <div class="text-[10px] text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+                                            <span class="bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded font-bold">${this.escapeHtml(p.id)}</span>
+                                            <span>${this.escapeHtml(metaParts.join(' • '))}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-[11px] font-semibold text-slate-700 block">${this.escapeHtml(p.phone || '')}</span>
+                                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">Select ✓</span>
+                                    </div>
+                                `;
                                 item.onclick = () => {
-                                    patInput.value = `${p.id} (${p.name} ${p.surname||''})`;
+                                    // 1. Set the hidden patient ID to the real database ID
+                                    if (patIdHidden) patIdHidden.value = p.id;
+                                    // 2. Set visible input value to ONLY the patient's clean name!
+                                    patInput.value = patFullName;
+                                    // 3. Render the verified patient selection pill
+                                    if (patSelCard && patSelName && patSelMeta) {
+                                        patSelName.textContent = patFullName;
+                                        const pillDetails = [p.id, p.phone ? '📞 ' + p.phone : '', p.blood_group ? '🩸 ' + p.blood_group : ''].filter(Boolean).join(' • ');
+                                        patSelMeta.textContent = `(${pillDetails})`;
+                                        patSelCard.classList.remove('hidden');
+                                    }
                                     patHints.classList.add('hidden');
                                 };
                                 patHints.appendChild(item);
@@ -2387,12 +2469,32 @@ const BhoomaAI = {
                     } catch(e) {}
                 }, 150);
             });
+
+            // Close hints on outside click
+            document.addEventListener('click', (e) => {
+                if (!patInput.contains(e.target) && !patHints.contains(e.target)) {
+                    patHints.classList.add('hidden');
+                }
+            });
         }
+    },
+
+    clearSelectedPatient(formId) {
+        const patIdHidden = document.getElementById(`${formId}-patient-id`);
+        const patInput = document.getElementById(`${formId}-patient`);
+        const patSelCard = document.getElementById(`${formId}-pat-selected`);
+        if (patIdHidden) patIdHidden.value = '';
+        if (patInput) {
+            patInput.value = '';
+            patInput.focus();
+        }
+        if (patSelCard) patSelCard.classList.add('hidden');
     },
 
     async submitBookingForm(formId) {
         const docEl = document.getElementById(`${formId}-doctor`);
         const patEl = document.getElementById(`${formId}-patient`);
+        const patIdHidden = document.getElementById(`${formId}-patient-id`);
         const dateEl = document.getElementById(`${formId}-date`);
         const slotEl = document.getElementById(`${formId}-slot`);
         const typeEl = document.getElementById(`${formId}-type`);
@@ -2407,8 +2509,8 @@ const BhoomaAI = {
             errEl.classList.remove('hidden');
             return;
         }
-        if (!patEl.value.trim()) {
-            errEl.textContent = 'Please enter a patient MRN or name.';
+        if (!patEl.value.trim() && (!patIdHidden || !patIdHidden.value)) {
+            errEl.textContent = 'Please select or enter a patient name.';
             errEl.classList.remove('hidden');
             return;
         }
@@ -2420,7 +2522,8 @@ const BhoomaAI = {
             const formData = new FormData();
             formData.append('action', 'book_appointment_form');
             formData.append('doctor_id', docEl.value);
-            formData.append('patient_id', patEl.value.trim());
+            formData.append('patient_id', patIdHidden && patIdHidden.value ? patIdHidden.value.trim() : '');
+            formData.append('patient_name', patEl.value.trim());
             formData.append('date', dateEl.value);
             formData.append('slot', slotEl.value);
             formData.append('type', typeEl ? typeEl.value : 'General Consultation');
@@ -2474,6 +2577,7 @@ const BhoomaAI = {
     async submitAdmissionForm(formId) {
         const bedEl = document.getElementById(`${formId}-bed`);
         const patEl = document.getElementById(`${formId}-patient`);
+        const patIdHidden = document.getElementById(`${formId}-patient-id`);
         const docEl = document.getElementById(`${formId}-doctor`);
         const reasonEl = document.getElementById(`${formId}-reason`);
         const btn = document.getElementById(`${formId}-submit`);
@@ -2486,7 +2590,7 @@ const BhoomaAI = {
             errEl.classList.remove('hidden');
             return;
         }
-        if (!patEl.value.trim()) {
+        if (!patEl.value.trim() && (!patIdHidden || !patIdHidden.value)) {
             errEl.textContent = 'Please provide the patient MRN or name.';
             errEl.classList.remove('hidden');
             return;
@@ -2499,7 +2603,8 @@ const BhoomaAI = {
             const formData = new FormData();
             formData.append('action', 'admit_patient_form');
             formData.append('bed_number', bedEl.value);
-            formData.append('patient_id', patEl.value.trim());
+            formData.append('patient_id', patIdHidden && patIdHidden.value ? patIdHidden.value.trim() : '');
+            formData.append('patient_name', patEl.value.trim());
             formData.append('doctor_id', docEl ? docEl.value : '');
             formData.append('reason', reasonEl ? reasonEl.value : 'Clinical Inpatient Care');
 
@@ -2896,7 +3001,7 @@ const BhoomaAI = {
     async confirmAction(actionId) {
         const card = document.getElementById(`action-card-${actionId}`);
         if (card) {
-            card.innerHTML = `<div class="text-xs text-slate-500 flex items-center"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Executing...</div>`;
+            card.innerHTML = `<div class="text-xs text-indigo-700 font-bold flex items-center justify-center py-2"><i class="fa-solid fa-circle-notch fa-spin mr-2 text-indigo-600"></i> Executing hospital operation...</div>`;
         }
         
         try {
@@ -2908,22 +3013,24 @@ const BhoomaAI = {
             const data = await res.json();
             
             if (data.status === 'success') {
+                this.playSound('action');
                 if (card) {
-                    card.className = 'bg-emerald-50 border border-emerald-200 py-2 px-3 rounded-xl shadow-sm w-full';
-                    card.innerHTML = `<div class="text-xs text-emerald-700 font-semibold flex items-center"><i class="fa-solid fa-check-circle mr-1.5"></i> Action Executed Successfully</div>`;
+                    card.className = 'bg-emerald-50/90 border border-emerald-200 p-3 rounded-2xl shadow-2xs w-full';
+                    card.innerHTML = `<div class="text-xs text-emerald-800 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> ${this.escapeHtml(data.message || 'Operation executed successfully.')}</div>`;
                 }
                 this.appendMessage('assistant', '✅ ' + (data.message || 'Action executed successfully.'));
             } else {
                 if (card) {
-                    card.className = 'bg-rose-50 border border-rose-200 py-2 px-3 rounded-xl shadow-sm w-full';
-                    card.innerHTML = `<div class="text-xs text-rose-700 font-semibold flex items-center"><i class="fa-solid fa-xmark-circle mr-1.5"></i> Execution Failed</div>`;
+                    card.className = 'bg-rose-50/90 border border-rose-200 p-3 rounded-2xl shadow-2xs w-full';
+                    card.innerHTML = `<div class="text-xs text-rose-800 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-xmark text-rose-600 text-sm"></i> ${this.escapeHtml(data.message || 'Failed to execute action.')}</div>`;
                 }
                 this.appendMessage('assistant', '❌ ' + (data.message || 'Failed to execute action.'));
             }
         } catch (e) {
             console.error(e);
             if (card) {
-                card.innerHTML = `<div class="text-xs text-rose-700">Error connecting to server.</div>`;
+                card.className = 'bg-rose-50/90 border border-rose-200 p-3 rounded-2xl shadow-2xs w-full';
+                card.innerHTML = `<div class="text-xs text-rose-700 font-medium">Error connecting to server.</div>`;
             }
         }
     },
@@ -2931,8 +3038,8 @@ const BhoomaAI = {
     async cancelAction(actionId) {
         const card = document.getElementById(`action-card-${actionId}`);
         if (card) {
-            card.className = 'bg-slate-50 border border-slate-200 py-2 px-3 rounded-xl shadow-sm w-full';
-            card.innerHTML = `<div class="text-xs text-slate-500 flex items-center"><i class="fa-solid fa-ban mr-1.5"></i> Action Cancelled</div>`;
+            card.className = 'bg-slate-50 border border-slate-200 p-3 rounded-2xl shadow-2xs w-full';
+            card.innerHTML = `<div class="text-xs text-slate-500 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-ban text-slate-400"></i> Action was cancelled.</div>`;
         }
         
         try {

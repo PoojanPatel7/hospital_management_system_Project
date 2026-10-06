@@ -205,6 +205,16 @@ def gen_blood_group_queries():
         "{bg} wale {gender} mareez dikhao",
         "blood grp {bg} {gender} list",
         "show me {bg} positive patients" if "+" in "{bg}" else "show me {bg} patients",
+        "i need blood {bg}",
+        "i need {bg} blood",
+        "urgent blood needed {bg}",
+        "all patient with blood group {bg}",
+        "all patients with blood group {bg}",
+        "now all {gender} with {bg}",
+        "all {gender} with {bg}",
+        "now only {gender} with {bg}",
+        "only {gender} with {bg}",
+        "patients with {bg} blood group",
     ]
     for bg in BLOOD_GROUPS:
         for gender in GENDERS:
@@ -665,12 +675,20 @@ def gen_complex_joins():
     join_queries = [
         ("show patients with their doctors", "Listing patients along with their assigned consulting doctors.\n\n📊 Patient-Doctor mapping shown in the data table below."),
         ("which doctor has most appointments", "Identifying the doctor with the highest appointment volume.\n\n📊 Doctor appointment counts shown in the data table below."),
+        ("witch docter haave most appoiment", "Identifying the doctor with the highest appointment volume.\n\n📊 Doctor appointment counts shown in the data table below."),
+        ("top doctor by appointments", "Identifying the top consulting doctor ranked by total appointment bookings.\n\n📊 Doctor appointment rankings shown in the data table below."),
+        ("oledst", "Retrieving the oldest patient recorded in the hospital registry.\n\n📊 Oldest patient details are displayed in the data table below."),
+        ("oldest", "Retrieving the oldest patient recorded in the hospital registry.\n\n📊 Oldest patient details are displayed in the data table below."),
+        ("oldest according to age", "Retrieving the oldest patient recorded in the hospital registry.\n\n📊 Oldest patient details are displayed in the data table below."),
+        ("who is oldest", "Retrieving the oldest patient recorded in the hospital registry.\n\n📊 Oldest patient details are displayed in the data table below."),
+        ("youngest patient", "Retrieving the youngest patient recorded in the hospital registry.\n\n📊 Youngest patient details are displayed in the data table below."),
         ("patients admitted in ICU with their diagnosis", "Listing ICU-admitted patients with their clinical diagnoses.\n\n📊 ICU patient data shown in the data table below."),
         ("staff working night shift with attendance", "Night shift staff and their attendance records.\n\n📊 Night shift data shown in the data table below."),
         ("doctors and their appointment count today", "Doctor-wise appointment distribution for today.\n\n📊 Appointment counts shown in the data table below."),
         ("beds occupied with patient name and doctor", "Occupied beds with assigned patient and treating doctor details.\n\n📊 Bed occupancy data shown in the data table below."),
         ("prescriptions given today with doctor and patient names", "Today's prescriptions with prescribing doctor and patient information.\n\n📊 Prescription records shown in the data table below."),
         ("departments with doctor count", "Department-wise doctor distribution.\n\n📊 Department statistics shown in the data table below."),
+        ("staff attendance today", "Displaying today's live duty and attendance status for all hospital staff.\n\n📊 Staff attendance records shown in the data table below."),
     ]
     for q, ans_body in join_queries:
         ans = f"> 💡 **Direct Answer:** {ans_body}"

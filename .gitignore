@@ -51,3 +51,10 @@ infinityfree_database_import.sql
 
 # Dev-only PHP scripts
 alter.php
+
+# Archive files
+*.zip
+
+# Test/temp files
+ftp_test.txt
+dashboard.backup.php
