@@ -37,6 +37,11 @@ include 'includes/header.php';
         </button>
       </div>
 
+      <a href="staff_face_test.php" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-2 px-3.5 rounded-xl shadow-sm transition flex items-center gap-2 text-xs shrink-0" title="Register & Test Staff Face Biometrics & Camera Recognition">
+        <i class="fa-solid fa-face-viewfinder"></i>
+        <span>Face Recognition Lab</span>
+      </a>
+
       <a href="staff_permissions.php" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold py-2 px-3.5 rounded-xl shadow-xs transition flex items-center gap-2 text-xs shrink-0" title="Manage Staff Logins, Passwords & Permissions">
         <i class="fa-solid fa-user-shield text-indigo-600"></i>
         <span>Accounts &amp; Permissions</span>
@@ -1332,6 +1337,9 @@ include 'includes/header.php';
               ₹${Number(s.salary || 0).toLocaleString('en-IN')}/mo
             </span>
             <div class="flex items-center gap-1.5">
+              <a href="staff_face_test.php" class="px-2 py-1.5 rounded-lg ${s.face_descriptor ? 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200/80' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} font-bold text-xs transition flex items-center gap-1 shadow-xs" title="${s.face_descriptor ? 'Face Biometrics Registered' : 'Face Not Enrolled - Click to Register'}">
+                <i class="fa-solid fa-face-viewfinder text-purple-600"></i> Face
+              </a>
               <button onclick="openStaffDossier(${s.id})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80 font-bold text-xs transition flex items-center gap-1">
                 <i class="fa-regular fa-id-card"></i> Dossier
               </button>
@@ -1370,6 +1378,9 @@ include 'includes/header.php';
           <td class="py-3 px-4 text-slate-600 text-xs">${s.joining_date || '-'}</td>
           <td class="py-3 px-4 text-right">
             <div class="flex items-center justify-end gap-1.5">
+              <a href="staff_face_test.php" class="p-1.5 rounded-lg ${s.face_descriptor ? 'bg-purple-50 text-purple-700 hover:bg-purple-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'} transition" title="${s.face_descriptor ? 'Face Biometrics Registered' : 'Enroll Face in Face Lab'}">
+                <i class="fa-solid fa-face-viewfinder text-xs text-purple-600"></i>
+              </a>
               <button onclick="openStaffDossier(${s.id})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="View Dossier">
                 <i class="fa-regular fa-id-card"></i>
               </button>

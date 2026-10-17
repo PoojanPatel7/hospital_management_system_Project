@@ -3,7 +3,7 @@ let registeredDescriptor = null;
 let currentStream = null;
 
 async function loadFaceApiModels() {
-    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model/';
+    const MODEL_URL = 'models/';
     try {
         await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);

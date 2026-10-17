@@ -197,18 +197,52 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     box-shadow: none !important;
 }
 
-/* Mobile Responsive Adaptation */
-@media (max-width: 640px) {
+/* AI Floating Toggle Button Positioning & Responsiveness */
+#bhooma-ai-btn-container {
+    position: fixed !important;
+    z-index: 35 !important; /* Kept at z-35 so mobile drawer (z-50) and modals (z-100) cover it cleanly */
+    transition: transform 0.25s ease, opacity 0.25s ease, bottom 0.25s ease;
+}
+
+/* PC View: Bottom-right corner dock */
+@media (min-width: 768px) {
+    #bhooma-ai-btn-container {
+        bottom: 24px !important;
+        right: 24px !important;
+    }
+}
+
+/* Mobile View: Safely hover ABOVE the bottom navigation bar without overlapping tabs */
+@media (max-width: 767.98px) {
+    #bhooma-ai-btn-container {
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 14px) !important;
+        right: 14px !important;
+    }
+    #bhooma-ai-toggle {
+        width: 48px !important;
+        height: 48px !important;
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45) !important;
+    }
+    #bhooma-ai-toggle i {
+        font-size: 1.25rem !important;
+    }
+}
+
+/* Mobile Responsive Chat Panel (Full Screen on Phones) */
+@media (max-width: 767.98px) {
     #bhooma-ai-panel {
         width: 100vw !important;
-        height: 100vh !important;
+        height: 100% !important;
+        height: 100dvh !important;
         max-width: 100vw !important;
-        max-height: 100vh !important;
+        max-height: 100% !important;
+        max-height: 100dvh !important;
         bottom: 0 !important;
         right: 0 !important;
         left: 0 !important;
         top: 0 !important;
         border-radius: 0 !important;
+        z-index: 999999 !important;
     }
 }
 
@@ -235,7 +269,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 </style>
 
 <!-- Floating AI Button Container -->
-<div id="bhooma-ai-btn-container" class="fixed bottom-6 right-6" style="z-index: 999999 !important;">
+<div id="bhooma-ai-btn-container">
     <button id="bhooma-ai-toggle" type="button" title="BHOOMA AI Clinical Assistant (Ctrl+K)" 
         class="bhooma-btn-pulse flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer">
         <i class="fa-solid fa-robot text-2xl pointer-events-none"></i>

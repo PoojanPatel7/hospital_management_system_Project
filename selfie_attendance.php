@@ -121,7 +121,7 @@ include 'includes/header.php';
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
+<script src="js/face-api.min.js"></script>
 <script src="js/selfie-attendance.js"></script>
 <script>
     let isProcessing = false;
@@ -195,7 +195,9 @@ include 'includes/header.php';
             if (faceJson.status === 'success' && faceJson.data) {
                 registeredDescriptor = faceJson.data;
             } else {
-                alert("You have not registered your face yet. Please contact admin.");
+                if (confirm("You have not registered your face yet. Would you like to go to the Face Recognition Lab now to enroll your face?")) {
+                    window.location.href = 'staff_face_test.php';
+                }
                 cancelProcess();
                 return;
             }

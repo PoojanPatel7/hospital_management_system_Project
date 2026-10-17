@@ -392,4 +392,54 @@ if ($action === 'get_recent_data') {
     }
 }
 
+// -------------------------------------------------------------
+// ACTION: get_booking_status
+// -------------------------------------------------------------
+if ($action === 'get_booking_status') {
+    try {
+        $res = $conn->query("SHOW COLUMNS FROM system_state LIKE 'online_booking_enabled'");
+        if ($res && $res->num_rows == 0) {
+            $conn->query("ALTER TABLE system_state ADD COLUMN online_booking_enabled TINYINT(1) DEFAULT 1");
+        }
+        $st = $conn->query("SELECT online_booking_enabled FROM system_state WHERE id = 1");
+        $enabled = 1;
+        if ($st && $r = $st->fetch_assoc()) {
+            $enabled = (int)($r['online_booking_enabled'] ?? 1);
+        }
+        echo json_encode(['status' => 'success', 'booking_enabled' => $enabled]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
+    }
+}
+
+// -------------------------------------------------------------
+// ACTION: toggle_booking_status
+// -------------------------------------------------------------
+if ($action === 'toggle_booking_status') {
+    try {
+        $res = $conn->query("SHOW COLUMNS FROM system_state LIKE 'online_booking_enabled'");
+        if ($res && $res->num_rows == 0) {
+            $conn->query("ALTER TABLE system_state ADD COLUMN online_booking_enabled TINYINT(1) DEFAULT 1");
+        }
+        $input = json_decode(file_get_contents('php://input'), true);
+        $newState = isset($input['enabled']) ? (int)$input['enabled'] : null;
+        if ($newState === null) {
+            $st = $conn->query("SELECT online_booking_enabled FROM system_state WHERE id = 1");
+            $cur = 1;
+            if ($st && $r = $st->fetch_assoc()) {
+                $cur = (int)($r['online_booking_enabled'] ?? 1);
+            }
+            $newState = $cur ? 0 : 1;
+        }
+        $conn->query("UPDATE system_state SET online_booking_enabled = $newState WHERE id = 1");
+        echo json_encode(['status' => 'success', 'booking_enabled' => $newState]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
+    }
+}
+
 echo json_encode(['status' => 'error', 'message' => 'Invalid action']);

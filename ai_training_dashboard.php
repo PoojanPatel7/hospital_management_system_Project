@@ -50,6 +50,10 @@ $userRole = $_SESSION['staff_role'] ?? 'Admin';
 
       <!-- Quick Action Toolbar -->
       <div class="flex flex-wrap items-center gap-2.5">
+        <button onclick="handleDashboardStartBoth()" id="btn-start-both-lab" class="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/30 flex items-center gap-2 cursor-pointer" title="Start Ollama LLM and preload trained hms-ai model into GPU VRAM">
+          <i class="fa-solid fa-bolt-lightning text-amber-300"></i>
+          <span>Start Both (LLM + Model)</span>
+        </button>
         <button onclick="generateDataset()" id="btn-gen-dataset" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition border border-slate-700 shadow-sm flex items-center gap-2 cursor-pointer">
           <i class="fa-solid fa-database text-teal-400"></i>
           <span>Re-Generate Dataset</span>
@@ -520,6 +524,29 @@ function initLossChart() {
             });
         })
         .catch(err => console.error('Failed to load loss history:', err));
+}
+
+// Handler to start both Ollama and pre-load trained HMS-AI model
+function handleDashboardStartBoth() {
+    const btn = document.getElementById('btn-start-both-lab');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Starting Both...</span>';
+    fetch('api/ai_train_api.php?action=start_both')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('Ollama LLM Engine is Active and Trained Model (hms-ai:latest) is loaded in GPU VRAM!');
+                fetchTelemetryStatus();
+            } else {
+                alert('Startup Error: ' + (data.error || 'Failed to start engines'));
+            }
+        })
+        .catch(e => alert('Error connecting to backend API'))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
 }
 
 // Fetch live telemetry status

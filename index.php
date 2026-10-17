@@ -1,130 +1,322 @@
 <?php require_once 'auth.php'; ?>
 <?php include 'includes/header.php'; ?>
 
-<div class="max-w-7xl mx-auto">
-    <div class="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-slate-200 flex flex-col lg:flex-row">
+<style>
+  /* ================= DESKTOP FULL-PAGE ZERO-SCROLL ================= */
+  @media (min-width: 1024px) {
+    html, body {
+      height: 100vh;
+      overflow: hidden !important;
+    }
+    main {
+      padding-top: 1rem !important;
+      padding-bottom: 1rem !important;
+      padding-left: 1.5rem !important;
+      padding-right: 1.5rem !important;
+      height: calc(100vh - 70px) !important;
+      max-height: calc(100vh - 70px) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      align-items: center !important;
+      overflow: hidden !important;
+    }
+    .fullpage-card {
+      height: 100% !important;
+      max-height: 630px !important;
+    }
+  }
+
+  /* Remove default number input spinner arrows */
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+
+  /* Custom dropdown scrollbar */
+  .custom-dropdown-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-dropdown-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-dropdown-scroll::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 999px;
+  }
+  .custom-dropdown-scroll::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+  }
+</style>
+
+<div class="w-full max-w-5xl xl:max-w-6xl mx-auto fullpage-card">
+  <div class="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-slate-200 flex flex-col lg:flex-row h-full overflow-hidden">
+    
+    <!-- ================= LEFT COLUMN: CLEAN IMAGE DISPLAY ONLY ================= -->
+    <div class="w-full lg:w-5/12 bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200/80 flex items-center justify-center p-6 lg:p-8 shrink-0">
+      <div class="w-full max-w-[340px] xl:max-w-[380px] bg-white rounded-2xl p-3 shadow-2xs border border-slate-200/80">
+        <img 
+          src="images/Patient Registration.jpg" 
+          alt="Patient Registration" 
+          class="w-full h-auto max-h-[220px] lg:max-h-[260px] object-contain rounded-xl mx-auto"
+        >
+      </div>
+    </div>
+
+    <!-- ================= RIGHT COLUMN: MAIN TITLE & BIG FONT REGISTRATION FORM ================= -->
+    <div class="w-full lg:w-7/12 p-6 sm:p-7 lg:p-8 flex flex-col justify-between bg-white relative overflow-y-auto lg:overflow-visible custom-dropdown-scroll">
+      
+      <!-- Main Title (No extra text) -->
+      <div class="pb-3 border-b border-slate-100 shrink-0">
+        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+          Patient Registration
+        </h1>
+      </div>
+
+      <!-- Registration Form -->
+      <form id="register-form" onsubmit="handleRegistrationSubmit(event)" class="space-y-3 sm:space-y-3.5 pt-3 sm:pt-4 flex-1 flex flex-col justify-between">
         
-        <!-- Left Side: Image without cutting -->
-        <div class="w-full lg:w-1/2 bg-slate-50 flex items-center justify-center p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-slate-100">
-            <img src="images/Patient Registration.jpg" alt="Patient Registration" class="w-full h-auto max-h-[80vh] object-contain drop-shadow-sm rounded-xl">
+        <!-- Row 1: First Name & Surname -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label for="reg-name" class="block text-sm font-bold text-slate-700 mb-1">
+              First Name <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="reg-name" 
+              required 
+              autocomplete="off" 
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition"
+            >
+          </div>
+
+          <div>
+            <label for="reg-surname" class="block text-sm font-bold text-slate-700 mb-1">
+              Surname <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="reg-surname" 
+              required 
+              autocomplete="off" 
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition"
+            >
+          </div>
         </div>
 
-        <!-- Right Side: Form -->
-        <div class="w-full lg:w-1/2 p-8 sm:p-10 lg:p-14 flex flex-col justify-center bg-white">
-            <div class="mb-10">
-                <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl font-bold mb-4 shadow-sm border border-blue-100">
-                    <i class="fa-solid fa-address-card"></i>
-                </div>
-                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">Patient Registration</h2>
-                <p class="text-slate-500 font-medium text-sm sm:text-base">Create a new patient account in the hospital system. Please fill in all required details.</p>
+        <!-- Row 2: Father's Name & Phone Number -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label for="reg-father" class="block text-sm font-bold text-slate-700 mb-1">
+              Father's Full Name <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="reg-father" 
+              required 
+              autocomplete="off" 
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition"
+            >
+          </div>
+
+          <div>
+            <label for="reg-phone" class="block text-sm font-bold text-slate-700 mb-1">
+              Phone Number
+            </label>
+            <input 
+              type="tel" 
+              pattern="[0-9]{10}" 
+              maxlength="10" 
+              inputmode="numeric" 
+              title="Please enter exactly 10 digits" 
+              id="reg-phone" 
+              autocomplete="off" 
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition font-mono"
+            >
+          </div>
+        </div>
+
+        <!-- Row 3: Demographics (Gender, Blood Group, Age) in 3 Columns -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          
+          <!-- Gender Dropdown -->
+          <div class="relative" id="gender-container">
+            <label class="block text-sm font-bold text-slate-700 mb-1">
+              Gender <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="reg-gender" required class="opacity-0 absolute w-0 h-0 pointer-events-none">
+            <button 
+              type="button" 
+              onclick="toggleDropdown('gender')" 
+              id="gender-btn"
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition flex items-center justify-between text-left"
+            >
+              <span id="gender-display" class="text-slate-400 truncate font-medium">Select</span>
+              <i id="gender-icon" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 shrink-0 ml-1"></i>
+            </button>
+
+            <div id="gender-dropdown" class="hidden absolute top-full left-0 mt-1.5 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden py-1.5 transform opacity-0 scale-95 transition-all duration-150 origin-top">
+              <div onclick="selectOption('gender', 'Male', 'Male')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-semibold transition flex items-center gap-2.5">
+                <i class="fa-solid fa-mars text-blue-500 text-sm w-4"></i> Male
+              </div>
+              <div onclick="selectOption('gender', 'Female', 'Female')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-semibold transition flex items-center gap-2.5">
+                <i class="fa-solid fa-venus text-rose-500 text-sm w-4"></i> Female
+              </div>
+              <div onclick="selectOption('gender', 'Other', 'Other')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-semibold transition flex items-center gap-2.5">
+                <i class="fa-solid fa-transgender text-purple-500 text-sm w-4"></i> Other
+              </div>
+            </div>
+          </div>
+
+          <!-- Blood Group Dropdown -->
+          <div class="relative" id="blood-container">
+            <label class="block text-sm font-bold text-slate-700 mb-1">
+              Blood Group <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="reg-blood" required class="opacity-0 absolute w-0 h-0 pointer-events-none">
+            <button 
+              type="button" 
+              onclick="toggleDropdown('blood')" 
+              id="blood-btn"
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition flex items-center justify-between text-left"
+            >
+              <span id="blood-display" class="text-slate-400 truncate font-medium">Select</span>
+              <i id="blood-icon" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200 shrink-0 ml-1"></i>
+            </button>
+
+            <div id="blood-dropdown" class="hidden absolute top-full left-0 mt-1.5 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden py-1.5 transform opacity-0 scale-95 transition-all duration-150 origin-top max-h-52 overflow-y-auto custom-dropdown-scroll">
+              <div onclick="selectOption('blood', 'A+', 'A+')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>A+</span> <span class="text-xs text-slate-400 font-normal">Positive</span></div>
+              <div onclick="selectOption('blood', 'A-', 'A-')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>A-</span> <span class="text-xs text-slate-400 font-normal">Negative</span></div>
+              <div onclick="selectOption('blood', 'B+', 'B+')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>B+</span> <span class="text-xs text-slate-400 font-normal">Positive</span></div>
+              <div onclick="selectOption('blood', 'B-', 'B-')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>B-</span> <span class="text-xs text-slate-400 font-normal">Negative</span></div>
+              <div onclick="selectOption('blood', 'AB+', 'AB+')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>AB+</span> <span class="text-xs text-slate-400 font-normal">Positive</span></div>
+              <div onclick="selectOption('blood', 'AB-', 'AB-')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>AB-</span> <span class="text-xs text-slate-400 font-normal">Negative</span></div>
+              <div onclick="selectOption('blood', 'O+', 'O+')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>O+</span> <span class="text-xs text-slate-400 font-normal">Positive</span></div>
+              <div onclick="selectOption('blood', 'O-', 'O-')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>O-</span> <span class="text-xs text-slate-400 font-normal">Negative</span></div>
+              <div onclick="selectOption('blood', 'Unknown', 'Unknown')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-800 text-base font-bold transition flex items-center justify-between"><span>Unknown</span> <span class="text-xs text-slate-400 font-normal">N/A</span></div>
+            </div>
+          </div>
+
+          <!-- Age Input -->
+          <div>
+            <label for="reg-age" class="block text-sm font-bold text-slate-700 mb-1">
+              Age (Years) <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="number" 
+              id="reg-age" 
+              min="0" 
+              max="150" 
+              required 
+              autocomplete="off" 
+              class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition font-mono"
+            >
+          </div>
+
+        </div>
+
+        <!-- Row 4: Emergency Contact -->
+        <div class="pt-1">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-xs font-black uppercase tracking-wider text-slate-400">Emergency Contact</span>
+            <div class="h-px bg-slate-200 flex-1"></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label for="reg-em-name" class="block text-sm font-bold text-slate-700 mb-1">
+                Emergency Contact Name <span class="text-rose-500">*</span>
+              </label>
+              <input 
+                type="text" 
+                id="reg-em-name" 
+                required 
+                autocomplete="off" 
+                class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition"
+              >
             </div>
 
-            <form id="register-form" onsubmit="handleRegistrationSubmit(event)" class="space-y-6">
-                <!-- Inputs with Floating labels on border -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
-                    <div class="relative">
-                        <input type="text" id="reg-name" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-name" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">First Name <span class="text-rose-500">*</span></label>
-                    </div>
-                    <div class="relative">
-                        <input type="text" id="reg-surname" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-surname" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Surname <span class="text-rose-500">*</span></label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
-                    <div class="relative">
-                        <input type="text" id="reg-father" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-father" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Father's Full Name <span class="text-rose-500">*</span></label>
-                    </div>
-                    <div class="relative">
-                        <input type="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" id="reg-phone" class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-phone" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Phone Number</label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-2">
-                    <!-- Custom Gender Dropdown -->
-                    <div class="relative" id="gender-container">
-                        <input type="text" id="reg-gender" required class="opacity-0 absolute w-0 h-0 top-1/2 left-1/2">
-                        <button type="button" onclick="toggleDropdown('gender')" class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none text-left relative z-10 shadow-sm flex items-center justify-between" id="gender-btn">
-                            <span id="gender-display" class="block truncate opacity-0 transition-opacity">Select</span>
-                            <i id="gender-icon" class="fa-solid fa-chevron-down text-sm transition-transform duration-300 text-slate-400"></i>
-                        </button>
-                        <label id="gender-label" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-100 top-1/2 z-20 origin-[0] bg-white px-2 left-3 pointer-events-none">Gender <span class="text-rose-500">*</span></label>
-
-                        <div id="gender-dropdown" class="hidden absolute top-[calc(100%+0.5rem)] left-0 w-full bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-2 transform opacity-0 scale-95 transition-all duration-200 origin-top">
-                            <div onclick="selectOption('gender', 'Male', this.innerHTML)" class="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-slate-700 font-bold mx-2 rounded-xl transition-colors flex items-center"><i class="fa-solid fa-mars text-blue-500 mr-2 w-4"></i> Male</div>
-                            <div onclick="selectOption('gender', 'Female', this.innerHTML)" class="px-4 py-2.5 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold mx-2 rounded-xl transition-colors flex items-center"><i class="fa-solid fa-venus text-rose-500 mr-2 w-4"></i> Female</div>
-                            <div onclick="selectOption('gender', 'Other', this.innerHTML)" class="px-4 py-2.5 hover:bg-purple-50 cursor-pointer text-slate-700 font-bold mx-2 rounded-xl transition-colors flex items-center"><i class="fa-solid fa-transgender text-purple-500 mr-2 w-4"></i> Other</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Custom Blood Group Dropdown -->
-                    <div class="relative" id="blood-container">
-                        <input type="text" id="reg-blood" required class="opacity-0 absolute w-0 h-0 top-1/2 left-1/2">
-                        <button type="button" onclick="toggleDropdown('blood')" class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none text-left relative z-10 shadow-sm flex items-center justify-between" id="blood-btn">
-                            <span id="blood-display" class="block truncate opacity-0 transition-opacity">Select</span>
-                            <i id="blood-icon" class="fa-solid fa-chevron-down text-sm transition-transform duration-300 text-slate-400"></i>
-                        </button>
-                        <label id="blood-label" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-100 top-1/2 z-20 origin-[0] bg-white px-2 left-3 pointer-events-none">Blood Group <span class="text-rose-500">*</span></label>
-
-                        <div id="blood-dropdown" class="hidden absolute top-[calc(100%+0.5rem)] left-0 w-full bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-2 transform opacity-0 scale-95 transition-all duration-200 origin-top max-h-56 overflow-y-auto custom-scrollbar">
-                            <div onclick="selectOption('blood', 'A+', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">A+</span> Positive</div>
-                            <div onclick="selectOption('blood', 'A-', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">A-</span> Negative</div>
-                            <div onclick="selectOption('blood', 'B+', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">B+</span> Positive</div>
-                            <div onclick="selectOption('blood', 'B-', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">B-</span> Negative</div>
-                            <div onclick="selectOption('blood', 'AB+', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">AB+</span> Positive</div>
-                            <div onclick="selectOption('blood', 'AB-', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">AB-</span> Negative</div>
-                            <div onclick="selectOption('blood', 'O+', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">O+</span> Positive</div>
-                            <div onclick="selectOption('blood', 'O-', this.innerHTML)" class="px-4 py-2 hover:bg-rose-50 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><span class="w-6 text-center text-rose-600 font-black mr-2">O-</span> Negative</div>
-                            <div onclick="selectOption('blood', 'Unknown', this.innerHTML)" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-slate-700 font-bold rounded-xl mx-2 transition-colors flex items-center"><i class="fa-solid fa-circle-question text-slate-400 mr-2 w-6 text-center"></i> Unknown</div>
-                        </div>
-                    </div>
-
-                    <div class="relative mt-2">
-                        <input type="number" id="reg-age" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-age" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Age <span class="text-rose-500">*</span></label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2 pt-5 border-t border-slate-100">
-                    <div class="relative">
-                        <input type="text" id="reg-em-name" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-em-name" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Emerg. Contact Name <span class="text-rose-500">*</span></label>
-                    </div>
-                    <div class="relative">
-                        <input type="tel" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" id="reg-em-phone" required class="block w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-medium focus:ring-0 focus:border-blue-600 transition-all outline-none peer appearance-none shadow-sm" placeholder=" ">
-                        <label for="reg-em-phone" class="absolute text-sm text-slate-500 font-bold duration-300 transform -translate-y-1/2 scale-75 top-0 z-10 origin-[0] bg-white px-2 left-3 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:scale-75 peer-focus:-translate-y-1/2 peer-focus:top-0 pointer-events-none">Emerg. Contact Mobile <span class="text-rose-500">*</span></label>
-                    </div>
-                </div>
-
-                <div class="pt-6">
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-blue-200 transition-all flex justify-center items-center gap-3 transform hover:-translate-y-0.5">
-                        <i class="fa-solid fa-save"></i> Register Patient Profile
-                    </button>
-                </div>
-            </form>
+            <div>
+              <label for="reg-em-phone" class="block text-sm font-bold text-slate-700 mb-1">
+                Emergency Mobile <span class="text-rose-500">*</span>
+              </label>
+              <input 
+                type="tel" 
+                pattern="[0-9]{10}" 
+                maxlength="10" 
+                inputmode="numeric" 
+                title="Please enter exactly 10 digits" 
+                id="reg-em-phone" 
+                required 
+                autocomplete="off" 
+                class="w-full px-4 py-2.5 sm:py-3 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-300 focus:border-slate-900 rounded-xl text-base font-semibold text-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition font-mono"
+              >
+            </div>
+          </div>
         </div>
+
+        <!-- Action Bar: Bigger Font Buttons -->
+        <div class="pt-2 sm:pt-3 flex items-center gap-3">
+          <button 
+            type="submit" 
+            id="btn-register-submit" 
+            class="flex-1 bg-slate-900 hover:bg-black active:scale-[0.99] text-white font-extrabold text-base sm:text-lg py-3 sm:py-3.5 px-6 rounded-xl shadow-sm transition flex items-center justify-center gap-2.5 cursor-pointer"
+          >
+            <i class="fa-solid fa-check text-base"></i>
+            <span>Register Patient</span>
+          </button>
+          
+          <button 
+            type="button" 
+            onclick="resetForm()" 
+            class="px-5 py-3 sm:py-3.5 border border-slate-300 hover:border-slate-400 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 active:scale-95 transition text-base font-bold shrink-0 cursor-pointer" 
+            title="Clear Form"
+          >
+            Clear
+          </button>
+        </div>
+
+      </form>
     </div>
+
+  </div>
 </div>
 
-<!-- Duplicate Warning Modal -->
-<div id="modal-duplicate" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-  <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-200 my-8 max-h-[90vh] overflow-y-auto">
-    <div class="mb-5 text-center">
-      <div class="w-16 h-16 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-100 shadow-inner"><i class="fa-solid fa-triangle-exclamation"></i></div>
-      <h3 class="text-2xl font-black text-slate-900 tracking-tight">Patient Already Exists</h3>
-      <p class="text-sm text-slate-500 mt-2 font-medium">A patient with the same name, surname, and father's name is already registered. Please review the existing profile below.</p>
+<!-- ================= DUPLICATE WARNING MODAL ================= -->
+<div id="modal-duplicate" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-xl relative border border-slate-200 my-8">
+    <div class="mb-4">
+      <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl mb-3 border border-amber-200/60">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 class="text-xl font-black text-slate-900 tracking-tight">Patient Already Registered</h3>
+      <p class="text-sm text-slate-500 mt-1">A patient with identical name, surname, and father's name already exists.</p>
     </div>
     
-    <div id="duplicate-profile-card" class="bg-slate-50 rounded-2xl p-5 border border-slate-200 mb-6 shadow-sm">
+    <div id="duplicate-profile-card" class="bg-slate-50 rounded-xl p-4 border border-slate-200/80 mb-5 text-sm">
       <!-- Injected via JS -->
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3">
-      <button onclick="document.getElementById('modal-duplicate').classList.add('hidden')" class="flex-1 px-4 py-3.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel Registration</button>
-      <button onclick="showConfirmationModal()" class="flex-1 px-4 py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-200 transition">Register Anyway</button>
+    <div class="flex items-center gap-3">
+      <button 
+        type="button" 
+        onclick="document.getElementById('modal-duplicate').classList.add('hidden')" 
+        class="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition"
+      >
+        Cancel
+      </button>
+      <button 
+        type="button" 
+        onclick="showConfirmationModal()" 
+        class="flex-1 px-4 py-3 bg-slate-900 hover:bg-black text-white rounded-xl text-sm font-black transition"
+      >
+        Register Anyway
+      </button>
     </div>
   </div>
 </div>
@@ -133,13 +325,18 @@
   let currentPayload = null;
 
   function toggleDropdown(id) {
+      const container = document.getElementById(id + '-container');
       const dropdown = document.getElementById(id + '-dropdown');
       const icon = document.getElementById(id + '-icon');
       if (dropdown.classList.contains('hidden')) {
+          ['gender', 'blood'].forEach(otherId => {
+              if (otherId !== id) closeDropdown(otherId);
+          });
+          if (container) container.classList.add('z-30');
           dropdown.classList.remove('hidden');
           setTimeout(() => {
               dropdown.classList.remove('opacity-0', 'scale-95');
-              icon.classList.add('rotate-180');
+              if (icon) icon.classList.add('rotate-180');
           }, 10);
       } else {
           closeDropdown(id);
@@ -147,26 +344,46 @@
   }
 
   function closeDropdown(id) {
+      const container = document.getElementById(id + '-container');
       const dropdown = document.getElementById(id + '-dropdown');
       const icon = document.getElementById(id + '-icon');
+      if (!dropdown) return;
       dropdown.classList.add('opacity-0', 'scale-95');
-      icon.classList.remove('rotate-180');
+      if (icon) icon.classList.remove('rotate-180');
       setTimeout(() => {
           dropdown.classList.add('hidden');
-      }, 200);
+          if (container) container.classList.remove('z-30');
+      }, 150);
   }
 
-  function selectOption(id, value, html) {
+  function selectOption(id, value, labelText) {
       document.getElementById('reg-' + id).value = value;
       const display = document.getElementById(id + '-display');
-      display.innerHTML = html;
-      display.classList.remove('opacity-0');
-      
-      const label = document.getElementById(id + '-label');
-      label.classList.remove('scale-100', 'top-1/2');
-      label.classList.add('scale-75', 'top-0', 'text-blue-600');
-      
+      if (display) {
+          display.textContent = labelText;
+          display.className = 'text-slate-900 font-bold truncate';
+      }
       closeDropdown(id);
+  }
+
+  function resetForm() {
+      document.getElementById('register-form').reset();
+      
+      const genderInp = document.getElementById('reg-gender');
+      if (genderInp) genderInp.value = '';
+      const genderDisp = document.getElementById('gender-display');
+      if (genderDisp) {
+          genderDisp.textContent = 'Select';
+          genderDisp.className = 'text-slate-400 truncate font-medium';
+      }
+
+      const bloodInp = document.getElementById('reg-blood');
+      if (bloodInp) bloodInp.value = '';
+      const bloodDisp = document.getElementById('blood-display');
+      if (bloodDisp) {
+          bloodDisp.textContent = 'Select';
+          bloodDisp.className = 'text-slate-400 truncate font-medium';
+      }
   }
 
   // Close dropdowns when clicking outside
@@ -195,6 +412,23 @@
         emergency_contact_name: document.getElementById('reg-em-name').value.trim(),
         emergency_contact_phone: document.getElementById('reg-em-phone').value.trim()
     };
+
+    if (!currentPayload.gender) {
+      showToast('Validation', 'Please select a gender.', 'error');
+      toggleDropdown('gender');
+      return;
+    }
+
+    if (!currentPayload.blood_group) {
+      showToast('Validation', 'Please select a blood group.', 'error');
+      toggleDropdown('blood');
+      return;
+    }
+
+    const btn = document.getElementById('btn-register-submit');
+    const originalBtnContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Checking...</span>';
     
     try {
         const res = await fetch('api/patients.php?action=check_duplicate', {
@@ -204,48 +438,54 @@
         });
         const data = await res.json();
         
-        if (data.status === 'success' && data.duplicates.length > 0) {
+        if (data.status === 'success' && data.duplicates && data.duplicates.length > 0) {
             const p = data.duplicates[0];
             document.getElementById('duplicate-profile-card').innerHTML = `
-              <div class="flex items-center gap-4 mb-4 pb-4 border-b border-slate-200">
-                <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-lg border border-blue-200/50">
-                  ${p.name.charAt(0)}${p.surname.charAt(0)}
+              <div class="flex items-center gap-3 mb-3 pb-3 border-b border-slate-200">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center font-black text-sm border border-slate-200">
+                  ${(p.name || '').charAt(0)}${(p.surname || '').charAt(0)}
                 </div>
                 <div>
-                  <h4 class="font-extrabold text-slate-900 text-base">${p.name} ${p.surname}</h4>
-                  <p class="text-xs text-slate-500 font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-100 mt-1 inline-block">${p.id}</p>
+                  <h4 class="font-extrabold text-slate-900 text-sm">${p.name} ${p.surname}</h4>
+                  <p class="text-xs text-slate-500 font-mono font-bold">${p.id}</p>
                 </div>
               </div>
-              <div class="space-y-2 text-sm text-slate-600 font-medium">
-                <div class="flex justify-between"><strong class="text-slate-400 uppercase tracking-wider text-[10px]">Father</strong> <span class="text-slate-800">${p.father_name}</span></div>
-                <div class="flex justify-between"><strong class="text-slate-400 uppercase tracking-wider text-[10px]">Phone</strong> <span class="text-slate-800">${p.phone || 'N/A'}</span></div>
-                <div class="flex justify-between"><strong class="text-slate-400 uppercase tracking-wider text-[10px]">Blood Group</strong> <span class="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded">🩸 ${p.blood_group || 'Unknown'}</span></div>
-                <div class="flex justify-between"><strong class="text-slate-400 uppercase tracking-wider text-[10px]">Registered</strong> <span class="text-slate-800">${p.reg_date}</span></div>
+              <div class="space-y-1.5 text-sm text-slate-600 font-medium">
+                <div class="flex justify-between"><span>Father:</span> <span class="text-slate-900 font-bold">${p.father_name}</span></div>
+                <div class="flex justify-between"><span>Phone:</span> <span class="text-slate-900 font-mono">${p.phone || 'N/A'}</span></div>
+                <div class="flex justify-between"><span>Blood Group:</span> <span class="text-slate-900 font-bold">${p.blood_group || 'Unknown'}</span></div>
+                <div class="flex justify-between"><span>Registered:</span> <span class="text-slate-900">${p.reg_date || 'N/A'}</span></div>
               </div>
             `;
             document.getElementById('modal-duplicate').classList.remove('hidden');
         } else {
             showConfirmationModal();
         }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error(err);
+        showToast('Error', 'Unable to check duplicate profiles.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnContent;
+    }
   }
 
   function showConfirmationModal() {
       document.getElementById('modal-duplicate').classList.add('hidden');
       
       const detailsHtml = `
-        <div class="bg-slate-50 p-4 rounded-xl space-y-3 text-sm">
-            <div class="flex justify-between border-b border-slate-100 pb-2"><strong class="text-slate-500">Name:</strong> <span class="font-bold text-slate-900">${currentPayload.name} ${currentPayload.surname}</span></div>
-            <div class="flex justify-between border-b border-slate-100 pb-2"><strong class="text-slate-500">Father:</strong> <span class="font-bold text-slate-900">${currentPayload.father}</span></div>
-            <div class="flex justify-between border-b border-slate-100 pb-2"><strong class="text-slate-500">Phone:</strong> <span class="font-bold text-slate-900">${currentPayload.phone || 'N/A'}</span></div>
-            <div class="flex justify-between border-b border-slate-100 pb-2"><strong class="text-slate-500">Demographics:</strong> <span class="font-bold text-slate-900">${currentPayload.age} Y, ${currentPayload.gender}, 🩸 ${currentPayload.blood_group}</span></div>
-            <div class="flex justify-between"><strong class="text-slate-500">Em. Contact:</strong> <span class="font-bold text-slate-900">${currentPayload.emergency_contact_name} (${currentPayload.emergency_contact_phone})</span></div>
+        <div class="bg-slate-50 p-4 rounded-xl space-y-2.5 text-sm">
+            <div class="flex justify-between border-b border-slate-200/70 pb-2"><strong class="text-slate-500">Name:</strong> <span class="font-bold text-slate-900">${currentPayload.name} ${currentPayload.surname}</span></div>
+            <div class="flex justify-between border-b border-slate-200/70 pb-2"><strong class="text-slate-500">Father's Name:</strong> <span class="font-bold text-slate-900">${currentPayload.father}</span></div>
+            <div class="flex justify-between border-b border-slate-200/70 pb-2"><strong class="text-slate-500">Phone:</strong> <span class="font-bold text-slate-900 font-mono">${currentPayload.phone || 'N/A'}</span></div>
+            <div class="flex justify-between border-b border-slate-200/70 pb-2"><strong class="text-slate-500">Demographics:</strong> <span class="font-bold text-slate-900">${currentPayload.age} Y, ${currentPayload.gender}, ${currentPayload.blood_group}</span></div>
+            <div class="flex justify-between"><strong class="text-slate-500">Emergency Contact:</strong> <span class="font-bold text-slate-900">${currentPayload.emergency_contact_name} (${currentPayload.emergency_contact_phone})</span></div>
         </div>
       `;
 
       openConfirmModal(
           'Confirm Registration', 
-          'Please verify the details below before saving the patient record.', 
+          'Please verify the patient details before saving.', 
           detailsHtml, 
           executeRegistration, 
           'success'
@@ -253,6 +493,9 @@
   }
 
   async function executeRegistration() {
+      const btn = document.getElementById('btn-register-submit');
+      if (btn) btn.disabled = true;
+
       try {
           const res = await fetch('api/patients.php?action=create', {
               method: 'POST',
@@ -261,13 +504,18 @@
           });
           const data = await res.json();
           if (data.status === 'success') {
-              document.getElementById('register-form').reset();
-              showToast('Registered', `Patient account created. MRN: ${data.mrn}`);
-              setTimeout(() => { window.location.href = 'patients.php'; }, 2000);
+              resetForm();
+              showToast('Success', `Patient registered. MRN: ${data.mrn}`, 'success');
+              setTimeout(() => { window.location.href = 'patients.php'; }, 1500);
           } else {
-              showToast('Error', data.message, 'error');
+              showToast('Error', data.message || 'Unable to register patient', 'error');
+              if (btn) btn.disabled = false;
           }
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+          console.error(err); 
+          showToast('Error', 'Network error while registering', 'error');
+          if (btn) btn.disabled = false;
+      }
   }
 </script>
 
