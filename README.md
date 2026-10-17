@@ -21,9 +21,6 @@
   <img src="https://img.shields.io/badge/Chart.js-Data_Viz-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white" alt="Chart.js"/>
 </p>
 
-<p align="center">
-  <img src="UI images/Daskboard.jpg" alt="Dashboard Preview" width="90%"/>
-</p>
 
 ---
 
