@@ -199,33 +199,41 @@ switch ($action) {
         
         while (ob_get_level() > 0) ob_end_flush();
 
-        // Build context with full typo tolerance
-        $schema = function_exists('getRelevantSchema') ? getRelevantSchema($conn, $message) : '';
-        $todayStats = function_exists('getTodayStats') ? getTodayStats($conn, $hospitalId) : '';
-        $hospitalName = $_SESSION['hospital_name'] ?? 'BHOOMA';
-        $dateTime = date('Y-m-d H:i:s');
-        $model = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen2.5:3b';
-
-        // Retrieve last 6 messages of conversation history for conversational context
-        $stmt = $conn->prepare("SELECT role, content FROM ai_chat_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT 6");
+        // Retrieve up to 10 recent messages with sql_executed for deep multi-turn memory
+        $stmt = $conn->prepare("SELECT id, role, content, sql_executed FROM ai_chat_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT 10");
         $stmt->bind_param("i", $conversationId);
         $stmt->execute();
         $historyRes = $stmt->get_result();
         $history = [];
+        $rawHistory = [];
         while ($row = $historyRes->fetch_assoc()) {
+            $rawHistory[] = $row;
             $cleanContent = preg_replace('/```sql[\s\S]*?```/i', '', $row['content']);
             if (!empty(trim($cleanContent))) {
                 $history[] = ['role' => $row['role'], 'content' => $cleanContent];
             }
         }
 
+        // Active Entity Resolution across conversation turns (Patients, Doctors, Beds)
+        $activeEntity = function_exists('resolveActiveEntityContext') 
+            ? resolveActiveEntityContext($conn, $hospitalId, $message, $rawHistory) 
+            : ['active_patient' => null, 'intent' => 'general', 'keywords' => ''];
+
+        // Build context with full typo tolerance and augmented entity keywords
+        $schemaKeywords = trim($message . ' ' . ($activeEntity['keywords'] ?? ''));
+        $schema = function_exists('getRelevantSchema') ? getRelevantSchema($conn, $schemaKeywords) : '';
+        $todayStats = function_exists('getTodayStats') ? getTodayStats($conn, $hospitalId) : '';
+        $hospitalName = $_SESSION['hospital_name'] ?? 'BHOOMA';
+        $dateTime = date('Y-m-d H:i:s');
+        $model = defined('DEFAULT_MODEL') ? DEFAULT_MODEL : 'qwen2.5:3b';
+
         // ========================================================
         // INSTANT GREETING RESPONSE (Zero Lag for "hi", "hello", etc.)
         // ========================================================
         $trimmedMsg = trim($message);
         if (preg_match('/^(hi+|hello+|hey+|hola|namaste|good\s*(morning|afternoon|evening))\b[\s!.,?]*$/i', $trimmedMsg)) {
-            $greetingText = "> 💡 **Direct Answer:** Hello! 👋 Welcome to **" . htmlspecialchars($hospitalName) . "** Clinical AI Assistant.\n\n"
-                . "How can I help you today? You can query hospital records, manage appointments, check bed availability, or track staff attendance.";
+            $greetingText = "Hello! 👋 Welcome to **" . htmlspecialchars($hospitalName) . "** Clinical AI Assistant.\n\n"
+                . "How can I assist you today? You can query hospital records, look up patients, check bed availability, schedule appointments, or track staff attendance.";
             echo "data: " . json_encode(['type' => 'chunk', 'content' => $greetingText]) . "\n\n";
             flush();
 
@@ -261,7 +269,7 @@ switch ($action) {
             $aRes = $conn->query("SELECT COUNT(*) AS c FROM appointments WHERE hospital_id = $hospitalId");
             if ($aRes && $row = $aRes->fetch_assoc()) $appCount = $row['c'];
 
-            $dbAnswer = "> 💡 **Direct Answer:** Yes! I have full, real-time access to the **" . htmlspecialchars($hospitalName) . "** hospital database across all operational modules.\n\n"
+            $dbAnswer = "Yes, I have full real-time access to the **" . htmlspecialchars($hospitalName) . "** hospital database across all operational modules.\n\n"
                 . "Currently connected live to:\n"
                 . "• **Patients:** " . $patCount . " registered patients (demographics, blood group, age, contact)\n"
                 . "• **Doctors:** " . $docCount . " active medical specialists and department schedules\n"
@@ -297,8 +305,62 @@ switch ($action) {
         $pendingAction = null;
         $dbResults = null;
         $sqlExecuted = null;
+        $synthesisPatientDossier = null;
+        $synthesisPatientFiles = null;
+        $isPatientLookup = false;
 
-        if (function_exists('analyzeActionIntent')) {
+        // Auto-resolve Complete Patient Dossier or Medical Files / Images for active patient
+        $isFullInfoRequest = preg_match('/\b(full\s*(info|information|details?|record|history|profile)|all\s*(info|information|details?|records?|data)|give\s*me\s*(all|full|everything)|show\s*(all|full|everything)|tell\s*me\s*(all|everything|more)|patient\s*(info|details?|profile)|complete\s*(info|profile|details?)|everything\s*about\s*(him|her|this|patient)|ful\s*nfo|more\s*info)\b/i', $trimmedMsg);
+        $isFilesRequest = preg_match('/\b(files?|images?|photos?|pics?|pictures?|documents?|reports?|scans?|x-?rays?|attachments?)\b/i', $trimmedMsg);
+        $msgWords = preg_split('/\s+/', $trimmedMsg);
+        $wordCount = count($msgWords);
+        $hasMutation = preg_match('/\b(delete|remove|cancel|discharge|update|edit|modify|insert|add|create|book|admit)\b/i', $trimmedMsg);
+
+        if ($activeEntity['active_patient']) {
+            $ap = $activeEntity['active_patient'];
+            if (($activeEntity['intent'] ?? '') === 'patient_vitals' || (bool)preg_match('/\b(vitals?|bp|pulse|heart\s*rate|spo2|temperature|fever|respiration)\b/i', $trimmedMsg)) {
+                if (function_exists('getPatientVitalsDossier')) {
+                    $vitalsDossier = getPatientVitalsDossier($conn, $hospitalId, $ap['id']);
+                    if ($vitalsDossier['count'] > 0) {
+                        $synthesisPatientVitals = $vitalsDossier;
+                        $dbResults = $vitalsDossier['summary_records'];
+                        $sqlExecuted = "SELECT * FROM bed_observations WHERE patient_id = '{$ap['id']}' ORDER BY observed_at DESC LIMIT 10;";
+                    } else {
+                        $dbResults = [];
+                        $sqlExecuted = "SELECT * FROM bed_observations WHERE patient_id = '{$ap['id']}';";
+                    }
+                }
+            } elseif ($isFilesRequest || ($activeEntity['intent'] ?? '') === 'patient_files') {
+                $isImagesOnly = (bool)preg_match('/\b(images?|photos?|pics?|pictures?)\b/i', $trimmedMsg);
+                if (function_exists('getPatientFilesDossier')) {
+                    $filesDossier = getPatientFilesDossier($conn, $hospitalId, $ap['id'], $isImagesOnly);
+                    if ($filesDossier['count'] === 0 && $isImagesOnly) {
+                        // Fallback to all files if no specific image filter matched
+                        $filesDossier = getPatientFilesDossier($conn, $hospitalId, $ap['id'], false);
+                    }
+                    if ($filesDossier['count'] > 0) {
+                        $synthesisPatientFiles = $filesDossier;
+                        $dbResults = $filesDossier['summary_records'];
+                        $sqlExecuted = "SELECT id, file_name, category, mime_type, created_at FROM patient_files WHERE patient_id = '{$ap['id']}';";
+                    } else {
+                        $dbResults = [];
+                        $sqlExecuted = "SELECT id, file_name, category, mime_type, created_at FROM patient_files WHERE patient_id = '{$ap['id']}';";
+                    }
+                }
+            } elseif (($activeEntity['intent'] ?? '') === 'patient_full_info' || $isFullInfoRequest || ($activeEntity['intent'] ?? '') === 'patient_lookup' || ($wordCount <= 4 && !$hasMutation)) {
+                $isPatientLookup = true;
+                if (function_exists('getFullPatientDossier')) {
+                    $dossier = getFullPatientDossier($conn, $hospitalId, $ap['id']);
+                    if ($dossier && !empty($dossier['patient'])) {
+                        $synthesisPatientDossier = $dossier;
+                        $dbResults = $dossier['summary_records'];
+                        $sqlExecuted = "SELECT * FROM patients WHERE id = '{$ap['id']}' AND hospital_id = $hospitalId;";
+                    }
+                }
+            }
+        }
+
+        if ($pendingAction === null && $dbResults === null && function_exists('analyzeActionIntent')) {
             $actionAnalysis = analyzeActionIntent($conn, $hospitalId, $message, $history);
             if ($actionAnalysis !== null) {
                 if ($actionAnalysis['type'] === 'form') {
@@ -306,7 +368,7 @@ switch ($action) {
                     $formMsg = $actionAnalysis['message'] ?? 'Please fill out the form below.';
                     $formTitle = $actionAnalysis['title'] ?? 'Hospital Operation Form';
                     $prefill = $actionAnalysis['prefill'] ?? [];
-                    $highlighted = "> 💡 **Direct Answer:** " . $formMsg . "\n\n";
+                    $highlighted = $formMsg . "\n\n";
                     echo "data: " . json_encode(['type' => 'chunk', 'content' => $highlighted]) . "\n\n";
                     flush();
 
@@ -368,10 +430,15 @@ switch ($action) {
         // ========================================================
         // PHASE 1: SILENT SERVER-SIDE INTENT & SQL EXTRACTION
         // ========================================================
-        if ($pendingAction === null) {
+        if ($pendingAction === null && $dbResults === null) {
             $phase1Prompt = function_exists('getQueryGenerationPrompt')
                 ? getQueryGenerationPrompt($hospitalName, $hospitalId, $staffRole, $pageContext, $dateTime, $schema, $todayStats)
                 : "Generate SQL query for $message";
+
+            if (!empty($activeEntity['active_patient'])) {
+                $ap = $activeEntity['active_patient'];
+                $phase1Prompt .= "\n[ACTIVE CONTEXT: Currently discussing Patient {$ap['name']} " . ($ap['surname'] ?? '') . " (ID: '{$ap['id']}'). Any reference to 'he', 'him', 'his', 'her', 'this patient', or omitted patient refers to Patient ID: '{$ap['id']}'. Always filter with WHERE (patient_id = '{$ap['id']}' OR id = '{$ap['id']}') AND hospital_id = $hospitalId]\n";
+            }
 
             $phase1Messages = [
                 ['role' => 'system', 'content' => $phase1Prompt]
@@ -538,6 +605,16 @@ switch ($action) {
                                 $readSql = "SELECT bed_number, type, wing, status, patient_id FROM beds WHERE hospital_id = $hospitalId LIMIT 50;";
                             } elseif (stripos($userLower, 'staff') !== false || stripos($userLower, 'attendance') !== false) {
                                 $readSql = "SELECT s.first_name, s.last_name, s.role, s.department, sa.status, sa.check_in_time FROM staff s LEFT JOIN staff_attendance sa ON s.id = sa.staff_id AND sa.date = CURDATE() WHERE s.hospital_id = $hospitalId LIMIT 50;";
+                            } elseif (stripos($userLower, 'charge') !== false || stripos($userLower, 'fee') !== false || stripos($userLower, 'price') !== false || stripos($userLower, 'cost') !== false || stripos($userLower, 'tariff') !== false) {
+                                $readSql = "SELECT charge_type, charge_name, amount, is_active FROM consultation_charges WHERE hospital_id = $hospitalId AND is_active = 1;";
+                            } elseif (stripos($userLower, 'online') !== false || stripos($userLower, 'telemedicine') !== false || stripos($userLower, 'video consult') !== false) {
+                                $readSql = "SELECT oc.id, oc.patient_id, oc.doctor_id, oc.status, oc.consultation_fee, oc.fee_status, oc.started_at, p.name AS patient_name, d.name AS doctor_name FROM online_consultations oc LEFT JOIN patients p ON oc.patient_id = p.id LEFT JOIN doctors d ON oc.doctor_id = d.id WHERE oc.hospital_id = $hospitalId ORDER BY oc.started_at DESC LIMIT 50;";
+                            } elseif (stripos($userLower, 'vital') !== false || stripos($userLower, 'bp') !== false || stripos($userLower, 'pulse') !== false || stripos($userLower, 'spo2') !== false || stripos($userLower, 'observation') !== false) {
+                                $readSql = "SELECT bo.id, bo.bed_number, bo.patient_id, bo.observed_at, bo.vital_pulse, bo.vital_bp, bo.vital_spo2, bo.vital_temp, bo.vital_resp, bo.notes, p.name AS patient_name FROM bed_observations bo LEFT JOIN patients p ON bo.patient_id = p.id WHERE bo.hospital_id = $hospitalId ORDER BY bo.observed_at DESC LIMIT 50;";
+                            } elseif (stripos($userLower, 'geofence') !== false || stripos($userLower, 'radius') !== false || stripos($userLower, 'boundary') !== false) {
+                                $readSql = "SELECT id, name, latitude, longitude, radius_meters FROM hospital_geofence WHERE hospital_id = $hospitalId LIMIT 5;";
+                            } elseif (stripos($userLower, 'permission') !== false || stripos($userLower, 'rights') !== false) {
+                                $readSql = "SELECT sp.id, s.first_name, s.last_name, s.role, sp.permission_key, sp.permission_value FROM staff_permissions sp JOIN staff s ON sp.staff_id = s.id WHERE s.hospital_id = $hospitalId LIMIT 50;";
                             }
 
                             if ($readSql !== null) {
@@ -630,11 +707,93 @@ switch ($action) {
             : "You are BHOOMA AI. Never show SQL. Provide friendly, properly styled hospital responses with emojis and bullet points.";
 
         $synthesisUserContent = "User Message: \"$message\"\n\n";
-        if ($dbResults !== null) {
+        if (isset($synthesisPatientFiles) && !empty($synthesisPatientFiles['files'])) {
+            $spf = $synthesisPatientFiles['files'];
+            $spat = $activeEntity['active_patient'];
+            $patFullName = trim(($spat['name'] ?? '') . ' ' . ($spat['surname'] ?? ''));
+            $synthesisUserContent .= "MODE: PATIENT MEDICAL FILES & IMAGES DISPLAY\n";
+            $synthesisUserContent .= "PATIENT: {$patFullName} (ID: {$spat['id']})\n";
+            $synthesisUserContent .= "Total Files Found: " . count($spf) . "\n\n";
+            $synthesisUserContent .= "FILES ON RECORD:\n";
+            foreach ($spf as $idx => $f) {
+                $typeLabel = !empty($f['is_image']) ? '🖼️ Clinical Image' : '📄 Document / Report';
+                $viewUrl = $f['file_url'];
+                $synthesisUserContent .= ($idx + 1) . ". {$typeLabel}: **{$f['file_name']}**\n";
+                $synthesisUserContent .= "   • Category: " . ($f['category'] ?: 'Medical File') . "\n";
+                $synthesisUserContent .= "   • Format / MIME: " . ($f['mime_type'] ?: 'Unknown') . "\n";
+                $synthesisUserContent .= "   • View Link: [View / Download]($viewUrl)\n\n";
+            }
+            $synthesisUserContent .= "\nINSTRUCTION: Deliver a clear, helpful response presenting these files/images for patient {$patFullName}. Present each file with its category and clickable view link `[View File](api/file.php?id=...)`. DO NOT mention 'Confirm' or action cards. DO NOT greet the user as the patient.\n";
+        } elseif (isset($synthesisPatientDossier) && !empty($synthesisPatientDossier['patient'])) {
+            $dp = $synthesisPatientDossier['patient'];
+            $dbed = $synthesisPatientDossier['bed'];
+            $dapps = $synthesisPatientDossier['appointments'];
+            $dpresc = $synthesisPatientDossier['prescriptions'];
+            $ddiag = $synthesisPatientDossier['diagnoses'];
+            $dfiles = $synthesisPatientDossier['files'];
+
+            $synthesisUserContent .= "MODE: COMPLETE CLINICAL DOSSIER FOR PATIENT (NOT an action — DO NOT mention confirm or buttons)\n";
+            $synthesisUserContent .= "CRITICAL NOTICE: The user is a hospital administrator or doctor querying records. The user is NOT {$dp['name']} {$dp['surname']}. DO NOT greet the user as 'Hello {$dp['name']}'! Start directly by presenting the patient's record.\n";
+            $synthesisUserContent .= "PATIENT IDENTITY: " . $dp['name'] . " " . ($dp['surname'] ?? '') . " (ID: " . $dp['id'] . ")\n";
+            $synthesisUserContent .= "• Full Name: {$dp['name']} " . ($dp['surname'] ?? '') . " | MRN/ID: {$dp['id']}\n";
+            $synthesisUserContent .= "• Demographics: Gender: " . ($dp['gender'] ?? 'Not specified') . ", Age: " . ($dp['age'] ?? 'N/A') . " yrs, Blood Group: " . ($dp['blood_group'] ?? 'N/A') . "\n";
+            $synthesisUserContent .= "• Contact: Phone: " . ($dp['phone'] ?? 'N/A') . ", Emergency Contact: " . ($dp['emergency_contact_name'] ?? 'None') . " (" . ($dp['emergency_contact_phone'] ?? 'None') . ")\n";
+            $synthesisUserContent .= "• Bed Admission: " . ($dbed ? "Currently ADMITTED in Bed {$dbed['bed_number']} ({$dbed['type']}, {$dbed['wing']})" : "Outpatient (Not currently admitted to an inpatient bed)") . "\n";
+            
+            if (!empty($dapps)) {
+                $synthesisUserContent .= "• Appointments History (" . count($dapps) . " records):\n";
+                foreach ($dapps as $a) {
+                    $synthesisUserContent .= "  - Date: {$a['date']} (" . ($a['slot'] ?? 'N/A') . ") | Doctor: " . ($a['doctor_name'] ?? 'N/A') . " | Type: {$a['type']} | Status: {$a['status']}\n";
+                }
+            } else {
+                $synthesisUserContent .= "• Appointments History: No prior appointments found.\n";
+            }
+            if (!empty($ddiag)) {
+                $synthesisUserContent .= "• Diagnoses Recorded: " . implode('; ', $ddiag) . "\n";
+            }
+            if (!empty($dpresc)) {
+                $synthesisUserContent .= "• Prescriptions Issued (" . count($dpresc) . " items):\n";
+                foreach ($dpresc as $pr) {
+                    $synthesisUserContent .= "  - {$pr['medicine_name']} ({$pr['dosage']}, {$pr['frequency']}, {$pr['duration']})\n";
+                }
+            }
+            if (!empty($dfiles)) {
+                $synthesisUserContent .= "• Medical Reports/Files: " . count($dfiles) . " document(s) on file\n";
+            }
+            if (!empty($synthesisPatientDossier['vitals'])) {
+                $synthesisUserContent .= "• Inpatient Vital Signs (Recent):\n";
+                foreach ($synthesisPatientDossier['vitals'] as $v) {
+                    $synthesisUserContent .= "  - " . ($v['observed_at'] ?: $v['observation_hour']) . " | Bed: {$v['bed_number']} | BP: {$v['vital_bp']} | Pulse: {$v['vital_pulse']} | SpO2: {$v['vital_spo2']} | Temp: {$v['vital_temp']}\n";
+                }
+            }
+            if (!empty($synthesisPatientDossier['online_consultations'])) {
+                $synthesisUserContent .= "• Online Consultations (" . count($synthesisPatientDossier['online_consultations']) . " session(s)):\n";
+                foreach ($synthesisPatientDossier['online_consultations'] as $oc) {
+                    $synthesisUserContent .= "  - Doctor: " . ($oc['doctor_name'] ?? 'Doctor') . " | Status: {$oc['status']} | Fee: ₹" . ($oc['consultation_fee'] ?? '0.00') . "\n";
+                }
+            }
+            $synthesisUserContent .= "\nINSTRUCTION: Deliver a comprehensive, warm, beautifully structured patient profile summary without any robotic headers or 'Direct Answer:' tags. Start directly with the patient file headline (e.g. 'Here is the complete medical dossier for **" . $dp['name'] . " " . ($dp['surname'] ?? '') . "** (ID: " . $dp['id'] . "):') and present Demographics & Contact, Admission Status, Appointments, Diagnoses/Medications, and Vitals in organized bullet points.\n";
+        } elseif (isset($synthesisPatientVitals) && !empty($synthesisPatientVitals['vitals'])) {
+            $spv = $synthesisPatientVitals['vitals'];
+            $spat = $activeEntity['active_patient'];
+            $patFullName = trim(($spat['name'] ?? '') . ' ' . ($spat['surname'] ?? ''));
+            $synthesisUserContent .= "MODE: PATIENT VITALS & OBSERVATIONS DISPLAY\n";
+            $synthesisUserContent .= "PATIENT: {$patFullName} (ID: {$spat['id']})\n";
+            $synthesisUserContent .= "Total Vital Entries: " . count($spv) . "\n\n";
+            $synthesisUserContent .= "CLINICAL VITALS ON RECORD:\n";
+            foreach ($spv as $idx => $v) {
+                $timeStr = $v['observed_at'] ?: ($v['observation_hour'] ?? 'Recent');
+                $synthesisUserContent .= ($idx + 1) . ". Recorded: $timeStr (Bed: {$v['bed_number']})\n";
+                $synthesisUserContent .= "   • Blood Pressure: " . ($v['vital_bp'] ?: 'N/A') . " | Pulse: " . ($v['vital_pulse'] ?: 'N/A') . "\n";
+                $synthesisUserContent .= "   • SpO2: " . ($v['vital_spo2'] ?: 'N/A') . " | Temp: " . ($v['vital_temp'] ?: 'N/A') . " | Respiration: " . ($v['vital_resp'] ?: 'N/A') . "\n";
+                if (!empty($v['notes'])) $synthesisUserContent .= "   • Notes: {$v['notes']}\n";
+            }
+            $synthesisUserContent .= "\nINSTRUCTION: Deliver a clear, helpful clinical summary presenting these vital signs for patient {$patFullName}. State if readings appear stable. DO NOT mention 'Confirm' or action cards.\n";
+        } elseif ($dbResults !== null) {
             $resultCount = is_array($dbResults) ? count($dbResults) : 0;
             $synthesisUserContent .= "MODE: DATA DISPLAY (NOT an action — DO NOT mention confirm/action cards)\n";
             $synthesisUserContent .= "FACTUAL HOSPITAL DATABASE DATA RETRIEVED ($resultCount record(s)):\n" . json_encode($dbResults, JSON_UNESCAPED_UNICODE) . "\n\n";
-            $synthesisUserContent .= "INSTRUCTION: Present this data clearly and warmly. Summarize the key fields in bullet points with bold labels. The data table is shown automatically below your text. DO NOT say 'click Confirm', 'action card', or anything about buttons. Simply narrate the data.\n";
+            $synthesisUserContent .= "INSTRUCTION: Present this data clearly and warmly without any robotic 'Direct Answer:' headers. Summarize the key fields in bullet points with bold labels. The data table is shown automatically below your text. DO NOT say 'click Confirm', 'action card', or anything about buttons. Simply narrate the data.\n";
         } elseif ($pendingAction !== null) {
             $synthesisUserContent .= "MODE: ACTION PENDING CONFIRMATION\n";
             $synthesisUserContent .= "AN ACTION HAS BEEN PREPARED AND IS PENDING USER CONFIRMATION:\n";

@@ -134,6 +134,37 @@ $patient_id = $_GET['id'];
             <div class="animate-pulse bg-slate-50 rounded-2xl h-64 border border-slate-200"></div>
         </div>
     </div>
+
+    <!-- ================= DEDICATED SEPARATE SECTION: INPATIENT BED OBSERVATIONS & MACHINE MONITOR LOGS ================= -->
+    <div id="patient-admission-monitor-section" class="bg-white rounded-3xl p-5 sm:p-6 border border-rose-200 shadow-sm space-y-5">
+        <!-- Section Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-rose-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg shrink-0 border border-rose-200 shadow-2xs">
+                    <i class="fa-solid fa-bed-pulse"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base sm:text-lg font-black text-slate-900">Inpatient Bed Observations & Machine Monitor Logs</h2>
+                        <span id="admission-obs-count-badge" class="text-xs font-black px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 font-mono">0 Logs</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">Hourly patient monitor & machine photos saved during hospital bed admission (permanently preserved even after discharge)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span id="admission-status-badge" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                    <span>Checking stay status...</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Admission Observations Container -->
+        <div id="admission-observations-container" class="space-y-4">
+            <!-- Rendered dynamically -->
+        </div>
+    </div>
 </div>
 
 <!-- ================= MODAL: PATIENT FULL INFORMATION POPUP ================= -->
@@ -457,8 +488,11 @@ $patient_id = $_GET['id'];
                     })
                     .catch(console.error);
 
-                // 3. Render Files Grid
-                renderFilesGrid(allPatientFiles);
+                // 3. Render Files Grid (Excluding Admission Monitor Images so they stay completely separate)
+                filterPatientFiles();
+
+                // 4. Render Dedicated Inpatient Bed Observations & Machine Monitor Logs Section
+                renderAdmissionObservations(p.bed_observations || [], p);
 
             } else {
                 showToast('Error', data.message || 'Failed to load patient record.', 'error');
@@ -518,7 +552,7 @@ $patient_id = $_GET['id'];
         document.getElementById('modal-patient-full-info').classList.add('hidden');
     }
 
-    // ================= PATIENT FILES GRID =================
+    // ================= PATIENT FILES GRID (NON-MONITOR FILES) =================
     function setFileCategoryFilter(cat, btn) {
         currentCategoryFilter = cat;
         document.querySelectorAll('.file-cat-filter').forEach(el => {
@@ -530,7 +564,10 @@ $patient_id = $_GET['id'];
 
     function filterPatientFiles() {
         const query = (document.getElementById('file-search-input')?.value || '').toLowerCase().trim();
-        const filtered = allPatientFiles.filter(f => {
+        // Separate out Admission Monitor images from normal general patient files
+        const normalFiles = allPatientFiles.filter(f => (f.category || '') !== 'Admission Monitor');
+
+        const filtered = normalFiles.filter(f => {
             // Category check
             if (currentCategoryFilter !== 'All') {
                 const fCat = (f.category || '').toLowerCase();
@@ -894,7 +931,148 @@ $patient_id = $_GET['id'];
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
     }
+
+    // ================= DEDICATED INPATIENT BED OBSERVATIONS & MONITOR LOGS =================
+    function renderAdmissionObservations(observations, patient) {
+        const container = document.getElementById('admission-observations-container');
+        const badge = document.getElementById('admission-obs-count-badge');
+        const statusBadge = document.getElementById('admission-status-badge');
+
+        if (badge) badge.textContent = `${observations.length} Log${observations.length === 1 ? '' : 's'}`;
+
+        if (statusBadge) {
+            if (patient && patient.bed_number) {
+                statusBadge.className = "text-xs font-bold px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5 shadow-2xs";
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span><span>Currently Inpatient (Bed #${escapeHtml(patient.bed_number)})</span>`;
+            } else if (observations && observations.length > 0) {
+                statusBadge.className = "text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5";
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Discharged (Permanent Stay Archive)</span>`;
+            } else {
+                statusBadge.className = "text-xs font-medium px-3 py-1.5 rounded-xl bg-slate-50 text-slate-500 border border-slate-200 flex items-center gap-1.5";
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-300"></span><span>No Bed Stay History</span>`;
+            }
+        }
+
+        if (!observations || observations.length === 0) {
+            container.innerHTML = `
+                <div class="py-12 px-4 text-center bg-slate-50/70 rounded-2xl border-2 border-dashed border-slate-200">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-xl mx-auto mb-2">
+                        <i class="fa-solid fa-bed"></i>
+                    </div>
+                    <h4 class="text-sm font-black text-slate-800 mb-0.5">No Inpatient Bed Observations Recorded</h4>
+                    <p class="text-xs text-slate-400 max-w-sm mx-auto">When this patient is admitted to a bed, all hourly monitor snapshots and vitals observations will be permanently archived here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = observations.map((obs, idx) => {
+            const hasImages = obs.images && obs.images.length > 0;
+            const vitalsList = [];
+            if (obs.vital_bp) vitalsList.push(`<strong>BP:</strong> ${escapeHtml(obs.vital_bp)}`);
+            if (obs.vital_pulse) vitalsList.push(`<strong>HR:</strong> ${escapeHtml(obs.vital_pulse)} bpm`);
+            if (obs.vital_spo2) vitalsList.push(`<strong>SpO2:</strong> ${escapeHtml(obs.vital_spo2)}%`);
+            if (obs.vital_temp) vitalsList.push(`<strong>Temp:</strong> ${escapeHtml(obs.vital_temp)}°F`);
+            if (obs.vital_resp) vitalsList.push(`<strong>Resp:</strong> ${escapeHtml(obs.vital_resp)}/min`);
+
+            return `
+                <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs hover:border-rose-200 transition">
+                    <!-- Observation Top Bar -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-xl bg-rose-100 text-rose-800 font-black text-xs flex items-center justify-center shrink-0">
+                                #${observations.length - idx}
+                            </span>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs font-black text-slate-900">${escapeHtml(obs.observation_hour || 'Observation Log')}</span>
+                                    <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                        <i class="fa-solid fa-bed mr-1"></i>Bed ${escapeHtml(obs.bed_number)}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-bold">
+                                        🕒 ${escapeHtml(obs.observed_time_12h || '')} • ${escapeHtml(obs.observed_date || '')}
+                                    </span>
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-medium mt-0.5">
+                                    Recorded by: <span class="font-bold text-slate-700">${escapeHtml(obs.recorded_by_name || 'Staff')}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${vitalsList.length > 0 ? `
+                            <div class="flex flex-wrap items-center gap-1.5 text-xs text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                                ${vitalsList.join(' • ')}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Observation Notes -->
+                    ${obs.notes ? `
+                        <div class="mb-3 p-3 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs text-amber-950 font-medium">
+                            <i class="fa-solid fa-clipboard-user text-amber-600 mr-1.5"></i>
+                            <strong>Clinical Notes:</strong> ${escapeHtml(obs.notes)}
+                        </div>
+                    ` : ''}
+
+                    <!-- Monitor Machine Images Gallery -->
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-600 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-camera text-rose-600"></i>
+                            <span>Machine & Monitor Screen Photos (${obs.images ? obs.images.length : 0} photos)</span>
+                        </div>
+
+                        ${hasImages ? `
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                ${obs.images.map(img => {
+                                    const thumbSrc = img.thumbnail_path || img.image_path;
+                                    const fullSrc = img.image_path;
+                                    return `
+                                        <div class="group relative bg-slate-900 rounded-xl overflow-hidden aspect-video border border-slate-200 hover:border-rose-400 cursor-pointer shadow-2xs"
+                                             onclick="openObsImagePreview('${escapeHtml(fullSrc)}', '${escapeHtml(img.title || 'Bed Monitor Screen')}')">
+                                            <img src="${escapeHtml(thumbSrc)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="Monitor Image">
+                                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1">
+                                                <i class="fa-solid fa-magnifying-glass-plus"></i> View Full
+                                            </div>
+                                            <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/75 text-[9px] font-mono text-white">
+                                                ${escapeHtml(img.captured_time || '')}
+                                            </span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <p class="text-xs text-slate-400 italic">No machine monitor images attached to this observation entry.</p>
+                        `}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function openObsImagePreview(src, title) {
+        const modal = document.getElementById('modal-obs-image-preview');
+        if (!modal) return;
+        document.getElementById('obs-preview-img').src = src;
+        document.getElementById('obs-preview-title').textContent = title || 'Machine Monitor Screen';
+        modal.classList.remove('hidden');
+    }
+
+    function closeObsImagePreview() {
+        const modal = document.getElementById('modal-obs-image-preview');
+        if (modal) modal.classList.add('hidden');
+    }
 </script>
+
+<!-- Observation Image Lightbox Modal -->
+<div id="modal-obs-image-preview" class="hidden fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-5 bg-slate-900/85 backdrop-blur-md" onclick="closeObsImagePreview()">
+    <div class="relative max-w-4xl max-h-[90vh] bg-black rounded-3xl overflow-hidden shadow-2xl p-2 flex flex-col items-center justify-center" onclick="event.stopPropagation()">
+        <button onclick="closeObsImagePreview()" class="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <img id="obs-preview-img" src="" class="max-w-full max-h-[82vh] object-contain rounded-2xl" alt="Machine Monitor Screen">
+        <div class="text-white text-xs font-bold mt-2 px-4 py-1 truncate max-w-full text-center" id="obs-preview-title">Monitor Preview</div>
+    </div>
+</div>
 
 <!-- jsPDF & Medical File PDF Generator Engine -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

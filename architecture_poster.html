@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hospital Management System — Architecture Blueprint Poster</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #0b0f19;
+      color: #e2e8f0;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .glass-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+    .glow-cyan { box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.25); }
+    .glow-purple { box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.25); }
+    .glow-emerald { box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.25); }
+    @media print {
+      body { background: #0b0f19 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body class="p-6 md:p-10 min-h-screen flex flex-col items-center justify-center">
+
+  <!-- Print/Export Floating Toolbar -->
+  <div class="no-print fixed top-5 right-5 z-50 flex items-center gap-3">
+    <button onclick="window.print()" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-cyan-500/30 transition flex items-center gap-2 cursor-pointer">
+      <i class="fa-solid fa-file-pdf"></i>
+      <span>Save as PDF / Print Poster</span>
+    </button>
+  </div>
+
+  <!-- POSTER CONTAINER -->
+  <div class="w-full max-w-6xl space-y-6">
+
+    <!-- HEADER BAR -->
+    <div class="glass-card rounded-3xl p-6 md:p-8 border-t border-cyan-500/30 relative overflow-hidden">
+      <div class="absolute -right-20 -top-20 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -left-20 -bottom-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+        <div>
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full text-[11px] font-black tracking-widest uppercase">
+              Hospital Tech Architecture
+            </span>
+            <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-[11px] font-black tracking-widest uppercase flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Enterprise Ready
+            </span>
+          </div>
+          <h1 class="text-3xl md:text-5xl font-black text-white tracking-tight">
+            Hospital Management System
+          </h1>
+          <p class="text-slate-400 text-sm md:text-base font-medium mt-1">
+            Complete Infrastructure Blueprint: Local Server, Zero Trust Tunnel, AI VRAM, & Encrypted Storage
+          </p>
+        </div>
+
+        <div class="flex items-center gap-4 border-l border-slate-700/60 pl-6 shrink-0">
+          <div class="text-right">
+            <div class="text-xs uppercase font-extrabold text-slate-400 tracking-wider">Scale Target</div>
+            <div class="text-2xl font-black text-white mono">5,000+ <span class="text-xs text-cyan-400">Patients</span></div>
+            <div class="text-xs text-slate-400 font-semibold mono">3k - 5k Imgs/Day</div>
+          </div>
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/20">
+            <i class="fa-solid fa-hospital"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- SECTION 1: NETWORK & ACCESS -->
+      <div class="glass-card rounded-3xl p-6 glow-cyan flex flex-col justify-between border-t-2 border-cyan-400">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <span class="text-[10px] font-black tracking-wider uppercase px-2.5 py-1 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded-lg">Pillar 1</span>
+          </div>
+          <h2 class="text-lg font-black text-white">Secure Zero Trust Access</h2>
+          <p class="text-xs text-slate-400 mt-1 mb-4">Cloudflare Tunnel + Local Hospital LAN</p>
+
+          <div class="space-y-3 text-xs">
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-check text-cyan-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">Zero Open Router Ports:</strong>
+                <span class="text-slate-400">Pure outbound encrypted tunnel. Hackers cannot scan or reach the hospital IP.</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-check text-cyan-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">Cloudflare Zero Trust Layer:</strong>
+                <span class="text-slate-400">Email OTP / Doctor SSO required before anyone even sees the PHP login page.</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-check text-cyan-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">Dual Speed Mode:</strong>
+                <span class="text-slate-400">Instant Gigabit speed on Hospital LAN (<span class="text-cyan-300 mono">192.168.1.x</span>) & safe HTTPS outside.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-cyan-400 font-bold flex items-center justify-between">
+          <span>Data stays 100% inside hospital</span>
+          <i class="fa-solid fa-lock"></i>
+        </div>
+      </div>
+
+      <!-- SECTION 2: AI & SERVER HARDWARE -->
+      <div class="glass-card rounded-3xl p-6 glow-purple flex flex-col justify-between border-t-2 border-purple-400">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-microchip"></i>
+            </div>
+            <span class="text-[10px] font-black tracking-wider uppercase px-2.5 py-1 bg-purple-950 text-purple-400 border border-purple-800 rounded-lg">Pillar 2</span>
+          </div>
+          <h2 class="text-lg font-black text-white">Core Server Hardware</h2>
+          <p class="text-xs text-slate-400 mt-1 mb-4">Intel i7 + NVIDIA RTX GPU (for Ollama AI)</p>
+
+          <div class="space-y-3 text-xs">
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-bolt text-purple-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">NVIDIA RTX 4070 Ti / 4060:</strong>
+                <span class="text-slate-400">12GB VRAM handles <span class="text-purple-300 font-semibold">hms-ai:latest</span> model in sub-seconds. Zero CPU lockup.</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-server text-purple-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">Intel i7 (28 Threads) + 64GB RAM:</strong>
+                <span class="text-slate-400">20GB RAM allocated to MySQL buffer pool. 28 threads process 5,000 image encryptions.</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-hard-drive text-purple-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">1TB NVMe + 2x 4TB RAID 1:</strong>
+                <span class="text-slate-400">Dual mirrored drives store 4+ years of images with 0% data loss if 1 drive fails.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-purple-400 font-bold flex items-center justify-between">
+          <span>Protected by APC 1500VA UPS</span>
+          <i class="fa-solid fa-plug-circle-bolt"></i>
+        </div>
+      </div>
+
+      <!-- SECTION 3: IMAGE STORAGE & ENCRYPTION -->
+      <div class="glass-card rounded-3xl p-6 glow-emerald flex flex-col justify-between border-t-2 border-emerald-400">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-file-shield"></i>
+            </div>
+            <span class="text-[10px] font-black tracking-wider uppercase px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-lg">Pillar 3</span>
+          </div>
+          <h2 class="text-lg font-black text-white">Image Storage & Security</h2>
+          <p class="text-xs text-slate-400 mt-1 mb-4">Lossless WebP + AES-256 + MySQL Path</p>
+
+          <div class="space-y-3 text-xs">
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-ban text-rose-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">NEVER Store BLOB in MySQL:</strong>
+                <span class="text-slate-400">MySQL stores ONLY the file path & SHA-256 hash. Prevents database bloat.</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-compress text-emerald-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">Lossless WebP (100% Quality):</strong>
+                <span class="text-slate-400">30% smaller file size than PNG with zero loss of medical or prescription sharpness.</span>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-start gap-2.5">
+              <i class="fa-solid fa-key text-emerald-400 mt-0.5"></i>
+              <div>
+                <strong class="text-white block">AES-256-CBC Encryption (.enc):</strong>
+                <span class="text-slate-400">Decrypted in memory ONLY after session auth in <span class="text-emerald-300 font-mono">patient_file_view.php</span>.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-emerald-400 font-bold flex items-center justify-between">
+          <span>Complies with HIPAA / DPDP</span>
+          <i class="fa-solid fa-user-shield"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM ROW: ATTENDANCE TERMINAL & OS ROADMAP -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- SECTION 4: 24/7 ATTENDANCE TERMINAL -->
+      <div class="glass-card rounded-3xl p-6 border-l-4 border-amber-400">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-id-card-clip"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-black text-white">24/7 Face Attendance Terminal</h3>
+            <span class="text-xs text-slate-400">staff_face_test.php kiosk mode</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-xs mt-4">
+          <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+            <span class="text-slate-400 font-semibold block text-[11px]">Recommended Device:</span>
+            <strong class="text-white text-sm">24" All-in-One (AIO) PC</strong>
+            <p class="text-[11px] text-slate-400 mt-1">Direct AC power. No lithium battery swelling risk. 1080p camera & loud voice speakers.</p>
+          </div>
+
+          <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+            <span class="text-slate-400 font-semibold block text-[11px]">Kiosk Lock Command:</span>
+            <strong class="text-amber-300 text-xs mono block truncate">chrome.exe --kiosk</strong>
+            <p class="text-[11px] text-slate-400 mt-1">Locks full-screen on boot. Auto-punches attendance with live anti-spoofing & voice alerts.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 5: OS ROADMAP (WINDOWS -> LINUX) -->
+      <div class="glass-card rounded-3xl p-6 border-l-4 border-blue-400">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-lg">
+            <i class="fa-brands fa-linux"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-black text-white">Operating System Roadmap</h3>
+            <span class="text-xs text-slate-400">Zero-downtime deployment strategy</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-xs mt-4">
+          <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-1.5 text-blue-400 font-bold mb-1">
+              <i class="fa-brands fa-windows"></i>
+              <span>Phase 1: Windows 11 Pro</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Disable auto-reboots in <span class="mono text-slate-300">gpedit.msc</span>. Install NVIDIA Studio Drivers. Run Apache/MySQL as Services.</p>
+          </div>
+
+          <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-1.5 text-emerald-400 font-bold mb-1">
+              <i class="fa-brands fa-ubuntu"></i>
+              <span>Phase 2: Ubuntu 24.04 LTS</span>
+            </div>
+            <p class="text-[11px] text-slate-400">30-min transfer: <span class="mono text-slate-300">mysqldump</span> DB restore + copy <span class="mono text-slate-300">uploads/</span> folder. 100% bug-free.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER SIGNATURE -->
+    <div class="text-center text-xs text-slate-500 py-2">
+      Hospital Management System Architecture &bull; Designed for High Security, High Concurrency & Zero Data Loss
+    </div>
+
+  </div>
+
+</body>
+</html>

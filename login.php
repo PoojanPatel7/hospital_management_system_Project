@@ -2,7 +2,8 @@
 require_once __DIR__ . '/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (isset($_SESSION['hospital_id'])) {
-    header("Location: dashboard.php");
+    $redirect = $_GET['redirect'] ?? 'dashboard.php';
+    header("Location: " . $redirect);
     exit;
 }
 ?>
@@ -218,9 +219,13 @@ if (isset($_SESSION['hospital_id'])) {
             btn.classList.add('opacity-80', 'cursor-not-allowed');
             errBox.classList.add('hidden');
 
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectParam = urlParams.get('redirect') || '';
+
             const payload = {
                 username: document.getElementById('log-username').value.trim(),
-                password: password
+                password: password,
+                redirect: redirectParam
             };
 
             try {
@@ -243,7 +248,7 @@ if (isset($_SESSION['hospital_id'])) {
                     btn.classList.remove('bg-slate-900', 'hover:bg-slate-800', 'shadow-slate-900/20');
                     btn.classList.add('bg-emerald-500', 'hover:bg-emerald-600', 'shadow-emerald-500/30');
                     setTimeout(() => {
-                        window.location.href = data.redirect || 'dashboard.php';
+                        window.location.href = redirectParam || data.redirect || 'dashboard.php';
                     }, 500);
                 } else {
                     errText.textContent = data.message || "Invalid username or password.";

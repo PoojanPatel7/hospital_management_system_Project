@@ -442,4 +442,61 @@ if ($action === 'toggle_booking_status') {
     }
 }
 
+// -------------------------------------------------------------
+// ACTION: get_staff_roster
+// -------------------------------------------------------------
+if ($action === 'get_staff_roster') {
+    try {
+        $today = date('Y-m-d');
+        $query = "
+            SELECT s.id, s.staff_code, s.first_name, s.last_name, s.role, s.department, s.shift, s.phone, s.status, s.avatar,
+                   a.status AS att_status, a.check_in_time
+            FROM staff s
+            LEFT JOIN staff_attendance a ON s.id = a.staff_id AND a.date = ?
+            WHERE (s.hospital_id = ? OR s.hospital_id IS NULL)
+            ORDER BY 
+                CASE 
+                    WHEN a.status = 'Present' THEN 1
+                    WHEN a.status = 'Late' THEN 2
+                    WHEN a.status = 'Half Day' THEN 3
+                    WHEN a.status = 'On Leave' THEN 4
+                    WHEN a.status = 'Absent' THEN 5
+                    ELSE 6
+                END ASC,
+                s.first_name ASC
+        ";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("si", $today, $hospital_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $staff = [];
+        $counts = ['total' => 0, 'present' => 0, 'absent' => 0, 'leave' => 0, 'off_duty' => 0];
+
+        while ($r = $res->fetch_assoc()) {
+            $att = $r['att_status'] ?? '';
+            $counts['total']++;
+            if ($att === 'Present' || $att === 'Late') {
+                $counts['present']++;
+            } elseif ($att === 'Absent') {
+                $counts['absent']++;
+            } elseif ($att === 'On Leave' || $att === 'Half Day') {
+                $counts['leave']++;
+            } else {
+                $counts['off_duty']++;
+            }
+            $staff[] = $r;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'staff' => $staff,
+            'counts' => $counts
+        ]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
+    }
+}
+
 echo json_encode(['status' => 'error', 'message' => 'Invalid action']);

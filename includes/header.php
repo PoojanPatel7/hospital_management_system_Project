@@ -29,7 +29,7 @@ $canDeleteFiles = hasPermission($conn, 'can_delete_files');
 $isOverviewActive = in_array($current_page, ['dashboard.php', 'about.php']);
 $isFrontDeskActive = in_array($current_page, ['index.php', 'patients.php', 'patient_profile.php', 'patient_profile_qr.php', 'patient_file_view.php', 'history.php']);
 $isAppointmentsActive = in_array($current_page, ['appointments.php', 'book.php', 'doctor_slots.php', 'online_consult.php']);
-$isStaffActive = in_array($current_page, ['doctors.php', 'staff.php', 'staff_face_test.php', 'selfie_attendance.php', 'beds.php', 'charges.php', 'staff_permissions.php']);
+$isStaffActive = in_array($current_page, ['doctors.php', 'staff.php', 'face_attendance.php', 'staff_face_test.php', 'selfie_attendance.php', 'beds.php', 'charges.php', 'staff_permissions.php']);
 $isSystemActive = in_array($current_page, ['backup.php', 'restore.php', 'ai_logs.php', 'ai_training_dashboard.php', 'guide.php']);
 ?>
 <!DOCTYPE html>
@@ -304,6 +304,15 @@ $isSystemActive = in_array($current_page, ['backup.php', 'restore.php', 'ai_logs
                   <i class="fa-solid fa-clipboard-user"></i>
                 </div>
                 <span>Staff &amp; Attendance</span>
+              </a>
+              <a href="face_attendance.php" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition group <?php echo $current_page == 'face_attendance.php' ? 'bg-slate-100 font-bold text-black border-l-2 border-black' : 'text-slate-700 hover:bg-slate-50 hover:text-black'; ?>">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-7 h-7 rounded-lg bg-emerald-50 group-hover:bg-black group-hover:text-white flex items-center justify-center text-xs text-emerald-700 transition shrink-0">
+                    <i class="fa-solid fa-face-viewfinder"></i>
+                  </div>
+                  <span>Smart AI Attendance</span>
+                </div>
+                <span class="text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded shrink-0">Live</span>
               </a>
               <a href="selfie_attendance.php" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition group <?php echo $current_page == 'selfie_attendance.php' ? 'bg-slate-100 font-bold text-black border-l-2 border-black' : 'text-slate-700 hover:bg-slate-50 hover:text-black'; ?>">
                 <div class="flex items-center gap-2.5 min-w-0">
@@ -715,6 +724,13 @@ $isSystemActive = in_array($current_page, ['backup.php', 'restore.php', 'ai_logs
           <a href="staff.php" onclick="toggleMobileNav(false)" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-black <?php echo $current_page == 'staff.php' ? 'bg-slate-100 text-black font-extrabold' : ''; ?>">
             <i class="fa-solid fa-clipboard-user w-4 text-center"></i>
             <span>Staff &amp; Attendance</span>
+          </a>
+          <a href="face_attendance.php" onclick="toggleMobileNav(false)" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-black <?php echo $current_page == 'face_attendance.php' ? 'bg-slate-100 text-black font-extrabold' : ''; ?>">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-face-viewfinder w-4 text-center text-emerald-600"></i>
+              <span>Smart AI Attendance</span>
+            </div>
+            <span class="text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">Live</span>
           </a>
           <a href="selfie_attendance.php" onclick="toggleMobileNav(false)" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-black <?php echo $current_page == 'selfie_attendance.php' ? 'bg-slate-100 text-black font-extrabold' : ''; ?>">
             <i class="fa-solid fa-camera w-4 text-center"></i>

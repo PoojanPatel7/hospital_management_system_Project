@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A Day in the Life: Complete Operational Workflow — HMS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .clean-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    }
+    @media print {
+      body { background: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none; }
+      .poster-container { box-shadow: none !important; border: none !important; padding: 0 !important; }
+    }
+  </style>
+</head>
+<body class="p-3 sm:p-8 min-h-screen flex flex-col items-center justify-center">
+
+  <!-- Print/Export Floating Toolbar -->
+  <div class="no-print fixed top-5 right-5 z-50 flex items-center gap-3">
+    <button onclick="window.print()" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer">
+      <i class="fa-solid fa-file-pdf text-rose-400"></i>
+      <span>Print / Save as PDF (Vertical)</span>
+    </button>
+  </div>
+
+  <!-- VERTICAL WORKFLOW POSTER CONTAINER -->
+  <div class="poster-container w-full max-w-3xl clean-card rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-xl space-y-6 bg-white">
+
+    <!-- 1. HEADER (HERO) -->
+    <div class="text-center pb-6 border-b border-slate-200">
+      <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-full text-xs font-black uppercase tracking-wider mb-2">
+        <i class="fa-solid fa-clock-rotate-left text-blue-600"></i>
+        <span>24-Hour End-to-End Operational Lifecycle</span>
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+        A Day in the Life: Operational Workflow
+      </h1>
+      <p class="text-slate-500 text-xs sm:text-sm font-medium mt-1 max-w-xl mx-auto">
+        How the Hospital Management System executes daily operations seamlessly
+      </p>
+
+      <div class="flex flex-wrap items-center justify-center gap-2 mt-3 text-xs font-bold text-slate-600">
+        <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">
+          5,000+ Patients
+        </span>
+        <span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg border border-purple-200">
+          5,000 Daily Images
+        </span>
+        <span class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+          Local GPU AI
+        </span>
+      </div>
+    </div>
+
+    <!-- 2. THE 6 VERTICAL TIMELINE CARDS -->
+    <div class="space-y-4">
+
+      <!-- STEP 1: 08:00 AM -->
+      <div class="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition">
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center shrink-0">
+            <span class="px-2.5 py-1 rounded-xl bg-blue-600 text-white font-mono font-black text-xs shadow-md shadow-blue-500/20">
+              08:00 AM
+            </span>
+            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold mt-2">
+              <i class="fa-solid fa-id-badge"></i>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-900">1. Staff Arrival &amp; Face Attendance Kiosk</h3>
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md">Entrance Terminal</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+              Staff walk past the 24" All-in-One terminal on continuous AC power. 1080p camera detects face &bull; Anti-spoofing confirms live human &bull; Built-in speakers voice: <em>"Attendance marked for Dr. Sharma"</em> &bull; Works 100% offline on Gigabit Local LAN.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: 09:00 AM -->
+      <div class="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition">
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center shrink-0">
+            <span class="px-2.5 py-1 rounded-xl bg-emerald-600 text-white font-mono font-black text-xs shadow-md shadow-emerald-500/20">
+              09:00 AM
+            </span>
+            <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold mt-2">
+              <i class="fa-solid fa-users-viewfinder"></i>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-900">2. OPD Reception &amp; Fast Patient Queue</h3>
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">High Concurrency</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+              Walk-in patients arrive at reception. Receptionists search by phone or MRN. With <strong>20 GB RAM allocated to MySQL cache</strong>, queries execute in <strong>&lt;5ms</strong>. Queue tokens and thermal QR wristbands print instantly.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: 10:30 AM -->
+      <div class="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition">
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center shrink-0">
+            <span class="px-2.5 py-1 rounded-xl bg-purple-600 text-white font-mono font-black text-xs shadow-md shadow-purple-500/20">
+              10:30 AM
+            </span>
+            <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold mt-2">
+              <i class="fa-solid fa-microchip"></i>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-900">3. Doctor OPD &amp; Local Ollama AI Copilot</h3>
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md">GPU Offloaded</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+              Doctor reviews patient history and enters symptoms. Clicks "AI Diagnosis" &bull; Dedicated <strong>NVIDIA RTX GPU (12GB VRAM)</strong> executes <span class="mono text-purple-700 font-bold">hms-ai:latest</span> in <strong>&lt;1 second</strong> &bull; CPU stays below 4% with zero lag for the rest of the hospital.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: 01:00 PM -->
+      <div class="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition">
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center shrink-0">
+            <span class="px-2.5 py-1 rounded-xl bg-amber-600 text-white font-mono font-black text-xs shadow-md shadow-amber-500/20">
+              01:00 PM
+            </span>
+            <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold mt-2">
+              <i class="fa-solid fa-file-shield"></i>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-900">4. 5,000 Medical Images &amp; Encryption Pipeline</h3>
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">Zero DB Bloat</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+              Lab uploads X-rays and reports &bull; Converted to <strong>Lossless WebP (30% space saved, 100% quality)</strong> &bull; Encrypted with <strong>AES-256 (.enc)</strong> and written to <strong>2x 4TB RAID 1 mirrored disks</strong> &bull; MySQL stores ONLY file path &amp; SHA-256 hash (Never BLOB).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: 06:00 PM -->
+      <div class="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition">
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center shrink-0">
+            <span class="px-2.5 py-1 rounded-xl bg-indigo-600 text-white font-mono font-black text-xs shadow-md shadow-indigo-500/20">
+              06:00 PM
+            </span>
+            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold mt-2">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-900">5. Secure Remote Doctor Access From Home</h3>
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md">Cloudflare Zero Trust</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+              Doctor opens laptop at home &bull; Cloudflare challenges with Email OTP / SSO &bull; <strong>Zero open router ports</strong> on hospital network &bull; Encrypted medical scan is decrypted in RAM only after session authentication in <span class="mono text-indigo-700 font-semibold">patient_file_view.php</span>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 6: 02:00 AM -->
+      <div class="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition">
+        <div class="flex items-start gap-4">
+          <div class="flex flex-col items-center shrink-0">
+            <span class="px-2.5 py-1 rounded-xl bg-slate-800 text-white font-mono font-black text-xs shadow-md">
+              02:00 AM
+            </span>
+            <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-sm font-bold mt-2">
+              <i class="fa-solid fa-server"></i>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-900">6. Automated Nightly Safety &amp; Maintenance</h3>
+              <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-slate-200 text-slate-800 rounded-md">24/7 Reliability</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+              Automated <span class="mono text-slate-800 font-semibold">mysqldump</span> runs and syncs to encrypted cloud backup &bull; <strong>APC 1500VA UPS</strong> guards against power cuts and voltage spikes &bull; Windows 11 Pro today $\rightarrow$ 30-minute migration to Ubuntu Linux tomorrow.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. FOOTER -->
+    <div class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+      <div>Hospital Management System &bull; Operational Workflow Blueprint</div>
+      <div class="font-bold text-slate-700">Protected by APC 1500VA UPS &bull; RAID 1 Mirror</div>
+    </div>
+
+  </div>
+
+</body>
+</html>

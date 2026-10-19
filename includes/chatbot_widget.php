@@ -24,17 +24,90 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 
 <style>
 /* ======================================================== */
-/* BHOOMA AI CLINICAL ASSISTANT - PROFESSIONAL ANIMATION STYLES */
+/* BHOOMA AI - LIVE CARDIAC HEARTBEAT & HOSPITAL ASSISTANT  */
 /* ======================================================== */
+
+/* Realistic Rhythmic Cardiac Heartbeat: Double-Pulse (lub-dub) */
+@keyframes bhooma-heartbeat-anim {
+    0% {
+        transform: scale(1);
+    }
+    14% {
+        transform: scale(1.18);
+        filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.8));
+    }
+    28% {
+        transform: scale(1.02);
+    }
+    42% {
+        transform: scale(1.24);
+        filter: drop-shadow(0 0 12px rgba(244, 63, 94, 0.95));
+    }
+    68% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.35));
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.bhooma-live-heart {
+    animation: bhooma-heartbeat-anim 1.4s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+    transform-origin: center center;
+    will-change: transform;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Floating Button Heart Ripple Ring */
+@keyframes bhooma-heart-ring-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.65), 0 10px 28px -4px rgba(225, 29, 72, 0.5);
+    }
+    45% {
+        box-shadow: 0 0 0 16px rgba(244, 63, 94, 0), 0 14px 34px -2px rgba(225, 29, 72, 0.35);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0), 0 10px 28px -4px rgba(225, 29, 72, 0.3);
+    }
+}
+
+.bhooma-btn-heart-pulse {
+    animation: bhooma-heart-ring-pulse 2.2s infinite;
+}
+
+/* Animated ECG Lifeline across the heart */
+@keyframes bhooma-ecg-sweep {
+    0% {
+        stroke-dashoffset: 40;
+        opacity: 0.3;
+    }
+    50% {
+        stroke-dashoffset: 0;
+        opacity: 1;
+    }
+    100% {
+        stroke-dashoffset: -40;
+        opacity: 0.3;
+    }
+}
+
+.bhooma-ecg-path {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 0;
+    animation: bhooma-ecg-sweep 2s infinite ease-in-out;
+}
 
 @keyframes bhooma-panel-spring {
     0% {
         opacity: 0;
-        transform: translateY(28px) scale(0.92);
+        transform: translateY(28px) scale(0.94);
     }
     60% {
         opacity: 1;
-        transform: translateY(-4px) scale(1.015);
+        transform: translateY(-4px) scale(1.01);
     }
     100% {
         opacity: 1;
@@ -49,19 +122,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     }
     100% {
         opacity: 0;
-        transform: translateY(18px) scale(0.94);
-    }
-}
-
-@keyframes bhooma-ring-pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.65), 0 10px 25px -5px rgba(79, 70, 229, 0.5);
-    }
-    70% {
-        box-shadow: 0 0 0 14px rgba(79, 70, 229, 0), 0 10px 25px -5px rgba(79, 70, 229, 0.3);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0), 0 10px 25px -5px rgba(79, 70, 229, 0.3);
+        transform: translateY(18px) scale(0.95);
     }
 }
 
@@ -94,15 +155,15 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 
 @keyframes bhooma-mic-pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
         transform: scale(1);
     }
     50% {
-        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+        box-shadow: 0 0 0 8px rgba(244, 63, 94, 0);
         transform: scale(1.08);
     }
     100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
         transform: scale(1);
     }
 }
@@ -116,10 +177,6 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     animation: bhooma-panel-exit 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-.bhooma-btn-pulse {
-    animation: bhooma-ring-pulse 2.4s infinite;
-}
-
 .bhooma-msg-anim {
     animation: bhooma-msg-enter 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -131,7 +188,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 .bhooma-typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
 .bhooma-shimmer {
-    background: linear-gradient(90deg, rgba(241,245,249,0) 0%, rgba(224,231,255,0.7) 50%, rgba(241,245,249,0) 100%);
+    background: linear-gradient(90deg, rgba(241,245,249,0) 0%, rgba(254,205,211,0.6) 50%, rgba(241,245,249,0) 100%);
     background-size: 200% 100%;
     animation: bhooma-shimmer-anim 1.8s infinite;
 }
@@ -156,30 +213,50 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     background: #94a3b8;
 }
 
-/* Main Chat Panel Container - Guaranteed In-Viewport Positioning */
+/* Seamless AI Input Field: No Scrollbar Glitches, Locked Height & Clean Flow */
+#bhooma-ai-input {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow-y: hidden !important;
+    resize: none !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    min-height: 42px !important;
+    max-height: 120px !important;
+    line-height: 1.45 !important;
+}
+#bhooma-ai-input::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* Main Chat Panel Container - Guaranteed In-Viewport Positioning & Apple-Style Polish */
 #bhooma-ai-panel {
     position: fixed !important;
-    bottom: 20px !important;
-    right: 20px !important;
+    bottom: 24px !important;
+    right: 24px !important;
     left: auto !important;
     top: auto !important;
-    width: 450px !important;
+    width: 440px !important;
     max-width: calc(100vw - 32px) !important;
-    height: min(640px, calc(100vh - 40px)) !important;
-    max-height: calc(100vh - 40px) !important;
-    border-radius: 1.25rem !important;
-    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(226, 232, 240, 0.95) !important;
+    height: min(650px, calc(100vh - 48px)) !important;
+    max-height: calc(100vh - 48px) !important;
+    border-radius: 1.5rem !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.9) !important;
     z-index: 999999 !important;
 }
 
 /* Expanded Workstation Mode */
 #bhooma-ai-panel.bhooma-expanded {
-    width: min(920px, calc(100vw - 32px)) !important;
-    height: min(840px, calc(100vh - 40px)) !important;
+    width: min(940px, calc(100vw - 32px)) !important;
+    height: min(840px, calc(100vh - 48px)) !important;
     max-width: calc(100vw - 32px) !important;
-    max-height: calc(100vh - 40px) !important;
-    bottom: 20px !important;
-    right: 20px !important;
+    max-height: calc(100vh - 48px) !important;
+    bottom: 24px !important;
+    right: 24px !important;
 }
 
 /* Eliminate native textarea borders, outlines, and box-shadows */
@@ -200,7 +277,7 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 /* AI Floating Toggle Button Positioning & Responsiveness */
 #bhooma-ai-btn-container {
     position: fixed !important;
-    z-index: 35 !important; /* Kept at z-35 so mobile drawer (z-50) and modals (z-100) cover it cleanly */
+    z-index: 35 !important;
     transition: transform 0.25s ease, opacity 0.25s ease, bottom 0.25s ease;
 }
 
@@ -215,20 +292,16 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 /* Mobile View: Safely hover ABOVE the bottom navigation bar without overlapping tabs */
 @media (max-width: 767.98px) {
     #bhooma-ai-btn-container {
-        bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 14px) !important;
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px) !important;
         right: 14px !important;
     }
     #bhooma-ai-toggle {
-        width: 48px !important;
-        height: 48px !important;
-        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45) !important;
-    }
-    #bhooma-ai-toggle i {
-        font-size: 1.25rem !important;
+        width: 50px !important;
+        height: 50px !important;
     }
 }
 
-/* Mobile Responsive Chat Panel (Full Screen on Phones) */
+/* Mobile Responsive Chat Panel (Full Screen on Phones with Safe Area) */
 @media (max-width: 767.98px) {
     #bhooma-ai-panel {
         width: 100vw !important;
@@ -248,17 +321,17 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 
 .bhooma-markdown p { margin-bottom: 0.45rem; }
 .bhooma-markdown p:last-child { margin-bottom: 0; }
-.bhooma-markdown strong { font-weight: 700; color: #1e293b; }
+.bhooma-markdown strong { font-weight: 700; color: #0f172a; }
 .bhooma-markdown ul { list-style-type: disc; padding-left: 1.2rem; margin-bottom: 0.4rem; }
 .bhooma-markdown ol { list-style-type: decimal; padding-left: 1.2rem; margin-bottom: 0.4rem; }
-.bhooma-markdown code { background: rgba(99, 102, 241, 0.08); color: #4338ca; padding: 0.15rem 0.35rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.88em; }
-.bhooma-markdown pre code { display: block; padding: 0.6rem; overflow-x: auto; margin-bottom: 0.5rem; background: #0f172a; color: #f8fafc; border-radius: 0.5rem; }
+.bhooma-markdown code { background: rgba(244, 63, 94, 0.08); color: #e11d48; padding: 0.15rem 0.35rem; border-radius: 0.3rem; font-family: monospace; font-size: 0.88em; }
+.bhooma-markdown pre code { display: block; padding: 0.6rem; overflow-x: auto; margin-bottom: 0.5rem; background: #0f172a; color: #5eead4; border-radius: 0.6rem; }
 
 /* Executive Callout Style */
 .bhooma-callout {
-    background: linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(240, 253, 250, 0.95));
-    border-left: 4px solid #4f46e5;
-    border-radius: 0 0.75rem 0.75rem 0;
+    background: linear-gradient(135deg, rgba(255, 241, 242, 0.95), rgba(238, 242, 255, 0.95));
+    border-left: 4px solid #f43f5e;
+    border-radius: 0 0.85rem 0.85rem 0;
     padding: 0.65rem 0.85rem;
     margin: 0.45rem 0;
     color: #1e1b4b;
@@ -270,10 +343,13 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 
 <!-- Floating AI Button Container -->
 <div id="bhooma-ai-btn-container">
-    <button id="bhooma-ai-toggle" type="button" title="BHOOMA AI Clinical Assistant (Ctrl+K)" 
-        class="bhooma-btn-pulse flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer">
-        <i class="fa-solid fa-robot text-2xl pointer-events-none"></i>
-        <span id="bhooma-ai-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white">
+    <button id="bhooma-ai-toggle" type="button" title="BHOOMA Clinical AI Assistant (Ctrl+K)" 
+        class="bhooma-btn-heart-pulse flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-rose-600 via-rose-500 to-indigo-600 text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer group relative">
+        <!-- Live Beating Heart with animated heartbeat pulse matching ai_logs.php -->
+        <div class="relative flex items-center justify-center w-7 h-7 bhooma-live-heart pointer-events-none">
+            <i class="fa-solid fa-heart-pulse text-2xl text-white filter drop-shadow-sm"></i>
+        </div>
+        <span id="bhooma-ai-badge" class="hidden absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-xs">
             1
         </span>
     </button>
@@ -283,45 +359,54 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
 <div id="bhooma-ai-panel" class="hidden bg-white/95 backdrop-blur-xl flex flex-col overflow-hidden transition-all duration-300" style="display: none; z-index: 999999 !important;">
     
     <!-- Top Header -->
-    <div class="bg-gradient-to-r from-blue-700 via-indigo-600 to-teal-500 p-3 text-white flex items-center justify-between cursor-move select-none shrink-0 shadow-xs" id="bhooma-ai-header">
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-3.5 sm:px-4 text-white flex items-center justify-between cursor-move select-none shrink-0 border-b border-white/10 shadow-sm" id="bhooma-ai-header">
         <div class="flex items-center space-x-2.5 shrink-0 min-w-0">
-            <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center relative shadow-xs shrink-0">
-                <i class="fa-solid fa-robot text-sm"></i>
-                <div id="bhooma-ai-status-dot" class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-700 ring-1 ring-emerald-300" title="Online"></div>
+            <!-- Medical Heart Avatar Badge matching ai_logs.php -->
+            <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center relative shadow-md shadow-rose-500/25 shrink-0 ring-1 ring-white/20">
+                <div class="relative flex items-center justify-center w-5 h-5 bhooma-live-heart">
+                    <i class="fa-solid fa-heart-pulse text-base text-white"></i>
+                </div>
+                <div id="bhooma-ai-status-dot" class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-900 ring-1 ring-emerald-300" title="Online"></div>
             </div>
             <div class="min-w-0">
                 <div class="flex items-center gap-1.5 flex-nowrap">
-                    <h3 class="font-extrabold text-sm tracking-tight leading-tight whitespace-nowrap">BHOOMA AI</h3>
-                    <span class="text-[9px] bg-white/20 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap shrink-0 max-w-[90px] truncate" id="bhooma-ai-model" title="hms-ai">hms-ai</span>
+                    <h3 class="font-black text-sm tracking-tight leading-tight whitespace-nowrap text-white">BHOOMA AI</h3>
+                    <span class="text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap shrink-0 max-w-[90px] truncate" id="bhooma-ai-model" title="Clinical AI Engine">Clinical AI</span>
                 </div>
-                <div class="flex items-center space-x-1">
-                    <span id="bhooma-ai-status-text" class="text-[11px] text-white/80 font-medium whitespace-nowrap">Ready</span>
+                <div class="flex items-center space-x-1.5">
+                    <span id="bhooma-ai-status-text" class="text-[11px] text-emerald-400 font-semibold whitespace-nowrap flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Live Clinical Engine</span>
+                    </span>
                 </div>
             </div>
         </div>
 
         <!-- Header Actions -->
         <div class="flex items-center space-x-1 shrink-0">
-            <button id="bhooma-ai-history-btn" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Chat History">
+            <button id="bhooma-ai-sync-btn" type="button" class="w-7 h-7 rounded-xl hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 flex items-center justify-center transition text-xs cursor-pointer" title="Train / Sync AI on Live Database Records" onclick="BhoomaAI.syncLiveDb();">
+                <i class="fa-solid fa-arrows-rotate pointer-events-none"></i>
+            </button>
+            <button id="bhooma-ai-history-btn" type="button" class="w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="Chat History">
                 <i class="fa-solid fa-clock-rotate-left pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-sound-btn" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Toggle Sound Chimes">
+            <button id="bhooma-ai-sound-btn" type="button" class="w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="Toggle Sound Chimes">
                 <i id="bhooma-ai-sound-icon" class="fa-solid fa-volume-high pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-export-btn" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Export Conversation (.md)">
+            <button id="bhooma-ai-export-btn" type="button" class="w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="Export Conversation (.md)">
                 <i class="fa-solid fa-download pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-new" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="New Conversation">
+            <button id="bhooma-ai-new" type="button" class="w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="New Conversation">
                 <i class="fa-solid fa-plus pointer-events-none"></i>
             </button>
-            <div class="h-3.5 w-[1px] bg-white/30 mx-0.5 pointer-events-none"></div>
-            <button id="bhooma-ai-expand" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Toggle Fullscreen/Workstation Mode">
+            <div class="h-3.5 w-[1px] bg-white/20 mx-0.5 pointer-events-none"></div>
+            <button id="bhooma-ai-expand" type="button" class="hidden sm:flex w-7 h-7 rounded-xl hover:bg-white/10 items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="Toggle Fullscreen/Workstation Mode">
                 <i id="bhooma-ai-expand-icon" class="fa-solid fa-expand pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-minimize" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Minimize">
+            <button id="bhooma-ai-minimize" type="button" class="w-7 h-7 rounded-xl hover:bg-white/10 flex items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="Minimize">
                 <i class="fa-solid fa-minus pointer-events-none"></i>
             </button>
-            <button id="bhooma-ai-close" type="button" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors text-xs text-white cursor-pointer" title="Close">
+            <button id="bhooma-ai-close" type="button" class="w-7 h-7 rounded-xl hover:bg-rose-500/30 flex items-center justify-center transition text-xs text-white/80 hover:text-white cursor-pointer" title="Close">
                 <i class="fa-solid fa-xmark pointer-events-none"></i>
             </button>
         </div>
@@ -330,27 +415,27 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     <!-- ======================================================== -->
     <!-- SLIDE-OUT CONVERSATION HISTORY DRAWER                    -->
     <!-- ======================================================== -->
-    <div id="bhooma-ai-history-drawer" class="absolute inset-0 top-[56px] bg-slate-50 z-40 flex flex-col transition-all duration-300 transform translate-x-full hidden shadow-2xl">
+    <div id="bhooma-ai-history-drawer" class="absolute inset-0 top-[60px] bg-slate-50 z-40 flex flex-col transition-all duration-300 transform translate-x-full hidden shadow-2xl">
         <!-- Drawer Header -->
-        <div class="p-3 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+        <div class="p-3.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
-                <button id="bhooma-history-back" type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm transition-colors cursor-pointer" title="Back to Chat">
+                <button id="bhooma-history-back" type="button" class="w-8 h-8 rounded-xl hover:bg-slate-100 text-slate-600 flex items-center justify-center text-sm transition-colors cursor-pointer" title="Back to Chat">
                     <i class="fa-solid fa-arrow-left pointer-events-none"></i>
                 </button>
                 <div>
-                    <h4 class="font-bold text-sm text-slate-800 leading-tight">Conversation History</h4>
+                    <h4 class="font-extrabold text-sm text-slate-900 leading-tight">Conversation History</h4>
                     <span class="text-[10px] text-slate-400">Past chats and inquiries</span>
                 </div>
             </div>
-            <button id="bhooma-history-new-btn" type="button" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer">
+            <button id="bhooma-history-new-btn" type="button" class="px-3 py-1.5 bg-gradient-to-r from-rose-500 to-indigo-600 hover:opacity-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
                 <i class="fa-solid fa-plus text-[10px] pointer-events-none"></i> New Chat
             </button>
         </div>
         <!-- Search Input -->
-        <div class="p-2.5 bg-white border-b border-slate-100 shrink-0">
+        <div class="p-3 bg-white border-b border-slate-100 shrink-0">
             <div class="relative flex items-center">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 text-xs pointer-events-none"></i>
-                <input type="text" id="bhooma-history-search" class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-slate-400 text-slate-700" placeholder="Search past conversations...">
+                <input type="text" id="bhooma-history-search" class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs focus:ring-2 focus:ring-rose-500/30 focus:border-rose-400 placeholder-slate-400 text-slate-700 outline-none transition" placeholder="Search past conversations...">
             </div>
         </div>
         <!-- Conversation List -->
@@ -360,29 +445,29 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
     </div>
 
     <!-- Suggestions Bar -->
-    <div id="bhooma-ai-suggestions" class="bg-slate-50 border-b border-slate-100 p-2 flex overflow-x-auto bhooma-scrollbar gap-2 hide-when-chatting shrink-0">
+    <div id="bhooma-ai-suggestions" class="bg-slate-50/90 border-b border-slate-200/80 px-3 py-2 flex items-center overflow-x-auto bhooma-scrollbar gap-1.5 hide-when-chatting shrink-0">
         <!-- populated by JS -->
     </div>
 
     <!-- Messages Area & Floating Scroll-To-Bottom Button -->
     <div class="flex-1 relative overflow-hidden flex flex-col">
-        <div id="bhooma-ai-messages" class="flex-1 overflow-y-auto bhooma-scrollbar p-4 space-y-3.5 bg-slate-50/50">
+        <div id="bhooma-ai-messages" class="flex-1 overflow-y-auto bhooma-scrollbar p-3.5 sm:p-4 space-y-3.5 bg-slate-50/50">
             <!-- Initial Welcome Message populated by JS renderWelcomeMessage() -->
         </div>
         
         <!-- Floating Scroll to Bottom Button -->
         <button id="bhooma-ai-scroll-bottom" type="button" 
-            class="hidden absolute bottom-3 right-4 bg-white/95 backdrop-blur-md text-indigo-600 border border-indigo-200 shadow-lg rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-50 hover:scale-105 active:scale-95 transition-all z-20 cursor-pointer">
-            <i class="fa-solid fa-chevron-down text-[11px] pointer-events-none"></i>
+            class="hidden absolute bottom-3 right-4 bg-white/95 backdrop-blur-md text-slate-700 border border-slate-200 shadow-lg rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all z-20 cursor-pointer">
+            <i class="fa-solid fa-chevron-down text-[11px] text-rose-500 pointer-events-none"></i>
             <span class="pointer-events-none">Latest</span>
-            <span id="bhooma-ai-unread-count" class="hidden bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">1</span>
+            <span id="bhooma-ai-unread-count" class="hidden bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">1</span>
         </button>
     </div>
 
     <!-- Input Area -->
-    <div class="border-t border-slate-200 bg-white p-3 relative shrink-0">
+    <div class="border-t border-slate-200 bg-white p-3 sm:p-3.5 relative shrink-0">
         <!-- Live Voice Dictation Wave Bar -->
-        <div id="bhooma-ai-voice-indicator" class="hidden mb-2 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-700 font-semibold shadow-2xs">
+        <div id="bhooma-ai-voice-indicator" class="hidden mb-2 px-3.5 py-2 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between text-xs text-rose-700 font-semibold shadow-2xs">
             <div class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
                 <span>Listening... Speak your hospital request</span>
@@ -395,24 +480,27 @@ $chatbot_user_role = $_SESSION['staff_role'] ?? 'Admin';
             <!-- populated dynamically by JS as you type -->
         </div>
 
-        <div class="relative flex items-end bg-slate-50 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-2xs">
+        <div class="relative flex items-end bg-slate-50 border border-slate-300/90 rounded-2xl focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-2xs overflow-hidden">
             <textarea id="bhooma-ai-input" rows="1" 
-                class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[120px] text-sm p-3 bhooma-scrollbar text-slate-800 placeholder-slate-400" 
-                style="border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important;"
-                placeholder="Ask BHOOMA AI anything... (Enter to send)"></textarea>
+                class="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[120px] text-xs sm:text-sm p-3 text-slate-800 placeholder-slate-400 font-medium leading-relaxed" 
+                style="border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important; overflow-y: hidden !important;"
+                placeholder="Ask anything about patients, appointments, doctors..."></textarea>
             
             <!-- Voice Dictation Mic Button -->
-            <button id="bhooma-ai-mic" type="button" class="shrink-0 w-8 h-8 mb-2 mr-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-200/60 flex items-center justify-center transition-all cursor-pointer" title="Speak to BHOOMA AI (Voice Dictation)">
-                <i class="fa-solid fa-microphone text-sm pointer-events-none"></i>
+            <button id="bhooma-ai-mic" type="button" class="shrink-0 w-8 h-8 mb-1.5 mr-1 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer" title="Speak to BHOOMA AI (Voice Dictation)">
+                <i class="fa-solid fa-microphone text-xs pointer-events-none"></i>
             </button>
 
             <!-- Send Button -->
-            <button id="bhooma-ai-send" type="button" class="shrink-0 w-8 h-8 mb-2 mr-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-2xs" title="Send message">
-                <i class="fa-solid fa-paper-plane text-xs pointer-events-none"></i>
+            <button id="bhooma-ai-send" type="button" class="shrink-0 w-8 h-8 mb-1.5 mr-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-rose-600 to-indigo-600 hover:opacity-95 active:scale-95 text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-rose-500/20" title="Send message">
+                <i class="fa-solid fa-arrow-up text-xs font-bold pointer-events-none"></i>
             </button>
         </div>
         <div class="flex justify-between items-center mt-1.5 px-1">
-            <div class="text-[10px] text-slate-400">Press <kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Enter</kbd> to send, <kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Shift+Enter</kbd> for newline</div>
+            <div class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-sparkles text-[9px] text-rose-500"></i>
+                <span>Press <kbd class="bg-slate-100 px-1 py-0.2 rounded border border-slate-200 text-slate-600 font-mono text-[9px]">Enter</kbd> to send</span>
+            </div>
             <div id="bhooma-ai-counter" class="text-[10px] text-slate-400 hidden">0/2000</div>
         </div>
     </div>
@@ -773,11 +861,12 @@ const BhoomaAI = {
                 osc1.stop(now + 0.1);
                 osc2.start(now + 0.06);
                 osc2.stop(now + 0.22);
-            } else if (type === 'action') {
+            } else if (type === 'action' || type === 'success') {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(659.25, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
                 gain.gain.setValueAtTime(0.08, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
                 osc.connect(gain);
@@ -787,6 +876,16 @@ const BhoomaAI = {
             }
         } catch(e) {
             // Audio context not allowed or not supported; ignore
+        }
+    },
+
+    playChime(type = 'success') {
+        try {
+            if (typeof this.playSound === 'function') {
+                this.playSound(type === 'success' ? 'success' : type);
+            }
+        } catch (e) {
+            // Ignore audio exceptions safely
         }
     },
 
@@ -919,6 +1018,55 @@ const BhoomaAI = {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    },
+
+    // -------------------------------------------------------------
+    // TRAIN & SYNC AI ON LIVE DATABASE RECORDS
+    // -------------------------------------------------------------
+    syncLiveDb() {
+        const syncBtn = document.getElementById('bhooma-ai-sync-btn');
+        if (syncBtn) {
+            syncBtn.classList.add('animate-spin', 'text-amber-400');
+        }
+
+        this.appendMessage('assistant', '🔄 *Synchronizing and training AI on current hospital records (patients, doctors, beds, appointments, files)...*');
+
+        fetch('api/ai_train_api.php?action=train_live_db')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const s = data.synced || {};
+                    const msg = `✅ **AI Clinical Engine Synchronized & Trained Across All Tables!**\n\n`
+                        + `• **Patients:** ${s.patients || 0} registered patients indexed\n`
+                        + `• **Doctors:** ${s.doctors || 0} specialists & departments mapped\n`
+                        + `• **Beds & Vitals:** ${s.beds || 0} ward beds & ${s.bed_observations || 0} vital observations tracked\n`
+                        + `• **Appointments & Telemedicine:** ${s.appointments || 0} OPD & ${s.online_consultations || 0} virtual sessions\n`
+                        + `• **Charges & Pricing:** ${s.consultation_charges || 0} hospital tariffs loaded\n`
+                        + `• **Files & Images:** ${s.patient_files || 0} medical records & photos indexed\n`
+                        + `• **Training Pairs:** ${s.training_pairs || 0} ChatML pairs compiled\n\n`
+                        + `*Your AI is now 100% up to date with live hospital records.*`;
+                    this.appendMessage('assistant', msg);
+                    try {
+                        if (typeof this.playChime === 'function') {
+                            this.playChime('success');
+                        } else if (typeof this.playSound === 'function') {
+                            this.playSound('success');
+                        }
+                    } catch (e) {
+                        // Sound error ignored
+                    }
+                } else {
+                    this.appendMessage('assistant', `⚠️ Could not complete sync: ${data.error || 'Unknown error'}`);
+                }
+            })
+            .catch(err => {
+                this.appendMessage('assistant', `❌ Error synchronizing with database: ${err.message || err}`);
+            })
+            .finally(() => {
+                if (syncBtn) {
+                    syncBtn.classList.remove('animate-spin', 'text-amber-400');
+                }
+            });
     },
 
     // -------------------------------------------------------------
@@ -1263,44 +1411,51 @@ const BhoomaAI = {
     renderWelcomeMessage() {
         if (!this.dom.messages) return;
         this.dom.messages.innerHTML = `
-            <div class="flex items-start max-w-[90%] bhooma-msg-anim">
-                <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-teal-400 flex items-center justify-center text-white text-xs shrink-0 mt-0.5 shadow-sm mr-2.5 ring-2 ring-indigo-100">
-                    <i class="fa-solid fa-robot"></i>
+            <div class="flex items-start max-w-[92%] bhooma-msg-anim">
+                <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center text-white text-xs shrink-0 mt-0.5 shadow-sm mr-2.5 ring-2 ring-rose-100 bhooma-live-heart">
+                    <i class="fa-solid fa-heart-pulse text-xs text-white"></i>
                 </div>
-                <div class="bg-white border border-slate-200/90 text-slate-700 text-sm p-4 rounded-2xl rounded-tl-sm shadow-sm space-y-3 w-full">
+                <div class="bg-white border border-slate-200/90 text-slate-700 text-xs sm:text-sm p-3.5 sm:p-4 rounded-2xl rounded-tl-sm shadow-2xs space-y-3 w-full">
                     <div>
-                        <div class="flex items-center gap-1.5 mb-0.5">
-                            <span class="text-xs font-bold text-slate-800">Hello <?php echo htmlspecialchars($chatbot_user_role); ?>!</span>
-                            <span class="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.2 rounded-full border border-indigo-200">AI Assistant</span>
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <span class="text-xs font-black text-slate-800">Hello <?php echo htmlspecialchars($chatbot_user_role); ?>!</span>
+                            <span class="text-[9px] bg-rose-50 text-rose-700 font-bold px-2 py-0.5 rounded-full border border-rose-200/60 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                <span>Clinical Engine</span>
+                            </span>
                         </div>
-                        <p class="text-xs text-slate-600 leading-relaxed">
-                            I'm <strong class="text-indigo-600 font-extrabold">BHOOMA AI</strong>. How can I assist you with managing <strong class="text-slate-800"><?php echo htmlspecialchars($chatbot_hospital_name); ?></strong> today?
+                        <p class="text-xs text-slate-600 leading-relaxed font-medium">
+                            I am your live <strong class="text-indigo-600 font-extrabold">BHOOMA AI Clinical Assistant</strong> for <strong class="text-slate-900"><?php echo htmlspecialchars($chatbot_hospital_name); ?></strong>. How can I assist you today?
                         </p>
                     </div>
 
-                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 space-y-1.5">
-                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                            <i class="fa-solid fa-bolt text-amber-500 text-[10px]"></i> Quick Actions
+                    <div class="bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 sm:p-3 space-y-2">
+                        <div class="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-sparkles text-rose-500 text-[10px]"></i> Quick Actions
                         </div>
-                        <div class="flex flex-wrap gap-1.5">
-                            <button type="button" onclick="BhoomaAI.renderInChatForm('book_appointment');" class="px-2.5 py-1 bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98">
-                                <i class="fa-solid fa-calendar-plus text-[11px] text-purple-600"></i> Book Appointment
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button type="button" onclick="BhoomaAI.renderInChatForm('book_appointment');" class="p-2 bg-white hover:bg-purple-50 border border-purple-200/70 hover:border-purple-300 text-purple-800 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs">
+                                <span class="text-sm">📅</span>
+                                <span class="truncate">Book Appointment</span>
                             </button>
-                            <button type="button" onclick="BhoomaAI.renderInChatForm('admit_patient');" class="px-2.5 py-1 bg-white hover:bg-teal-50 border border-teal-200 text-teal-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98">
-                                <i class="fa-solid fa-bed text-[11px] text-teal-600"></i> Admit Patient
+                            <button type="button" onclick="BhoomaAI.syncLiveDb();" class="p-2 bg-white hover:bg-emerald-50 border border-emerald-200/70 hover:border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs" title="Synchronize AI with current live database">
+                                <span class="text-sm">🧠</span>
+                                <span class="truncate">Sync Live DB</span>
                             </button>
-                            <button type="button" onclick="BhoomaAI.quickPrompt('Hospital overview dashboard metrics');" class="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98">
-                                <i class="fa-solid fa-chart-pie text-[11px] text-indigo-600"></i> Overview
+                            <button type="button" onclick="BhoomaAI.renderInChatForm('admit_patient');" class="p-2 bg-white hover:bg-teal-50 border border-teal-200/70 hover:border-teal-300 text-teal-800 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs">
+                                <span class="text-sm">🏨</span>
+                                <span class="truncate">Admit Patient</span>
                             </button>
-                            <button type="button" onclick="BhoomaAI.quickPrompt('Show available beds by ward');" class="px-2.5 py-1 bg-white hover:bg-cyan-50 border border-cyan-200 text-cyan-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98">
-                                <i class="fa-solid fa-bed-pulse text-[11px] text-cyan-600"></i> Beds Status
+                            <button type="button" onclick="BhoomaAI.quickPrompt('Show available beds by ward');" class="p-2 bg-white hover:bg-cyan-50 border border-cyan-200/70 hover:border-cyan-300 text-cyan-800 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs">
+                                <span class="text-sm">🛏️</span>
+                                <span class="truncate">Beds Status</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-100">
-                        <span><i class="fa-solid fa-shield-halved text-emerald-500 mr-1"></i> Hospital Data Protected</span>
-                        <span>Press <kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-500 font-mono text-[9px]">Ctrl+K</kbd> to toggle</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-500"></i> Hospital Data Safe</span>
+                        <span>Shortcut <kbd class="bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-500 font-mono text-[9px]">Ctrl+K</kbd></span>
                     </div>
                 </div>
             </div>
@@ -1462,7 +1617,13 @@ const BhoomaAI = {
     autoResize(el) {
         if (!el) return;
         el.style.height = 'auto';
-        el.style.height = (el.scrollHeight < 100 ? el.scrollHeight : 100) + 'px';
+        if (el.scrollHeight > 115) {
+            el.style.height = '115px';
+            el.style.overflowY = 'auto';
+        } else {
+            el.style.height = Math.max(42, el.scrollHeight) + 'px';
+            el.style.overflowY = 'hidden';
+        }
     },
     
     updateCounter() {
@@ -1493,10 +1654,20 @@ const BhoomaAI = {
         // Completely strip any leaked ```sql ... ``` code blocks
         let clean = text.replace(/```sql[\s\S]*?```/gi, '');
         
-        // Render executive callouts for > quotes or direct answers
+        // Strip any robotic Direct Answer prefixes seamlessly
+        clean = clean.replace(/^>\s*(?:💡\s*)?(?:\*\*)?Direct Answer:(?:\*\*)?\s*/gmi, '');
+        clean = clean.replace(/^(?:💡\s*)?(?:\*\*)?Direct Answer:(?:\*\*)?\s*/gmi, '');
+
+        // Render clean callouts for any intentional blockquotes
         clean = clean.replace(/^>\s*(.*?)(?=\n|$)/gm, (match, p1) => {
             return `<div class="bhooma-callout my-1.5 p-2.5 bg-indigo-50/90 border-l-4 border-indigo-600 rounded-r-xl text-slate-800 text-xs font-semibold shadow-2xs">${p1}</div>`;
         });
+
+        // Markdown images: ![alt](url)
+        clean = clean.replace(/!\[(.*?)\]\((.*?)\)/g, '<div class="my-2"><a href="$2" target="_blank" class="inline-block rounded-xl overflow-hidden border border-slate-200 shadow-xs hover:opacity-95 transition"><img src="$2" alt="$1" class="max-h-48 max-w-full rounded-xl object-cover" onerror="this.onerror=null;this.parentElement.innerHTML=\'<span class=\\\'text-xs text-indigo-600 underline font-semibold\\\'>🖼️ $1</span>\';"></a></div>');
+
+        // Markdown links: [text](url)
+        clean = clean.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold underline bg-indigo-50/70 hover:bg-indigo-100 px-2 py-0.5 rounded-lg border border-indigo-200/60 transition text-xs my-0.5"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> $1</a>');
 
         // Convert markdown bullet points to clean list items
         clean = clean.replace(/^[•\-\*]\s+(.*)$/gm, '<div class="flex items-start gap-1.5 my-0.5 text-xs text-slate-700"><span class="text-indigo-500 font-bold">•</span><span>$1</span></div>');
@@ -1521,21 +1692,21 @@ const BhoomaAI = {
         let html = '';
         if (isUser) {
             html = `
-                <div class="ml-2 mr-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 text-white text-sm py-2.5 px-3.5 rounded-2xl rounded-tr-sm shadow-md bhooma-markdown w-full transition-all">
-                    <div class="bhooma-text-body">${this.formatMarkdown(content)}</div>
-                    <div class="text-[9px] text-indigo-200/80 text-right mt-1 font-mono">${this.formatTime()}</div>
+                <div class="ml-2 mr-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs sm:text-sm py-2.5 px-3.5 rounded-2xl rounded-tr-sm shadow-xs bhooma-markdown w-full transition-all leading-relaxed">
+                    <div class="bhooma-text-body whitespace-pre-wrap">${this.formatMarkdown(content)}</div>
+                    <div class="text-[9px] text-blue-200/80 text-right mt-1 font-mono">${this.formatTime()}</div>
                 </div>
             `;
         } else {
             html = `
-                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm ${isUser ? 'ml-2' : 'mr-2'} ring-2 ring-indigo-100">
-                    <i class="fa-solid fa-robot"></i>
+                <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-0.5 shadow-xs mr-2 ring-1 ring-rose-200 bhooma-live-heart">
+                    <i class="fa-solid fa-heart-pulse text-[11px]"></i>
                 </div>
-                <div class="content-box bg-white border border-slate-200/90 text-slate-700 text-sm py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm bhooma-markdown w-full overflow-x-auto relative group">
+                <div class="content-box bg-white border border-slate-200/90 text-slate-800 text-xs sm:text-sm py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-2xs bhooma-markdown w-full overflow-x-auto relative group">
                     <div class="bhooma-text-body leading-relaxed">${this.formatMarkdown(content)}</div>
                     <div class="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-100 text-[10px] text-slate-400">
                         <span class="text-[9px] font-mono text-slate-400">${this.formatTime()}</span>
-                        <button type="button" class="bhooma-copy-btn hover:text-indigo-600 flex items-center gap-1 transition-colors px-1 py-0.5 rounded cursor-pointer" onclick="BhoomaAI.copyMessageFromElement(this);" title="Copy message">
+                        <button type="button" class="bhooma-copy-btn hover:text-rose-600 flex items-center gap-1 transition-colors px-1 py-0.5 rounded cursor-pointer" onclick="BhoomaAI.copyMessageFromElement(this);" title="Copy message">
                             <i class="fa-regular fa-copy text-[10px]"></i> <span class="text-[10px]">Copy</span>
                         </button>
                     </div>
@@ -1572,16 +1743,16 @@ const BhoomaAI = {
         wrapper.id = 'bhooma-typing';
         wrapper.className = 'flex items-start max-w-[85%] bhooma-msg-anim';
         wrapper.innerHTML = `
-            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2 ring-2 ring-indigo-100">
-                <i class="fa-solid fa-robot"></i>
+            <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-0.5 shadow-xs mr-2 ring-1 ring-rose-200 bhooma-live-heart">
+                <i class="fa-solid fa-heart-pulse text-[11px]"></i>
             </div>
-            <div class="bg-white border border-slate-200/90 py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-xs flex items-center space-x-2 h-[38px] relative overflow-hidden">
+            <div class="bg-white border border-slate-200/90 py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-2xs flex items-center space-x-2 h-[38px] relative overflow-hidden">
                 <div class="flex space-x-1.5 items-center">
+                    <div class="w-2 h-2 bg-rose-500 rounded-full bhooma-typing-dot"></div>
+                    <div class="w-2 h-2 bg-rose-600 rounded-full bhooma-typing-dot"></div>
                     <div class="w-2 h-2 bg-indigo-500 rounded-full bhooma-typing-dot"></div>
-                    <div class="w-2 h-2 bg-indigo-600 rounded-full bhooma-typing-dot"></div>
-                    <div class="w-2 h-2 bg-teal-500 rounded-full bhooma-typing-dot"></div>
                 </div>
-                <span class="text-[11px] text-slate-400 font-medium">BHOOMA AI is thinking...</span>
+                <span class="text-[11px] text-slate-400 font-medium">Consulting clinical records...</span>
                 <div class="absolute inset-0 bhooma-shimmer pointer-events-none opacity-30"></div>
             </div>
         `;
@@ -1599,12 +1770,12 @@ const BhoomaAI = {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-start max-w-[88%] bhooma-msg-anim my-1.5';
         let html = `
-            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2 ring-1 ring-indigo-200">
-                <i class="fa-solid fa-lightbulb text-[10px]"></i>
+            <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-0.5 shadow-xs mr-2 ring-1 ring-rose-200 bhooma-live-heart">
+                <i class="fa-solid fa-heart-pulse text-[11px]"></i>
             </div>
-            <div class="bg-indigo-50/70 border border-indigo-200/80 p-2.5 rounded-2xl rounded-tl-sm shadow-2xs w-full">
-                <div class="text-[11px] font-bold text-indigo-900 mb-1.5 flex items-center gap-1.5">
-                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-600 text-[10px]"></i> Suggested Options
+            <div class="bg-rose-50/50 border border-rose-200/60 p-3 rounded-2xl rounded-tl-sm shadow-2xs w-full">
+                <div class="text-[11px] font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-sparkles text-rose-500 text-[10px]"></i> Suggested Options
                 </div>
                 <div class="flex flex-wrap gap-1.5">
         `;
@@ -1759,13 +1930,13 @@ const BhoomaAI = {
             const wrapper = document.createElement('div');
             wrapper.className = 'flex items-start max-w-[95%]';
             wrapper.innerHTML = `
-                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-slate-400 to-slate-500 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
+                <div class="w-7 h-7 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-xs mr-2">
                     <i class="fa-solid fa-circle-info"></i>
                 </div>
-                <div class="bg-slate-50 border border-slate-200 py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm w-full">
-                    <div class="text-xs text-slate-500 flex items-center gap-2">
+                <div class="bg-slate-50 border border-slate-200 py-3 px-4 rounded-2xl rounded-tl-sm shadow-2xs w-full">
+                    <div class="text-xs text-slate-600 font-semibold flex items-center gap-2">
                         <i class="fa-solid fa-inbox text-slate-400"></i>
-                        <span class="font-semibold">${summary || 'No matching records found in the hospital database.'}</span>
+                        <span>${summary || 'No matching records found in the hospital database.'}</span>
                     </div>
                 </div>
             `;
@@ -1783,36 +1954,36 @@ const BhoomaAI = {
             const val = dataArr[0][key];
             const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             visualHTML = `
-                <div class="inline-flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 my-1 shadow-xs">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                <div class="inline-flex items-center gap-3 bg-gradient-to-r from-rose-50 to-indigo-50 border border-rose-100 rounded-xl px-4 py-2.5 my-1 shadow-2xs">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                         <i class="fa-solid fa-chart-simple"></i>
                     </div>
                     <div>
                         <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500">${label}</div>
-                        <div class="text-xl font-black text-indigo-900 leading-tight">${val}</div>
+                        <div class="text-xl font-black text-slate-900 leading-tight">${val}</div>
                     </div>
                 </div>
             `;
         } else {
-            let tableHTML = `<div class="w-full overflow-x-auto mt-2 mb-1 border border-slate-200 rounded-xl shadow-xs">
-                <div class="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
-                    <span><i class="fa-solid fa-table-list text-indigo-500 mr-1.5"></i> Hospital Records</span>
-                    <span class="bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.2 rounded font-semibold">${dataArr.length} items</span>
+            let tableHTML = `<div class="w-full overflow-x-auto mt-2 mb-1 border border-slate-200/90 rounded-2xl shadow-2xs">
+                <div class="bg-slate-100/80 px-3.5 py-2 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-table-list text-rose-500"></i> Hospital Records</span>
+                    <span class="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">${dataArr.length} items</span>
                 </div>
                 <table class="w-full text-left text-xs whitespace-nowrap">
                     <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                         <tr>`;
             columns.forEach(col => {
                 const colLabel = col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                tableHTML += `<th class="px-3 py-2 text-[11px] tracking-tight">${colLabel}</th>`;
+                tableHTML += `<th class="px-3.5 py-2 text-[11px] tracking-tight uppercase">${colLabel}</th>`;
             });
             tableHTML += `</tr></thead><tbody class="divide-y divide-slate-100 bg-white">`;
             
             dataArr.forEach((row, i) => {
                 const bg = i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
-                tableHTML += `<tr class="${bg} hover:bg-indigo-50/70 transition-colors">`;
+                tableHTML += `<tr class="${bg} hover:bg-rose-50/40 transition-colors">`;
                 columns.forEach(col => {
-                    tableHTML += `<td class="px-3 py-1.5 text-slate-700">${row[col] !== null ? row[col] : '-'}</td>`;
+                    tableHTML += `<td class="px-3.5 py-2 text-slate-700">${row[col] !== null ? row[col] : '-'}</td>`;
                 });
                 tableHTML += `</tr>`;
             });
@@ -1824,10 +1995,10 @@ const BhoomaAI = {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex items-start max-w-[95%]';
         wrapper.innerHTML = `
-            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
-                <i class="fa-solid fa-database"></i>
+            <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-0.5 shadow-xs mr-2 ring-1 ring-rose-200 bhooma-live-heart">
+                <i class="fa-solid fa-heart-pulse text-[11px]"></i>
             </div>
-            <div class="bg-white border border-slate-200 py-2.5 px-3.5 rounded-2xl rounded-tl-sm shadow-sm w-full overflow-x-auto">
+            <div class="bg-white border border-slate-200/90 py-3 px-3.5 rounded-2xl rounded-tl-sm shadow-2xs w-full overflow-x-auto">
                 ${visualHTML}
             </div>
         `;
@@ -2423,8 +2594,8 @@ const BhoomaAI = {
         }
 
         wrapper.innerHTML = `
-            <div class="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-sm mr-2">
-                <i class="fa-solid fa-receipt"></i>
+            <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-xs mr-2 ring-1 ring-rose-200 bhooma-live-heart">
+                <i class="fa-solid fa-heart-pulse text-[11px]"></i>
             </div>
             ${formHtml}
         `;

@@ -10,12 +10,22 @@ $hospital_id = isset($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] :
 function getBaseUrl() {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443) ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $hostOnly = explode(':', $host)[0];
+    $portSuffix = (strpos($host, ':') !== false) ? (':' . explode(':', $host)[1]) : '';
+    if (in_array($hostOnly, ['localhost', '127.0.0.1'])) {
+        $lanIp = gethostbyname(gethostname());
+        if (!empty($lanIp) && $lanIp !== '127.0.0.1' && filter_var($lanIp, FILTER_VALIDATE_IP)) {
+            $host = $lanIp . $portSuffix;
+        }
+    }
     $uri = $_SERVER['REQUEST_URI'] ?? '';
     // Strip query string
     $uri = explode('?', $uri)[0];
     // Go up one directory if inside /api
     $basePath = preg_replace('/\/api\/?.*$/i', '', $uri);
-    return rtrim($protocol . $host . $basePath, '/');
+    $segments = array_filter(explode('/', str_replace('\\', '/', $basePath)), function($s) { return $s !== ''; });
+    $encodedPath = !empty($segments) ? '/' . implode('/', array_map('rawurlencode', $segments)) : '';
+    return rtrim($protocol . $host . $encodedPath, '/');
 }
 
 if (!function_exists('generateUUIDv4')) {
@@ -198,6 +208,54 @@ elseif ($action === 'bulk_generate') {
     }
     
     jsonResponse(['status' => 'success', 'message' => "Generated lifetime QR tokens for $count patients.", 'count' => $count]);
+}
+elseif ($action === 'image') {
+    $token = trim($_GET['token'] ?? '');
+    $patient_id = trim($_GET['patient_id'] ?? $_GET['id'] ?? '');
+
+    if (!$token && !$patient_id) {
+        http_response_code(400);
+        die("Missing patient identifier");
+    }
+
+    $qrToken = $token;
+    if (!$qrToken && $patient_id) {
+        $stmt = $conn->prepare("SELECT qr_token FROM patients WHERE id = ?");
+        $stmt->bind_param("s", $patient_id);
+        $stmt->execute();
+        $res = $stmt->get_result()->fetch_assoc();
+        $qrToken = $res['qr_token'] ?? '';
+    }
+
+    if (!$qrToken) {
+        http_response_code(404);
+        die("QR code not found");
+    }
+
+    $profileUrl = getBaseUrl() . "/patient_profile_qr.php?token=" . urlencode($qrToken);
+    $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=500x500&ecc=H&margin=10&data=" . urlencode($profileUrl);
+
+    // Stream image content directly with cache control
+    header("Content-Type: image/png");
+    header("Cache-Control: public, max-age=86400");
+    header("Access-Control-Allow-Origin: *");
+
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 5
+        ],
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false
+        ]
+    ]);
+    $img = @file_get_contents($qrApiUrl, false, $ctx);
+    if ($img !== false) {
+        echo $img;
+    } else {
+        header("Location: " . $qrApiUrl);
+    }
+    exit;
 }
 else {
     jsonResponse(['status' => 'error', 'message' => 'Invalid action']);

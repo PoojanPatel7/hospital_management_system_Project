@@ -95,7 +95,7 @@ if ($action === 'login') {
                 $_SESSION['role_title'] = 'Hospital Owner & Super Administrator';
                 $_SESSION['user_type'] = 'admin';
                 $_SESSION['is_admin'] = true;
-                $redir = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
+                $redir = !empty($input['redirect']) ? $input['redirect'] : (!empty($_GET['redirect']) ? $_GET['redirect'] : ($_SESSION['redirect_after_login'] ?? 'dashboard.php'));
                 unset($_SESSION['redirect_after_login']);
                 jsonResponse(['status' => 'success', 'message' => 'Welcome ' . ($_SESSION['username']) . '! Login successful', 'redirect' => $redir]);
             } else {
@@ -134,7 +134,7 @@ if ($action === 'login') {
                         $_SESSION['staff_role'] = $stfRow['role'];
                         $_SESSION['user_type'] = 'staff';
                         $_SESSION['is_admin'] = false;
-                        $redir = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
+                        $redir = !empty($input['redirect']) ? $input['redirect'] : (!empty($_GET['redirect']) ? $_GET['redirect'] : ($_SESSION['redirect_after_login'] ?? 'dashboard.php'));
                         unset($_SESSION['redirect_after_login']);
                         jsonResponse(['status' => 'success', 'message' => 'Welcome ' . $stfRow['first_name'] . '! Staff login successful', 'redirect' => $redir]);
                     } else {

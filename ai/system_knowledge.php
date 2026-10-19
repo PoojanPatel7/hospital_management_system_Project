@@ -164,6 +164,53 @@ function getHospitalSystemKnowledge() {
     - Fields: `hospital_id` (unique), `enabled`, `model_name`, `ollama_url`, `max_tokens`, `temperature`, `context_window`, `rate_limit_per_minute`, `allowed_tables`, `system_prompt_override`.
     - Used In: ai/config.php, ai_logs.php.
 
+22. INPATIENT BED OBSERVATIONS & VITALS (bed_observations)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id` (int), `bed_number` (varchar, e.g. 'Bed 101'), `patient_id` (varchar, FK to patients.id), `appointment_id` (int, FK to appointments.id), `observed_at` (datetime), `observation_hour` (e.g. '08:00 AM', '14:00'), `vital_pulse` (e.g. '76 bpm'), `vital_bp` (e.g. '120/80 mmHg'), `vital_spo2` (e.g. '98%'), `vital_temp` (e.g. '98.4 F'), `vital_resp` (e.g. '16 /min'), `notes` (Nurse clinical observations), `recorded_by_id` (staff.id), `recorded_by_name`, `created_at`.
+    - Relationships:
+      • bed_observations.patient_id = patients.id
+      • bed_observations.bed_number = beds.bed_number
+      • One-to-Many with bed_observation_images: bed_observation_images.observation_id = bed_observations.id
+    - Used In: beds.php, patient_profile.php, consultation.php.
+
+23. BED OBSERVATION IMAGES (bed_observation_images)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `observation_id` (FK to bed_observations.id), `bed_number`, `patient_id` (FK to patients.id), `appointment_id`, `title` (e.g. 'Monitor Image', 'ECG Strip'), `image_path`, `thumbnail_path`, `mime_type`, `file_size`, `captured_at`, `patient_file_id`, `created_at`.
+    - Purpose: Visual bedside telemetry, patient photos, wound progression tracking.
+    - Used In: beds.php, patient_profile.php.
+
+24. CONSULTATION CHARGES & PRICING TARIFF (consultation_charges)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id` (int), `charge_type` ('general', 'specialist', 'emergency', 'online', etc.), `charge_name` (e.g. 'General OPD Consultation Fee', 'Super Specialist Video Consultation', 'Emergency Triage Charge'), `amount` (decimal), `is_active` (1/0), `created_at`, `updated_at`.
+    - Purpose: Standard hospital fee catalog and billing rates.
+    - Used In: api/charges.php, book.php, online_consultation.php, dashboard.php.
+
+25. ONLINE CONSULTATIONS & TELEMEDICINE (online_consultations)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id` (int), `patient_id` (FK to patients.id), `doctor_id` (FK to doctors.id), `appointment_id` (FK to appointments.id), `status` (ENUM: 'initiated', 'in_progress', 'completed', 'cancelled'), `diagnosis`, `prescription_notes`, `doctor_notes`, `consultation_fee`, `fee_status` (ENUM: 'pending', 'paid', 'waived'), `started_at`, `completed_at`.
+    - Relationships:
+      • online_consultations.patient_id = patients.id
+      • online_consultations.doctor_id = doctors.id
+    - Used In: api/online_consultation.php, consultation.php, history.php.
+
+26. MEDICAL FILE AUDIT LOG (file_audit_log)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id` (int), `patient_id` (FK to patients.id), `file_id` (FK to patient_files.id), `action` (ENUM: 'upload', 'view', 'edit', 'delete', 'download'), `staff_id` (FK to staff.id), `staff_name`, `details`, `ip_address`, `created_at`.
+    - Purpose: HIPAA and regulatory audit trail of all medical record access.
+    - Used In: api/files.php, patient_profile.php.
+
+27. HOSPITAL GEOFENCE (hospital_geofence)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `hospital_id` (int), `latitude` (decimal), `longitude` (decimal), `radius_meters` (int, e.g. 100), `name` (e.g. 'Main Hospital Campus'), `created_at`.
+    - Purpose: GPS attendance validation radius for staff mobile clock-in.
+    - Used In: staff.php, api/attendance_selfie.php.
+
+28. STAFF PERMISSIONS (staff_permissions)
+    - Primary Key: `id` (int, auto_increment)
+    - Fields: `staff_id` (FK to staff.id), `permission_key` (e.g. 'manage_patients', 'view_reports', 'edit_beds', 'manage_staff', 'billing_access'), `permission_value` (1/0), `granted_by` (staff.id), `granted_at`.
+    - Purpose: Role-based module access control matrix.
+    - Used In: staff.php, api/permissions.php.
+
 --- 2. UI TERMINOLOGY TO DATABASE FIELD TRANSLATION ---
 • UI "Patient MRN" / "Patient Code" -> patients.id
 • UI "Appointment Date" -> appointments.date (NOT appointment_date)
@@ -173,6 +220,18 @@ function getHospitalSystemKnowledge() {
 • UI "Doctor Contact" -> doctors.phone
 • UI "Bed Status" -> beds.status ('Available' or 'Occupied')
 • UI "Bed Wing / Ward" -> beds.wing / beds.type
+• UI "Patient Vitals" / "Blood Pressure / BP" -> bed_observations.vital_bp
+• UI "Heart Rate / Pulse" -> bed_observations.vital_pulse
+• UI "Oxygen Saturation / SpO2" -> bed_observations.vital_spo2
+• UI "Body Temperature / Fever" -> bed_observations.vital_temp
+• UI "Respiration Rate" -> bed_observations.vital_resp
+• UI "Nursing Clinical Notes" -> bed_observations.notes
+• UI "Monitor Snapshot / ECG Strip" -> bed_observation_images.image_path
+• UI "Consultation Fee / OPD Charges / Pricing" -> consultation_charges.amount (consultation_charges.charge_name)
+• UI "Online Consultation / Telemedicine" -> online_consultations (status, fee, notes)
+• UI "Medical Record Audit Trail" -> file_audit_log (action, staff_name, created_at)
+• UI "Attendance Geofence / Campus Boundary" -> hospital_geofence (latitude, longitude, radius_meters)
+• UI "Staff Permissions / Module Access" -> staff_permissions (permission_key, permission_value)
 • UI "Staff Attendance" -> staff_attendance.status (NEVER staff table)
 • UI "Hours Worked" -> staff_attendance.working_hours
 • UI "Check-In Time" -> staff_attendance.check_in_time
@@ -367,7 +426,7 @@ STAGE 7: HOSPITAL GOVERNANCE, STAFF ATTENDANCE & AUDIT ASSURANCE (Steps 476–50
 486. Maintain immutable chronological security audit trail of all AI actions in `ai_action_log`.
 487. Enforce HIPAA/privacy standards: Never expose raw passwords or sensitive auth keys in AI outputs.
 488. Enforce clean clinical communication: ZERO SQL or technical jargon in responses to healthcare staff.
-489. Provide executive highlight at top of every response (> 💡 **Direct Answer:** ...).
+489. Deliver crisp, natural, conversational answers directly like an advanced AI (Gemini / Claude / ChatGPT), without robotic headers or repetitive 'Direct Answer:' tags.
 490. Provide interactive embedded forms directly in chat for common operational tasks (Booking, Bed Admission, Attendance).
 491–500+. (Disaster preparedness protocols, emergency code calls [Code Blue = Cardiac Arrest, Code Red = Fire, Code Pink = Infant Abduction], biomedical equipment preventative maintenance, infection control committee compliance, clinical quality indicators tracking, perpetual audit log preservation).
 KNOWLEDGE;

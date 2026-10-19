@@ -109,8 +109,10 @@ if ($action === 'get_staff') {
         $res = $stmt->get_result();
         $staffList = [];
         while ($row = $res->fetch_assoc()) {
-            // Remove sensitive password hash
+            $row['has_face'] = !empty($row['face_descriptor']) && trim($row['face_descriptor']) !== '' && $row['face_descriptor'] !== 'null';
+            // Remove sensitive password hash and heavy biometric vector for list
             unset($row['password']);
+            unset($row['face_descriptor']);
             $staffList[] = $row;
         }
         jsonResponse([
@@ -143,6 +145,7 @@ if ($action === 'get_staff_details') {
     }
 
     unset($staff['password']);
+    $staff['has_face'] = !empty($staff['face_descriptor']) && trim($staff['face_descriptor']) !== '' && $staff['face_descriptor'] !== 'null';
 
     // Monthly stats (current month)
     $currMonth = date('Y-m');

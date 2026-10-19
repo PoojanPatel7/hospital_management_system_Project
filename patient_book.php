@@ -186,7 +186,7 @@ if (file_exists($logoPath)) {
           </div>
           <div class="min-w-0">
             <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Step 4</span>
-            <span class="text-xs sm:text-sm font-bold text-slate-600 block truncate">Not-AI Test &amp; Book</span>
+            <span class="text-xs sm:text-sm font-bold text-slate-600 block truncate">Confirm &amp; Book</span>
           </div>
         </button>
 
@@ -587,6 +587,12 @@ if (file_exists($logoPath)) {
             <span id="slots-day-off-msg">Doctor is not consulting on this date. Please pick another date.</span>
           </div>
 
+          <!-- Highlighted Token Notice in Step 3 -->
+          <div class="mb-4 p-3 bg-amber-50/90 border border-amber-300 rounded-xl flex items-center gap-2.5 text-xs text-amber-950 font-semibold shadow-2xs">
+            <i class="fa-solid fa-ticket text-amber-600 text-sm shrink-0"></i>
+            <span><strong>Token at Hospital:</strong> Your time slot is reserved here. Physical token number will be assigned in-person at the hospital OPD reception 15 min before your slot.</span>
+          </div>
+
           <!-- Slots Container -->
           <div id="slots-matrix-container" class="space-y-4">
             <!-- Morning Slots -->
@@ -644,7 +650,7 @@ if (file_exists($logoPath)) {
           disabled
           class="px-6 py-2.5 rounded-xl bg-slate-200 text-slate-400 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 cursor-not-allowed"
         >
-          <span>Next: Not-AI Test &amp; Book</span>
+          <span>Next: Confirm &amp; Book</span>
           <i class="fa-solid fa-arrow-right"></i>
         </button>
       </div>
@@ -663,7 +669,7 @@ if (file_exists($logoPath)) {
         </div>
         <div>
           <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Step 4 of 4</span>
-          <h2 class="text-lg sm:text-xl font-bold text-slate-900">Not-AI Test &amp; Book</h2>
+          <h2 class="text-lg sm:text-xl font-bold text-slate-900">Confirm &amp; Book Consultation</h2>
         </div>
       </div>
 
@@ -673,7 +679,7 @@ if (file_exists($logoPath)) {
         <div class="lg:col-span-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-              <i class="fa-solid fa-user-shield"></i> Not-AI Human Check
+              <i class="fa-solid fa-user-shield"></i> Quick Verification
             </span>
             <button type="button" onclick="loadAntiBotCaptcha()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition">
               <i class="fa-solid fa-rotate text-xs"></i> Refresh
@@ -710,7 +716,7 @@ if (file_exists($logoPath)) {
           <label class="flex items-start gap-2.5 bg-white p-3 rounded-xl border border-slate-200 cursor-pointer select-none">
             <input type="checkbox" id="human-verify-checkbox" onchange="validateAntiBotAnswer()" class="mt-0.5 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
             <span class="text-xs font-medium text-slate-700 leading-tight">
-              I verify that I am a human patient booking a genuine doctor consultation.
+              I verify that I am a patient booking a genuine doctor consultation.
             </span>
           </label>
 
@@ -751,7 +757,15 @@ if (file_exists($logoPath)) {
             </div>
           </div>
 
-          <div class="pt-2">
+          <!-- Highlighted Token Notice in Summary -->
+          <div class="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-950 font-medium">
+            <i class="fa-solid fa-ticket text-amber-600 text-sm shrink-0 mt-0.5"></i>
+            <div class="leading-relaxed">
+              <strong class="font-bold text-slate-900">Token at Hospital:</strong> Physical OPD Token number will be assigned at hospital reception 15 min before your slot upon arrival.
+            </div>
+          </div>
+
+          <div class="pt-1">
             <button 
               type="button" 
               id="btn-submit-appointment" 
@@ -760,7 +774,7 @@ if (file_exists($logoPath)) {
               class="w-full py-3.5 bg-slate-200 text-slate-400 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-not-allowed"
             >
               <i class="fa-solid fa-calendar-check"></i>
-              <span id="btn-submit-text">Complete Not-AI Test to Book</span>
+              <span id="btn-submit-text">Complete Verification to Book</span>
             </button>
             <p class="text-[11px] text-center text-slate-500 mt-2 font-normal">
               Time slot will be reserved. Token will be generated at hospital visit 15 min before time.
@@ -820,102 +834,118 @@ if (file_exists($logoPath)) {
       <div id="printable-slip" class="bg-white rounded-2xl border border-slate-300 shadow-xs" style="max-width: 660px; margin: 0 auto; color: #1e293b; overflow: visible;">
         
         <!-- Top Security Header Ribbon -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-5 py-2 flex items-center justify-between text-[11px] font-semibold tracking-wider uppercase border-b border-indigo-500/30">
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-5 py-2.5 flex items-center justify-between text-[11px] font-semibold tracking-wider uppercase border-b border-indigo-500/30">
           <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
             <span>Official Outpatient Consultation Pass (OPD)</span>
           </div>
           <span class="text-indigo-200" id="slip-issue-date"><?php echo date('d M Y'); ?></span>
         </div>
 
-        <!-- Hospital Brand Header with Logo AND Full Hospital Name -->
-        <div class="p-5 sm:p-6 bg-gradient-to-b from-slate-50/90 to-white border-b border-slate-200">
-          <div class="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 text-center sm:text-left">
+        <!-- Hospital Brand Header with Logo -->
+        <div class="p-5 sm:p-6 bg-white border-b border-slate-200">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
             
-            <div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <!-- Hospital Logo (Large, prominent, and crystal-clear) -->
-              <div class="p-2 sm:p-2.5 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
-                <img src="<?php echo $logoDataUri; ?>" alt="Bhooma Medicare Logo" class="h-16 sm:h-20 w-auto max-w-[240px] sm:max-w-[280px] object-contain">
-              </div>
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+              <!-- Hospital Logo (Clean, prominent, no heavy border box) -->
+              <img src="<?php echo $logoDataUri; ?>" alt="Bhooma Medicare Logo" class="h-16 w-auto max-w-[260px] object-contain shrink-0">
               
-              <!-- Full Name & Hospital Details -->
-              <div>
-                <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                  <?php echo htmlspecialchars($hospital_full_name); ?>
-                </h1>
-                <p class="text-xs font-bold text-indigo-700 tracking-wide mt-0.5">
-                  Multi-Speciality, Critical Care &amp; Emergency Hospital
-                </p>
-                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 text-xs text-slate-600 font-semibold mt-1">
-                  <span class="text-indigo-800 font-bold"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i> Palanpur, Gujarat</span>
-                  <span>•</span>
-                  <span><i class="fa-solid fa-phone text-emerald-600 mr-1"></i> Helpline: +91 98201 12345</span>
-                  <span>•</span>
-                  <span class="text-rose-600 font-bold"><i class="fa-solid fa-truck-medical mr-1"></i> 24x7 Emergency: 108</span>
+              <!-- Hospital Details & Contact -->
+              <div class="border-t sm:border-t-0 sm:border-l-2 border-slate-200 pt-2 sm:pt-0 sm:pl-4">
+                <p class="text-xs font-bold text-slate-800">Multi-Speciality &amp; Critical Care Hospital</p>
+                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-0.5 text-[11px] text-slate-600 font-semibold mt-1">
+                  <span><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i> Palanpur, Gujarat</span>
+                  <span><i class="fa-solid fa-phone text-emerald-600 mr-1"></i> +91 98201 12345</span>
+                  <span class="text-rose-600 font-bold"><i class="fa-solid fa-truck-medical mr-1"></i> Emergency: 108</span>
                 </div>
               </div>
             </div>
 
-            <!-- Verified Status Badge -->
+            <!-- Confirmed Status Badge -->
             <div class="shrink-0 flex flex-col items-center sm:items-end">
-              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <i class="fa-solid fa-circle-check text-emerald-600"></i> Confirmed &amp; Scheduled
               </span>
-              <span class="text-[10px] text-slate-400 mt-1 font-mono font-bold" id="slip-booking-ref-badge">BK-REF</span>
+              <span class="text-xs text-slate-400 mt-1.5 font-mono font-bold" id="slip-booking-ref-badge">BK-REF</span>
             </div>
 
           </div>
         </div>
 
-        <!-- Slot Confirmation Hero Card (Token generated at hospital) -->
-        <div class="p-5 sm:p-6 bg-white">
-          <div class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-teal-600 text-white rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="text-center sm:text-left flex-1">
-              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs border border-white/30 text-[10px] font-black uppercase tracking-wider text-amber-200 mb-1">
-                <i class="fa-solid fa-calendar-check"></i> Time Slot Booked • Token Assigned at Hospital
+        <!-- =================================================================== -->
+        <!-- PROMINENT TOKEN AT HOSPITAL HIGHLIGHT BOX                           -->
+        <!-- =================================================================== -->
+        <div class="mx-5 sm:mx-6 mt-5 p-4 sm:p-5 rounded-2xl bg-amber-50 border-2 border-amber-400 text-amber-950 shadow-xs">
+          <div class="flex items-start gap-3.5">
+            <div class="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-2xl shrink-0 mt-0.5 shadow-xs">
+              <i class="fa-solid fa-ticket"></i>
+            </div>
+            <div class="flex-1">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider">
+                  <i class="fa-solid fa-circle-exclamation"></i> Important Token Notice
+                </span>
+                <span class="text-[11px] font-bold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md">
+                  OPD Reception Counter
+                </span>
               </div>
-              <div class="text-2xl sm:text-3xl font-black tracking-tight mt-0.5" id="slip-token">SLOT CONFIRMED</div>
-              <p class="text-xs text-indigo-100 mt-1 font-medium leading-relaxed" id="slip-reporting-note">
-                <i class="fa-solid fa-clock mr-1 text-amber-300"></i> Token will be generated at hospital visit 15 min before time. Please arrive by <span id="slip-arrive-time" class="font-bold underline text-white">--:-- AM</span>.
+              <h2 class="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                TOKEN NUMBER WILL BE ASSIGNED AT HOSPITAL RECEPTION
+              </h2>
+              <p class="text-xs sm:text-[13px] font-medium text-amber-950 mt-1.5 leading-relaxed" id="slip-reporting-note">
+                <i class="fa-solid fa-clock mr-1 text-amber-800"></i> Please arrive 15 minutes before your time by <span id="slip-arrive-time" class="font-black underline text-slate-900 bg-amber-200/80 px-1.5 py-0.5 rounded">--:-- AM</span>. Show your Booking Reference (<strong class="font-mono text-slate-900" id="slip-booking-ref-note">#APP</strong>) at the hospital OPD reception to receive your physical token number.
               </p>
             </div>
-            
-            <div class="bg-white/10 backdrop-blur-xs rounded-xl p-3 border border-white/20 text-center shrink-0 min-w-[170px]">
-              <span class="text-[10px] uppercase font-bold text-indigo-200 block tracking-wider">Scheduled Slot</span>
-              <div class="text-lg font-black text-white mt-0.5" id="slip-slot">--:-- AM</div>
-              <div class="text-[11px] font-bold text-indigo-100 mt-0.5" id="slip-date">-- --- ----</div>
-              <div class="mt-1.5 text-[10px] font-bold bg-amber-400 text-amber-950 px-2 py-0.5 rounded-md inline-block shadow-xs">
-                <i class="fa-solid fa-ticket-simple mr-1"></i> Token at OPD Reception
-              </div>
+          </div>
+        </div>
+
+        <!-- Scheduled Slot Hero Card -->
+        <div class="mx-5 sm:mx-6 my-4 bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="text-center sm:text-left flex-1">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black uppercase tracking-wider text-amber-300 mb-1">
+              <i class="fa-solid fa-calendar-check"></i> Reserved Consultation Slot
+            </span>
+            <div class="text-2xl sm:text-3xl font-black text-white mt-0.5" id="slip-date">-- --- ----</div>
+            <div class="text-xs text-indigo-100 font-medium mt-1">
+              Consulting Doctor: <strong class="text-white font-bold text-sm" id="slip-doctor-name">--</strong>
+            </div>
+            <span id="slip-token" class="hidden">SLOT CONFIRMED</span>
+          </div>
+
+          <div class="bg-white/10 backdrop-blur-xs rounded-xl p-3 sm:p-3.5 border border-white/20 text-center shrink-0 min-w-[170px]">
+            <span class="text-[10px] uppercase font-bold text-indigo-200 block tracking-wider">Scheduled Time</span>
+            <div class="text-xl sm:text-2xl font-black text-white mt-0.5" id="slip-slot">--:-- AM</div>
+            <div class="mt-1.5 text-[10px] font-black bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-md inline-block shadow-xs">
+              <i class="fa-solid fa-ticket-simple mr-1"></i> Token at Hospital
             </div>
           </div>
         </div>
 
         <!-- Full Information 2-Column Grid (Unclipped, Crisp Text Layout) -->
         <div class="px-5 sm:px-6 pb-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             
             <!-- Column 1: Patient Information -->
-            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-              <div class="flex items-center gap-2 pb-2 mb-3 border-b border-slate-200">
-                <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+            <div class="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200">
+              <div class="flex items-center gap-2 pb-2.5 mb-3 border-b border-slate-200">
+                <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
                   <i class="fa-solid fa-user"></i>
                 </div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Patient Information</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Patient Details</h3>
               </div>
 
               <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                <div>
+                <div class="col-span-2">
                   <div class="field-title">Patient Name</div>
-                  <div class="field-val" id="slip-patient-name">--</div>
+                  <div class="field-val text-sm font-black text-slate-900" id="slip-patient-name">--</div>
                 </div>
                 <div>
-                  <div class="field-title">Patient MRN / ID</div>
-                  <div class="field-val font-mono text-indigo-700" id="slip-patient-mrn">--</div>
+                  <div class="field-title">MRN / Patient ID</div>
+                  <div class="field-val font-mono font-bold text-indigo-700" id="slip-patient-mrn">--</div>
                 </div>
                 <div>
                   <div class="field-title">Contact Phone</div>
-                  <div class="field-val font-mono" id="slip-patient-phone">--</div>
+                  <div class="field-val font-mono font-bold" id="slip-patient-phone">--</div>
                 </div>
                 <div>
                   <div class="field-title">Age &amp; Gender</div>
@@ -923,22 +953,22 @@ if (file_exists($logoPath)) {
                 </div>
                 <div>
                   <div class="field-title">Blood Group</div>
-                  <div class="field-val text-rose-600 font-extrabold" id="slip-patient-blood">--</div>
+                  <div class="field-val text-rose-600 font-black" id="slip-patient-blood">--</div>
                 </div>
-                <div>
+                <div class="col-span-2">
                   <div class="field-title">Booking Reference</div>
-                  <div class="field-val font-mono" id="slip-booking-ref">--</div>
+                  <div class="field-val font-mono font-black text-slate-900" id="slip-booking-ref">--</div>
                 </div>
               </div>
             </div>
 
             <!-- Column 2: Doctor & Consultation Information -->
-            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-              <div class="flex items-center gap-2 pb-2 mb-3 border-b border-slate-200">
-                <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+            <div class="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200">
+              <div class="flex items-center gap-2 pb-2.5 mb-3 border-b border-slate-200">
+                <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
                   <i class="fa-solid fa-user-doctor"></i>
                 </div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Doctor &amp; Consultation</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Doctor &amp; Visit</h3>
               </div>
 
               <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
@@ -948,16 +978,16 @@ if (file_exists($logoPath)) {
                 </div>
                 <div class="col-span-2">
                   <div class="field-title">Specialty / Department</div>
-                  <div class="field-val font-semibold text-slate-800" id="slip-doctor-dept">--</div>
+                  <div class="field-val font-bold text-slate-800" id="slip-doctor-dept">--</div>
                 </div>
                 <div>
                   <div class="field-title">Consultation Type</div>
-                  <div class="field-val" id="slip-consult-type">General OPD</div>
+                  <div class="field-val font-semibold" id="slip-consult-type">General OPD</div>
                 </div>
                 <div>
                   <div class="field-title">Status</div>
                   <div class="pt-0.5">
-                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
                       <i class="fa-solid fa-check text-[9px]"></i> Scheduled
                     </span>
                   </div>
@@ -971,18 +1001,9 @@ if (file_exists($logoPath)) {
 
           </div>
 
-          <!-- Reporting Guidelines Notice -->
-          <div class="mt-3.5 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-900">
-            <i class="fa-solid fa-circle-exclamation text-amber-600 text-sm shrink-0 mt-0.5"></i>
-            <div class="leading-relaxed text-[11px]">
-              <strong>Hospital Visit Instructions:</strong> Your time slot is reserved. Token will be generated at hospital visit 15 min before time upon scanning your QR Code or providing your Booking Reference (<strong class="font-mono text-indigo-800" id="slip-booking-ref-note">#APP</strong>). Please carry any prior medical reports or doctor prescriptions.
-            </div>
-          </div>
-
           <!-- Bottom Security Barcode & Seal Strip -->
-          <div class="mt-3.5 pt-3 border-t border-dashed border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
+          <div class="mt-4 pt-3.5 border-t border-dashed border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
             <div class="flex items-center gap-2">
-              <!-- Stylized Barcode SVG Representation -->
               <svg class="h-6 w-36 text-slate-700" viewBox="0 0 100 24" fill="currentColor">
                 <rect x="0" y="0" width="3" height="24"/>
                 <rect x="5" y="0" width="1" height="24"/>
@@ -1008,12 +1029,12 @@ if (file_exists($logoPath)) {
                 <rect x="93" y="0" width="2" height="24"/>
                 <rect x="97" y="0" width="3" height="24"/>
               </svg>
-              <span class="font-mono text-[10px] text-slate-500 font-bold" id="slip-barcode-text">BK-00000</span>
+              <span class="font-mono text-xs text-slate-600 font-bold" id="slip-barcode-text">BK-00000</span>
             </div>
 
-            <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold">
+            <div class="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
               <i class="fa-solid fa-stamp text-indigo-600"></i>
-              <span>Official System-Generated Medical Consultation Pass</span>
+              <span>Official Outpatient Consultation Pass</span>
             </div>
           </div>
 
@@ -1676,7 +1697,7 @@ if (file_exists($logoPath)) {
           banner.classList.add('hidden');
           submitBtn.disabled = true;
           submitBtn.className = 'w-full py-3.5 bg-slate-200 text-slate-400 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-not-allowed';
-          submitText.textContent = 'Complete Not-AI Test to Book';
+          submitText.textContent = 'Complete Verification to Book';
       }
   }
 
@@ -1762,17 +1783,17 @@ if (file_exists($logoPath)) {
       const arriveEl = document.getElementById('slip-arrive-time');
       if (arriveEl) arriveEl.textContent = arriveTime || '15 min before slot';
 
-      const noteEl = document.getElementById('slip-reporting-note');
-      if (noteEl) {
-          noteEl.innerHTML = `<i class="fa-solid fa-clock mr-1 text-amber-300"></i> Token will be generated at hospital visit 15 min before time. Please arrive by <span class="font-bold underline text-white">${arriveTime}</span>.`;
-      }
-
       const bRef = appt.booking_ref || `#APP-${appt.id}`;
       document.getElementById('slip-booking-ref').textContent = bRef;
       document.getElementById('slip-booking-ref-badge').textContent = bRef;
       document.getElementById('slip-barcode-text').textContent = bRef;
       const refNoteEl = document.getElementById('slip-booking-ref-note');
       if (refNoteEl) refNoteEl.textContent = bRef;
+
+      const noteEl = document.getElementById('slip-reporting-note');
+      if (noteEl) {
+          noteEl.innerHTML = `<i class="fa-solid fa-clock mr-1 text-amber-800"></i> Please arrive 15 minutes before your time by <span class="font-black underline text-slate-900 bg-amber-200/80 px-1.5 py-0.5 rounded">${arriveTime}</span>. Show your Booking Reference (<strong class="font-mono text-slate-900">${bRef}</strong>) at the hospital OPD reception to receive your physical token number.`;
+      }
       
       document.getElementById('slip-patient-mrn').textContent = appt.patient_id;
       document.getElementById('slip-patient-name').textContent = appt.patient_name;

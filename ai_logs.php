@@ -1,55 +1,50 @@
 <?php
-// ai_logs.php - AI Assistant Intelligence, Conversation Transcripts & Action Audit Dashboard
+// ai_logs.php - Gemini-Style Hospital AI Chat Studio, Live Conversations & Action Audit
 require_once 'auth.php';
 require_once 'db.php';
 include 'includes/header.php';
 
 $hospitalId = (int)($_SESSION['hospital_id'] ?? 1);
-$hospitalName = $_SESSION['hospital_name'] ?? 'CarePulse Hospital';
+$hospitalName = $_SESSION['hospital_name'] ?? 'BHOOMA Medicare Hospital';
 $userRole = $_SESSION['staff_role'] ?? 'Admin';
+$currentUsername = $_SESSION['username'] ?? 'Admin';
 
 // -------------------------------------------------------------
 // 1. Executive Analytics & KPIs
 // -------------------------------------------------------------
-// Total Conversations
 $resConv = $conn->query("SELECT COUNT(*) as total_conv, SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today_conv FROM ai_conversations WHERE hospital_id = $hospitalId");
 $rowConv = $resConv ? $resConv->fetch_assoc() : ['total_conv' => 0, 'today_conv' => 0];
 $totalConversations = (int)($rowConv['total_conv'] ?? 0);
 $todayConversations = (int)($rowConv['today_conv'] ?? 0);
 
-// Total Messages
 $resMsg = $conn->query("SELECT COUNT(*) as total_msg FROM ai_chat_messages m JOIN ai_conversations c ON m.conversation_id = c.id WHERE c.hospital_id = $hospitalId");
 $totalMessages = $resMsg ? (int)($resMsg->fetch_assoc()['total_msg'] ?? 0) : 0;
 
-// Actions Executed & Success Rate
 $resActs = $conn->query("SELECT COUNT(*) as total_acts, SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as success_acts FROM ai_action_log WHERE hospital_id = $hospitalId");
 $rowActs = $resActs ? $resActs->fetch_assoc() : ['total_acts' => 0, 'success_acts' => 0];
 $totalActions = (int)($rowActs['total_acts'] ?? 0);
 $successActions = (int)($rowActs['success_acts'] ?? 0);
 $actionSuccessRate = $totalActions > 0 ? round(($successActions / $totalActions) * 100, 1) : 100.0;
 
-// Pending Actions
-$resPend = $conn->query("SELECT COUNT(*) as pending_count FROM ai_pending_actions WHERE hospital_id = $hospitalId AND status = 'pending' AND expires_at > NOW()");
-$pendingActionsCount = $resPend ? (int)($resPend->fetch_assoc()['pending_count'] ?? 0) : 0;
-
 // -------------------------------------------------------------
-// 2. Fetch Conversations List
+// 2. Fetch Initial Conversations (for zero-latency initial load)
 // -------------------------------------------------------------
 $convQuery = "
-    SELECT c.*, 
+    SELECT c.id, c.title, c.created_at, c.updated_at, c.user_id, c.user_role,
            COUNT(m.id) as message_count,
-           MAX(m.created_at) as last_message_at,
            (SELECT content FROM ai_chat_messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1) as latest_snippet
     FROM ai_conversations c
     LEFT JOIN ai_chat_messages m ON c.id = m.conversation_id
     WHERE c.hospital_id = $hospitalId
     GROUP BY c.id
-    ORDER BY c.updated_at DESC
-    LIMIT 100
+    ORDER BY c.updated_at DESC, c.id DESC
+    LIMIT 50
 ";
-$conversations = [];
+$initialConversations = [];
 if ($res = $conn->query($convQuery)) {
-    while ($r = $res->fetch_assoc()) $conversations[] = $r;
+    while ($r = $res->fetch_assoc()) {
+        $initialConversations[] = $r;
+    }
 }
 
 // -------------------------------------------------------------
@@ -58,186 +53,326 @@ if ($res = $conn->query($convQuery)) {
 $auditLogs = [];
 $auditQuery = "SELECT * FROM ai_action_log WHERE hospital_id = $hospitalId ORDER BY created_at DESC LIMIT 100";
 if ($res = $conn->query($auditQuery)) {
-    while ($r = $res->fetch_assoc()) $auditLogs[] = $r;
-}
-
-// -------------------------------------------------------------
-// 4. Fetch Pending Actions
-// -------------------------------------------------------------
-$pendingActions = [];
-$pendingQuery = "SELECT * FROM ai_pending_actions WHERE hospital_id = $hospitalId ORDER BY created_at DESC LIMIT 50";
-if ($res = $conn->query($pendingQuery)) {
-    while ($r = $res->fetch_assoc()) $pendingActions[] = $r;
+    while ($r = $res->fetch_assoc()) {
+        $auditLogs[] = $r;
+    }
 }
 ?>
+<style>
+@keyframes bhooma-heartbeat-anim {
+    0% { transform: scale(1); }
+    14% { transform: scale(1.18); filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.8)); }
+    28% { transform: scale(1.02); }
+    42% { transform: scale(1.24); filter: drop-shadow(0 0 12px rgba(244, 63, 94, 0.95)); }
+    68% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.35)); }
+    100% { transform: scale(1); }
+}
+.bhooma-live-heart {
+    animation: bhooma-heartbeat-anim 1.4s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+    transform-origin: center center;
+    will-change: transform;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+<div class="space-y-4">
 
-  <!-- Header Banner -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden">
-    <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
-    <div class="relative z-10">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-lg shadow-md">
-          <i class="fa-solid fa-brain"></i>
-        </div>
-        <div>
-          <h1 class="text-xl sm:text-2xl font-black tracking-tight">AI Assistant Intelligence &amp; Audit Logs</h1>
-          <p class="text-xs sm:text-sm text-slate-300">Complete visibility into user interactions, database queries, and automated action logs.</p>
-        </div>
+  <!-- ================= TOP CONTROLS & MODE TOGGLE ================= -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-rose-500/25 shrink-0 bhooma-live-heart">
+        <i class="fa-solid fa-heart-pulse"></i>
+      </div>
+      <div>
+        <h2 class="text-base sm:text-lg font-black text-slate-900 leading-tight flex items-center gap-2">
+          <span>Hospital AI Assistant Studio</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 hidden sm:inline-flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Live Ollama</span>
+          </span>
+        </h2>
+        <p class="text-xs text-slate-500">Ask questions, replay past conversations, and inspect database audit actions.</p>
       </div>
     </div>
-    <div class="flex flex-wrap items-center gap-2.5 relative z-10">
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        Model: qwen2.5:3b (Local)
-      </span>
-      <button onclick="window.location.reload();" class="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold transition border border-white/10 flex items-center gap-1.5 cursor-pointer">
-        <i class="fa-solid fa-arrows-rotate"></i> Refresh
-      </button>
-      <button onclick="exportAuditLogCSV();" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5 cursor-pointer">
-        <i class="fa-solid fa-download"></i> Export CSV
+
+    <!-- Mode Switcher -->
+    <div class="flex items-center gap-2 self-start sm:self-auto">
+      <div class="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200 text-xs font-bold">
+        <button type="button" id="btn-mode-chat" onclick="setDashboardMode('chat')" class="px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-slate-900 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-message text-indigo-600"></i>
+          <span>AI Chat</span>
+        </button>
+        <button type="button" id="btn-mode-audit" onclick="setDashboardMode('audit')" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-clipboard-list text-slate-500"></i>
+          <span>Action Logs (<?php echo count($auditLogs); ?>)</span>
+        </button>
+      </div>
+
+      <button type="button" onclick="startNewChat()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-plus text-xs"></i>
+        <span>New Chat</span>
       </button>
     </div>
   </div>
 
-  <!-- KPI Statistics Grid -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- Card 1: Total Conversations -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-      <div>
-        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Conversations</div>
-        <div class="text-2xl font-black text-slate-800 mt-1"><?php echo number_format($totalConversations); ?></div>
-        <div class="text-[11px] text-emerald-600 font-semibold mt-0.5">+<?php echo $todayConversations; ?> started today</div>
+  <!-- ================= MODE 1: GEMINI-STYLE AI CHAT & HISTORY ================= -->
+  <div id="section-chat-mode" class="apple-card p-0 bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row h-[78vh] min-h-[550px] relative">
+    
+    <!-- Mobile Backdrop for Sidebar Drawer -->
+    <div id="sidebar-mobile-backdrop" onclick="toggleMobileHistory(false)" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 md:hidden transition-opacity"></div>
+
+    <!-- Left Sidebar: Gemini Chat History (Drawer on mobile, stationary sidebar on desktop) -->
+    <div id="chat-sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-4/5 sm:w-80 md:w-80 lg:w-88 border-r border-slate-200 bg-white md:bg-slate-50/70 flex flex-col shrink-0 h-full shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0">
+      <!-- Sidebar Header -->
+      <div class="p-3.5 border-b border-slate-200/80 space-y-2.5 bg-white shrink-0">
+        <div class="flex items-center justify-between md:hidden pb-1">
+          <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> Past Chats
+          </span>
+          <button type="button" onclick="toggleMobileHistory(false)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <button type="button" onclick="startNewChat(); toggleMobileHistory(false);" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98">
+          <i class="fa-solid fa-plus text-xs"></i>
+          <span>New Chat Session</span>
+        </button>
+
+        <!-- Search Input -->
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input 
+            type="text" 
+            id="history-search-input" 
+            oninput="filterHistoryList()" 
+            placeholder="Search past conversations..." 
+            class="w-full text-xs font-medium pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/40 outline-none transition">
+        </div>
       </div>
-      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg">
-        <i class="fa-solid fa-comments"></i>
+
+      <!-- History Sessions List -->
+      <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar" id="history-sessions-container">
+        <?php if (empty($initialConversations)): ?>
+          <div class="text-center py-12 px-4 text-slate-400">
+            <i class="fa-regular fa-comments text-3xl mb-2 text-slate-300"></i>
+            <p class="text-xs font-bold text-slate-600">No chat history yet</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Start your first AI conversation using the button above.</p>
+          </div>
+        <?php else: foreach ($initialConversations as $conv): 
+          $displayTitle = !empty($conv['title']) ? $conv['title'] : 'Conversation #' . $conv['id'];
+          $msgCount = (int)($conv['message_count'] ?? 0);
+          $timeStr = date('M d, h:i A', strtotime($conv['updated_at']));
+        ?>
+          <div 
+            onclick="loadConversation(<?php echo $conv['id']; ?>); toggleMobileHistory(false);" 
+            data-conv-id="<?php echo $conv['id']; ?>"
+            data-search-text="<?php echo strtolower(htmlspecialchars($displayTitle . ' ' . ($conv['latest_snippet'] ?? ''))); ?>"
+            class="history-item group relative p-3 rounded-xl transition cursor-pointer border border-transparent hover:border-slate-200 hover:bg-white flex items-start justify-between gap-2">
+            
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 mb-0.5">
+                <i class="fa-regular fa-message text-[11px] text-slate-400 group-hover:text-blue-600"></i>
+                <h4 class="text-xs font-bold text-slate-800 truncate leading-snug history-item-title"><?php echo htmlspecialchars($displayTitle); ?></h4>
+              </div>
+              <div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                <span><?php echo $timeStr; ?></span>
+                <span>&bull;</span>
+                <span class="font-mono"><?php echo $msgCount; ?> msgs</span>
+              </div>
+            </div>
+
+            <!-- Delete Button -->
+            <button 
+              type="button" 
+              onclick="event.stopPropagation(); promptDeleteConversation(<?php echo $conv['id']; ?>)" 
+              class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition text-xs shrink-0" 
+              title="Delete conversation">
+              <i class="fa-solid fa-trash text-[11px]"></i>
+            </button>
+          </div>
+        <?php endforeach; endif; ?>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="p-3 border-t border-slate-200/80 bg-white flex items-center justify-between text-xs text-slate-500 shrink-0">
+        <span class="text-[11px] font-semibold flex items-center gap-1.5">
+          <i class="fa-solid fa-microchip text-indigo-500"></i>
+          <span>qwen2.5:3b</span>
+        </span>
+        <button type="button" onclick="setDashboardMode('audit'); toggleMobileHistory(false);" class="text-[11px] font-bold text-blue-600 hover:underline">
+          View Logs &rarr;
+        </button>
       </div>
     </div>
 
-    <!-- Card 2: Total Messages -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-      <div>
-        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Messages Sent</div>
-        <div class="text-2xl font-black text-slate-800 mt-1"><?php echo number_format($totalMessages); ?></div>
+    <!-- Right Canvas: Active Conversation Chat Feed & Input -->
+    <div class="flex-1 flex flex-col h-full bg-white min-w-0">
+      
+      <!-- Chat Canvas Header -->
+      <div class="p-3.5 sm:px-5 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <!-- Mobile History Toggle Button -->
+          <button type="button" onclick="toggleMobileHistory(true)" class="md:hidden px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1.5 shrink-0" title="View past chats">
+            <i class="fa-solid fa-bars text-xs text-indigo-600"></i>
+            <span class="text-[11px]">History</span>
+          </button>
+
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-xs shrink-0 bhooma-live-heart">
+            <i class="fa-solid fa-heart-pulse"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 id="current-chat-title" class="font-black text-slate-900 text-xs sm:text-sm truncate">New Conversation</h3>
+            <span id="current-chat-status" class="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Online &bull; Ready</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="exportCurrentTranscript()" class="px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition flex items-center gap-1.5" title="Export conversation as text">
+            <i class="fa-solid fa-download text-xs text-slate-400"></i>
+            <span class="hidden sm:inline">Export</span>
+          </button>
+          <button type="button" onclick="startNewChat()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate-left text-xs"></i>
+            <span class="hidden sm:inline">Reset</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages Thread Area -->
+      <div id="chat-messages-thread" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar bg-slate-50/40">
+        
+        <!-- Welcome Screen (Shown when starting new chat) -->
+        <div id="chat-welcome-screen" class="max-w-xl mx-auto py-8 sm:py-12 text-center space-y-4">
+          <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-rose-500/25 mx-auto bhooma-live-heart">
+            <i class="fa-solid fa-heart-pulse text-2xl"></i>
+          </div>
+          <div>
+            <h3 class="text-lg sm:text-xl font-black text-slate-900">How can I assist you today?</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              Ask about admitted patients, check bed availability, look up doctors, or manage clinic schedules.
+            </p>
+          </div>
+
+          <!-- Suggested Starter Prompts -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left pt-2">
+            <button type="button" onclick="sendStarterPrompt('Find all male patients with blood group A+')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">🩸</span>
+              <span class="truncate">Find male patients with A+ blood</span>
+            </button>
+            <button type="button" onclick="sendStarterPrompt('Which beds are currently available in hospital?')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">🏨</span>
+              <span class="truncate">Check available beds &amp; rooms</span>
+            </button>
+            <button type="button" onclick="sendStarterPrompt('Who is present today in staff attendance?')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">👥</span>
+              <span class="truncate">Who is present in staff today?</span>
+            </button>
+            <button type="button" onclick="sendStarterPrompt('Show today appointments and tokens')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">📅</span>
+              <span class="truncate">Today's appointments &amp; tokens</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat messages will be injected dynamically -->
+      </div>
+
+      <!-- Quick Suggestion Pills Bar (Above Input) -->
+      <div id="quick-suggestions-bar" class="px-4 py-2 border-t border-slate-100 bg-white flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0 mr-1">Suggestions:</span>
+        <div id="suggestions-chips-container" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <button type="button" onclick="sendStarterPrompt('Show today appointments')" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            Today's Appointments
+          </button>
+          <button type="button" onclick="sendStarterPrompt('How many patients are admitted?')" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            Admitted Patients
+          </button>
+          <button type="button" onclick="sendStarterPrompt('Show available beds by ward')" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            Beds by Ward
+          </button>
+          <button type="button" onclick="sendStarterPrompt('Who is present today in staff?')" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            Staff On Duty
+          </button>
+        </div>
+      </div>
+
+      <!-- Floating Modern Chat Input Bar -->
+      <div class="p-3 sm:p-4 border-t border-slate-200 bg-white shrink-0">
+        <form id="chat-input-form" onsubmit="handleChatSubmit(event)" class="relative flex items-center gap-2">
+          <textarea 
+            id="chat-user-input" 
+            rows="1" 
+            onkeydown="handleInputKeydown(event)"
+            oninput="autoResizeTextarea(this)"
+            placeholder="Ask anything about patients, appointments, doctors..." 
+            style="overflow-y: hidden !important; resize: none !important; min-height: 44px !important;"
+            class="w-full text-xs sm:text-sm font-semibold pl-4 pr-12 py-3 bg-slate-50 focus:bg-white border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500/40 outline-none transition max-h-32 shadow-2xs"></textarea>
+          
+          <button 
+            type="submit" 
+            id="chat-send-btn" 
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shadow-md shadow-blue-500/30 cursor-pointer disabled:opacity-50">
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+          </button>
+        </form>
+        <div class="flex items-center justify-between mt-1.5 px-1 text-[10px] text-slate-400">
+          <span>AI outputs natural answers &amp; safe database queries</span>
+          <span class="hidden sm:inline">Press Shift + Enter for new line</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= MODE 2: ACTION AUDIT LOGS ================= -->
+  <div id="section-audit-mode" class="hidden space-y-4">
+    <!-- KPI Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="apple-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Conversations</div>
+        <div class="text-2xl font-black text-slate-900 mt-1"><?php echo number_format($totalConversations); ?></div>
+        <div class="text-[11px] text-emerald-600 font-semibold mt-0.5">+<?php echo $todayConversations; ?> today</div>
+      </div>
+      <div class="apple-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Messages Sent</div>
+        <div class="text-2xl font-black text-slate-900 mt-1"><?php echo number_format($totalMessages); ?></div>
         <div class="text-[11px] text-slate-400 font-semibold mt-0.5">Two-way natural dialogues</div>
       </div>
-      <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 text-lg">
-        <i class="fa-solid fa-message"></i>
-      </div>
-    </div>
-
-    <!-- Card 3: Action Success Rate -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-      <div>
-        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Action Success Rate</div>
-        <div class="text-2xl font-black text-slate-800 mt-1"><?php echo $actionSuccessRate; ?>%</div>
+      <div class="apple-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Action Success Rate</div>
+        <div class="text-2xl font-black text-emerald-700 mt-1"><?php echo $actionSuccessRate; ?>%</div>
         <div class="text-[11px] text-slate-500 font-semibold mt-0.5"><?php echo $successActions; ?> of <?php echo $totalActions; ?> executed</div>
       </div>
-      <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-lg">
-        <i class="fa-solid fa-shield-check"></i>
+      <div class="apple-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Audit Trail</div>
+        <div class="text-2xl font-black text-slate-900 mt-1"><?php echo count($auditLogs); ?></div>
+        <div class="text-[11px] text-slate-500 font-semibold mt-0.5">Recorded operations</div>
       </div>
     </div>
 
-    <!-- Card 4: Pending Approvals -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-      <div>
-        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pending Approvals</div>
-        <div class="text-2xl font-black text-slate-800 mt-1"><?php echo number_format($pendingActionsCount); ?></div>
-        <div class="text-[11px] text-amber-600 font-semibold mt-0.5">Awaiting user confirmation</div>
-      </div>
-      <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 text-lg">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-      </div>
-    </div>
-  </div>
-
-  <!-- Navigation Tabs -->
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-    <div class="border-b border-slate-200 px-4 flex gap-2 overflow-x-auto bg-slate-50/50" id="ai-tabs">
-      <button type="button" onclick="switchAiTab('tab-convs')" id="btn-tab-convs" class="px-4 py-3 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap cursor-pointer">
-        <i class="fa-solid fa-comments"></i> <span>Conversations (<?php echo count($conversations); ?>)</span>
-      </button>
-      <button type="button" onclick="switchAiTab('tab-audit')" id="btn-tab-audit" class="px-4 py-3 text-xs font-bold border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap cursor-pointer">
-        <i class="fa-solid fa-list-check"></i> <span>Action Audit Logs (<?php echo count($auditLogs); ?>)</span>
-      </button>
-      <button type="button" onclick="switchAiTab('tab-pending')" id="btn-tab-pending" class="px-4 py-3 text-xs font-bold border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap cursor-pointer">
-        <i class="fa-solid fa-hourglass-half"></i> <span>Pending Queue (<?php echo count($pendingActions); ?>)</span>
-      </button>
-      <button type="button" onclick="switchAiTab('tab-schema')" id="btn-tab-schema" class="px-4 py-3 text-xs font-bold border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap cursor-pointer">
-        <i class="fa-solid fa-diagram-project"></i> <span>21 Tables &amp; Relational Map</span>
-      </button>
-    </div>
-
-    <!-- TAB 1: Conversations List -->
-    <div id="tab-convs" class="p-4 sm:p-6 space-y-4">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div class="relative w-full sm:w-80">
-          <input type="text" id="conv-search-input" oninput="filterConversations()" placeholder="Search by user, page, or title..." class="w-full text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:outline-none transition">
-          <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-2.5 top-2.5"></i>
-        </div>
-        <div class="text-xs text-slate-500">Showing last <?php echo count($conversations); ?> conversations</div>
+    <!-- Audit Logs Table -->
+    <div class="apple-card overflow-hidden bg-white border border-slate-200/90 rounded-2xl shadow-sm">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-extrabold text-sm text-slate-900">Database Action Audit Trail</h3>
+        <button type="button" onclick="exportAuditLogCSV()" class="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition flex items-center gap-1.5 shadow-2xs">
+          <i class="fa-solid fa-file-excel text-emerald-600"></i>
+          <span>Export CSV</span>
+        </button>
       </div>
 
-      <div class="overflow-x-auto border border-slate-200 rounded-xl">
+      <div class="overflow-x-auto custom-scrollbar">
         <table class="w-full text-left text-xs whitespace-nowrap">
-          <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-            <tr>
-              <th class="py-3 px-4">Thread ID</th>
-              <th class="py-3 px-4">User &amp; Role</th>
-              <th class="py-3 px-4">Origin Page</th>
-              <th class="py-3 px-4">Messages</th>
-              <th class="py-3 px-4">Last Activity</th>
-              <th class="py-3 px-4">Latest Snippet</th>
-              <th class="py-3 px-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 bg-white" id="conv-table-body">
-            <?php if (empty($conversations)): ?>
-              <tr><td colspan="7" class="py-8 text-center text-slate-400">No chat sessions recorded yet.</td></tr>
-            <?php else: foreach ($conversations as $c): ?>
-              <tr class="hover:bg-slate-50/80 transition-colors conv-row" data-user="<?php echo strtolower($c['user_id'] . ' ' . $c['user_role']); ?>" data-page="<?php echo strtolower($c['page_context'] ?? ''); ?>" data-text="<?php echo strtolower($c['latest_snippet'] ?? ''); ?>">
-                <td class="py-3 px-4 font-mono font-bold text-indigo-700">#<?php echo $c['id']; ?></td>
-                <td class="py-3 px-4">
-                  <div class="font-bold text-slate-800"><?php echo htmlspecialchars($c['user_id']); ?></div>
-                  <div class="text-[10px] text-slate-400"><?php echo htmlspecialchars($c['user_role'] ?? 'Admin'); ?></div>
-                </td>
-                <td class="py-3 px-4">
-                  <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                    <?php echo htmlspecialchars($c['page_context'] ?: 'General'); ?>
-                  </span>
-                </td>
-                <td class="py-3 px-4 font-bold text-slate-700"><?php echo $c['message_count']; ?></td>
-                <td class="py-3 px-4 text-slate-500"><?php echo date('M d, Y h:i A', strtotime($c['updated_at'])); ?></td>
-                <td class="py-3 px-4 text-slate-600 max-w-xs truncate" title="<?php echo htmlspecialchars($c['latest_snippet'] ?? ''); ?>">
-                  <?php echo htmlspecialchars($c['latest_snippet'] ?: 'Started conversation'); ?>
-                </td>
-                <td class="py-3 px-4 text-right">
-                  <button type="button" onclick="openTranscriptModal(<?php echo $c['id']; ?>, '<?php echo addslashes($c['user_id']); ?>', '<?php echo addslashes($c['page_context'] ?? ''); ?>')" class="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition cursor-pointer">
-                    <i class="fa-solid fa-eye mr-1"></i> View Transcript
-                  </button>
-                </td>
-              </tr>
-            <?php endforeach; endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 2: Action Audit Log -->
-    <div id="tab-audit" class="p-4 sm:p-6 space-y-4 hidden">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-slate-800">Operational Database Audit Trail</h3>
-        <span class="text-xs text-slate-400"><?php echo count($auditLogs); ?> audited operations</span>
-      </div>
-
-      <div class="overflow-x-auto border border-slate-200 rounded-xl">
-        <table class="w-full text-left text-xs whitespace-nowrap">
-          <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+          <thead class="bg-slate-50 text-slate-500 uppercase font-bold tracking-wider text-[11px] border-b border-slate-100">
             <tr>
               <th class="py-3 px-4">Timestamp</th>
               <th class="py-3 px-4">Operator</th>
-              <th class="py-3 px-4">Action Type</th>
+              <th class="py-3 px-4">Action</th>
               <th class="py-3 px-4">Target Table</th>
               <th class="py-3 px-4">Rows</th>
               <th class="py-3 px-4">Status</th>
@@ -245,18 +380,15 @@ if ($res = $conn->query($pendingQuery)) {
               <th class="py-3 px-4 text-right">SQL Inspection</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 bg-white">
+          <tbody class="divide-y divide-slate-100 font-medium">
             <?php if (empty($auditLogs)): ?>
-              <tr><td colspan="8" class="py-8 text-center text-slate-400">No action executions recorded yet.</td></tr>
+              <tr><td colspan="8" class="py-8 text-center text-slate-400">No operational audit records found.</td></tr>
             <?php else: foreach ($auditLogs as $a): ?>
-              <tr class="hover:bg-slate-50/80 transition-colors">
-                <td class="py-3 px-4 text-slate-500"><?php echo date('M d, Y h:i:s A', strtotime($a['created_at'])); ?></td>
+              <tr class="hover:bg-slate-50/80 transition">
+                <td class="py-3 px-4 text-slate-500 font-mono"><?php echo date('M d, Y h:i A', strtotime($a['created_at'])); ?></td>
+                <td class="py-3 px-4 font-bold text-slate-900"><?php echo htmlspecialchars($a['user_id']); ?></td>
                 <td class="py-3 px-4">
-                  <span class="font-bold text-slate-800"><?php echo htmlspecialchars($a['user_id']); ?></span>
-                  <span class="text-[10px] text-slate-400 ml-1">(<?php echo htmlspecialchars($a['user_role']); ?>)</span>
-                </td>
-                <td class="py-3 px-4">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                     <?php echo htmlspecialchars($a['action_type']); ?>
                   </span>
                 </td>
@@ -264,19 +396,15 @@ if ($res = $conn->query($pendingQuery)) {
                 <td class="py-3 px-4 font-bold"><?php echo (int)$a['rows_affected']; ?></td>
                 <td class="py-3 px-4">
                   <?php if ($a['success']): ?>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <i class="fa-solid fa-check mr-0.5"></i> Executed
-                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Executed</span>
                   <?php else: ?>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                      <i class="fa-solid fa-xmark mr-0.5"></i> Failed
-                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Failed</span>
                   <?php endif; ?>
                 </td>
-                <td class="py-3 px-4 font-mono text-[11px] text-slate-500"><?php echo htmlspecialchars($a['ip_address'] ?? '127.0.0.1'); ?></td>
+                <td class="py-3 px-4 font-mono text-[11px] text-slate-400"><?php echo htmlspecialchars($a['ip_address'] ?? '127.0.0.1'); ?></td>
                 <td class="py-3 px-4 text-right">
-                  <button type="button" onclick="showSqlModal('<?php echo htmlspecialchars(addslashes($a['sql_executed'])); ?>')" class="px-2.5 py-1 text-slate-600 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded text-xs transition cursor-pointer">
-                    <i class="fa-solid fa-code"></i> View SQL
+                  <button type="button" onclick="showSqlModal('<?php echo htmlspecialchars(addslashes($a['sql_executed'])); ?>')" class="px-2.5 py-1 text-slate-600 hover:text-blue-600 border border-slate-200 rounded-lg text-xs font-semibold transition">
+                    <i class="fa-solid fa-code mr-1"></i> View SQL
                   </button>
                 </td>
               </tr>
@@ -285,398 +413,746 @@ if ($res = $conn->query($pendingQuery)) {
         </table>
       </div>
     </div>
-
-    <!-- TAB 3: Pending Queue -->
-    <div id="tab-pending" class="p-4 sm:p-6 space-y-4 hidden">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-slate-800">Pending Actions Awaiting User Confirmation</h3>
-        <span class="text-xs text-slate-400"><?php echo count($pendingActions); ?> items total</span>
-      </div>
-
-      <div class="overflow-x-auto border border-slate-200 rounded-xl">
-        <table class="w-full text-left text-xs whitespace-nowrap">
-          <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-            <tr>
-              <th class="py-3 px-4">Action ID</th>
-              <th class="py-3 px-4">Operation Description</th>
-              <th class="py-3 px-4">Target Table</th>
-              <th class="py-3 px-4">Status</th>
-              <th class="py-3 px-4">Created Time</th>
-              <th class="py-3 px-4">Expires At</th>
-              <th class="py-3 px-4 text-right">Query</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 bg-white">
-            <?php if (empty($pendingActions)): ?>
-              <tr><td colspan="7" class="py-8 text-center text-slate-400">No pending action items.</td></tr>
-            <?php else: foreach ($pendingActions as $p): ?>
-              <tr class="hover:bg-slate-50/80 transition-colors">
-                <td class="py-3 px-4 font-mono font-bold text-slate-800">#<?php echo $p['id']; ?></td>
-                <td class="py-3 px-4 font-semibold text-slate-800 max-w-sm truncate" title="<?php echo htmlspecialchars($p['description']); ?>">
-                  <?php echo htmlspecialchars($p['description']); ?>
-                </td>
-                <td class="py-3 px-4 font-mono text-indigo-700"><?php echo htmlspecialchars($p['target_table']); ?></td>
-                <td class="py-3 px-4">
-                  <?php
-                    $statusStyles = [
-                      'pending' => 'bg-amber-50 text-amber-700 border-amber-200',
-                      'executed' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                      'cancelled' => 'bg-slate-100 text-slate-600 border-slate-200',
-                      'failed' => 'bg-rose-50 text-rose-700 border-rose-200'
-                    ];
-                    $st = $p['status'] ?? 'pending';
-                    $style = $statusStyles[$st] ?? 'bg-slate-50 text-slate-600 border-slate-200';
-                  ?>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border <?php echo $style; ?>">
-                    <?php echo ucfirst($st); ?>
-                  </span>
-                </td>
-                <td class="py-3 px-4 text-slate-500"><?php echo date('M d, h:i A', strtotime($p['created_at'])); ?></td>
-                <td class="py-3 px-4 text-slate-500"><?php echo $p['expires_at'] ? date('M d, h:i A', strtotime($p['expires_at'])) : '-'; ?></td>
-                <td class="py-3 px-4 text-right">
-                  <button type="button" onclick="showSqlModal('<?php echo htmlspecialchars(addslashes($p['sql_query'])); ?>')" class="px-2.5 py-1 text-slate-600 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded text-xs transition cursor-pointer">
-                    <i class="fa-solid fa-code"></i> Inspect
-                  </button>
-                </td>
-              </tr>
-            <?php endforeach; endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 4: 21 Tables & Relational Map Guide -->
-    <div id="tab-schema" class="p-4 sm:p-6 space-y-6 hidden">
-      <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start gap-3">
-        <i class="fa-solid fa-circle-info text-indigo-600 mt-0.5"></i>
-        <div class="text-xs text-indigo-900 leading-relaxed">
-          <strong>Master Relational Architecture:</strong> Below is the comprehensive relational schema of all 21 tables utilized by BHOOMA AI. Every operational table enforces multi-tenant hospital isolation with <code class="bg-indigo-100 px-1 rounded font-mono">hospital_id</code>.
-        </div>
-      </div>
-
-      <!-- Grid of Tables -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-        
-        <!-- Table 1 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-hospital text-indigo-500 mr-1.5"></i> hospitals</span>
-            <span class="text-[10px] text-slate-400 font-mono">Parent</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Master multi-hospital account table. All other tables filter by <code class="font-mono text-indigo-600">hospital_id</code>.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (int) | Unique: username</div>
-        </div>
-
-        <!-- Table 2 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-hospital-user text-blue-500 mr-1.5"></i> patients</span>
-            <span class="text-[10px] text-slate-400 font-mono">Core</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Patient registry. ID is unique MRN ('CP-2026-001'). Demographics, blood group, age, gender.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (varchar) | FK: hospital_id</div>
-        </div>
-
-        <!-- Table 3 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-user-doctor text-emerald-500 mr-1.5"></i> doctors</span>
-            <span class="text-[10px] text-slate-400 font-mono">Core</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Doctors roster. ID ('doc-XXXX'). Experience, degree, phone. Specialty linked via doctor_categories.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (varchar) | FK: hospital_id</div>
-        </div>
-
-        <!-- Table 4 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-building text-amber-500 mr-1.5"></i> departments</span>
-            <span class="text-[10px] text-slate-400 font-mono">Lookup</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Specialties &amp; hospital clinics (Cardiology, Orthopedics, Pediatrics, ICU, etc.).</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (varchar) | FK: hospital_id</div>
-        </div>
-
-        <!-- Table 5 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-link text-slate-500 mr-1.5"></i> doctor_categories</span>
-            <span class="text-[10px] text-slate-400 font-mono">Junction</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Many-to-many junction table binding doctors to departments.</p>
-          <div class="text-[10px] font-mono text-slate-500">Composite PK: (doctor_id, department_id)</div>
-        </div>
-
-        <!-- Table 6 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-calendar-check text-purple-500 mr-1.5"></i> appointments</span>
-            <span class="text-[10px] text-slate-400 font-mono">Pipeline</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Consultations &amp; live queue. Column for date is <code class="font-mono font-bold">date</code>. Stage: 0 (Pre-booked) to 5 (Bed/Discharged).</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (int) | FKs: patient_id, doctor_id</div>
-        </div>
-
-        <!-- Table 7 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-bed text-rose-500 mr-1.5"></i> beds</span>
-            <span class="text-[10px] text-slate-400 font-mono">Inpatient</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Bed occupancy &amp; wards (ICU, General, Deluxe). Status: 'Available' or 'Occupied'. Linked to patient_id.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (varchar) | Unique: bed_number</div>
-        </div>
-
-        <!-- Table 8 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-users text-teal-500 mr-1.5"></i> staff</span>
-            <span class="text-[10px] text-slate-400 font-mono">HR Roster</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Hospital staff roster (Nurses, Receptionists, RMOs, Technicians). Attendance is NEVER stored here.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (int) | staff_code (STF-101)</div>
-        </div>
-
-        <!-- Table 9 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-clipboard-user text-cyan-500 mr-1.5"></i> staff_attendance</span>
-            <span class="text-[10px] text-slate-400 font-mono">Daily Attendance</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Daily attendance records: status ('Present','Absent','Late','Half Day','On Leave'), check_in_time, working_hours.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id | Unique: (hospital_id, staff_id, date)</div>
-        </div>
-
-        <!-- Table 10 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-prescription-bottle-medical text-amber-500 mr-1.5"></i> prescriptions</span>
-            <span class="text-[10px] text-slate-400 font-mono">Pharmacy</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Medications prescribed: medicine_name, dosage, frequency, duration, instructions. FK to appointment_id.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (int) | FK: appointment_id</div>
-        </div>
-
-        <!-- Table 11 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-stethoscope text-red-500 mr-1.5"></i> diagnoses</span>
-            <span class="text-[10px] text-slate-400 font-mono">Clinical</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Disease clinical descriptions for consultations. FK to appointment_id.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (int) | FK: appointment_id</div>
-        </div>
-
-        <!-- Table 12 -->
-        <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
-          <div class="font-bold text-slate-900 flex items-center justify-between">
-            <span><i class="fa-solid fa-clock-rotate-left text-blue-500 mr-1.5"></i> timeline_events</span>
-            <span class="text-[10px] text-slate-400 font-mono">Audit</span>
-          </div>
-          <p class="text-slate-600 text-[11px]">Chronological patient care events: check-in, bed admission, discharge notes. FKs: appointment_id, patient_id.</p>
-          <div class="text-[10px] font-mono text-slate-500">PK: id (int) | FKs: appointment_id, patient_id</div>
-        </div>
-
-      </div>
-    </div>
   </div>
 
-</div>
-
-<!-- Transcript Modal -->
-<div id="modal-transcript" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-  <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-in">
-    <!-- Modal Header -->
-    <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-          <i class="fa-solid fa-comments"></i>
-        </div>
-        <div>
-          <h4 class="font-bold text-slate-900 text-sm" id="modal-thread-title">Conversation Thread</h4>
-          <p class="text-[11px] text-slate-500" id="modal-thread-subtitle">Loading transcript details...</p>
-        </div>
-      </div>
-      <button type="button" onclick="closeTranscriptModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 flex items-center justify-center transition cursor-pointer">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <!-- Messages Container -->
-    <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50 bhooma-scrollbar" id="modal-messages-container">
-      <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading messages...</div>
-    </div>
-
-    <!-- Modal Footer -->
-    <div class="px-5 py-3 border-t border-slate-200 bg-white flex items-center justify-between">
-      <span class="text-[11px] text-slate-400" id="modal-thread-footer">End of conversation</span>
-      <button type="button" onclick="closeTranscriptModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer">
-        Close
-      </button>
-    </div>
-  </div>
 </div>
 
 <!-- SQL Inspection Modal -->
 <div id="modal-sql" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-  <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl flex flex-col overflow-hidden">
-    <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+  <div class="apple-card max-w-xl w-full p-5 bg-white shadow-2xl border border-slate-200 rounded-2xl flex flex-col overflow-hidden space-y-3">
+    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
       <div class="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center gap-2">
         <i class="fa-solid fa-code text-indigo-600"></i> Executed SQL Query
       </div>
-      <button type="button" onclick="closeSqlModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+      <button type="button" onclick="closeSqlModal()" class="text-slate-400 hover:text-slate-600">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
-    <div class="p-5 bg-slate-900 text-slate-200 overflow-x-auto text-xs font-mono leading-relaxed max-h-80" id="modal-sql-content">
+    <div class="p-4 bg-slate-900 text-teal-300 rounded-xl overflow-x-auto text-xs font-mono leading-relaxed max-h-80" id="modal-sql-content">
     </div>
-    <div class="px-5 py-2.5 bg-slate-100 border-t border-slate-200 flex justify-end">
-      <button type="button" onclick="closeSqlModal()" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">Close</button>
+    <div class="flex justify-end pt-2 border-t border-slate-100">
+      <button type="button" onclick="closeSqlModal()" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-semibold text-slate-700 transition">Close</button>
     </div>
   </div>
 </div>
 
+<!-- ================= JAVASCRIPT ================= -->
 <script>
-function switchAiTab(tabId) {
-  ['tab-convs', 'tab-audit', 'tab-pending', 'tab-schema'].forEach(id => {
-    const el = document.getElementById(id);
-    const btn = document.getElementById('btn-' + id);
-    if (el) el.classList.toggle('hidden', id !== tabId);
-    if (btn) {
-      if (id === tabId) {
-        btn.className = 'px-4 py-3 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap cursor-pointer';
-      } else {
-        btn.className = 'px-4 py-3 text-xs font-bold border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap cursor-pointer';
-      }
+let currentMode = 'chat';
+let activeConversationId = null;
+let isGenerating = false;
+let currentChatMessages = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if URL has conversation ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const convId = urlParams.get('id');
+    if (convId) {
+        loadConversation(parseInt(convId));
     }
-  });
+});
+
+// Switch Dashboard Mode (Live Chat vs Action Audit Logs)
+function setDashboardMode(mode) {
+    currentMode = mode;
+    const btnChat = document.getElementById('btn-mode-chat');
+    const btnAudit = document.getElementById('btn-mode-audit');
+    const secChat = document.getElementById('section-chat-mode');
+    const secAudit = document.getElementById('section-audit-mode');
+
+    if (mode === 'chat') {
+        btnChat.className = "px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-slate-900 transition flex items-center gap-1.5 font-bold";
+        btnAudit.className = "px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5";
+        secChat.classList.remove('hidden');
+        secAudit.classList.add('hidden');
+    } else {
+        btnAudit.className = "px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-slate-900 transition flex items-center gap-1.5 font-bold";
+        btnChat.className = "px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5";
+        secAudit.classList.remove('hidden');
+        secChat.classList.add('hidden');
+    }
 }
 
-function filterConversations() {
-  const q = document.getElementById('conv-search-input').value.toLowerCase().trim();
-  const rows = document.querySelectorAll('.conv-row');
-  rows.forEach(r => {
-    const user = r.getAttribute('data-user') || '';
-    const page = r.getAttribute('data-page') || '';
-    const text = r.getAttribute('data-text') || '';
-    const match = !q || user.includes(q) || page.includes(q) || text.includes(q);
-    r.style.display = match ? '' : 'none';
-  });
-}
-
-async function openTranscriptModal(convId, user, page) {
-  const modal = document.getElementById('modal-transcript');
-  const title = document.getElementById('modal-thread-title');
-  const sub = document.getElementById('modal-thread-subtitle');
-  const container = document.getElementById('modal-messages-container');
-  
-  title.textContent = `Thread #${convId} — ${user}`;
-  sub.textContent = `Initiated from ${page || 'General'} page`;
-  container.innerHTML = `<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading conversation history...</div>`;
-  modal.classList.remove('hidden');
-
-  try {
-    const res = await fetch(`api/chatbot.php?action=history&conversation_id=${convId}`);
-    const msgs = await res.json();
+// Start New Clean Chat
+function startNewChat() {
+    setDashboardMode('chat');
+    activeConversationId = null;
+    currentChatMessages = [];
     
-    if (!msgs || !msgs.length) {
-      container.innerHTML = `<div class="text-center py-8 text-slate-400">No messages in this conversation.</div>`;
-      return;
-    }
+    document.getElementById('current-chat-title').textContent = 'New Conversation';
+    document.getElementById('current-chat-status').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>Online &bull; Ready</span>';
+    
+    const thread = document.getElementById('chat-messages-thread');
+    thread.innerHTML = `
+        <div id="chat-welcome-screen" class="max-w-xl mx-auto py-8 sm:py-12 text-center space-y-4">
+          <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-rose-500/25 mx-auto bhooma-live-heart">
+            <i class="fa-solid fa-heart-pulse text-2xl"></i>
+          </div>
+          <div>
+            <h3 class="text-lg sm:text-xl font-black text-slate-900">How can I assist you today?</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              Ask about admitted patients, check bed availability, look up doctors, or manage clinic schedules.
+            </p>
+          </div>
 
-    let html = '';
-    msgs.forEach(m => {
-      const isUser = m.role === 'user';
-      const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-      
-      if (isUser) {
-        html += `
-          <div class="flex items-start justify-end gap-2.5">
-            <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-xs shadow-xs">
-              <div class="font-medium whitespace-pre-wrap">${escapeHtml(m.content)}</div>
-              <div class="text-[9px] text-indigo-200 mt-1 text-right">${time}</div>
-            </div>
-            <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-[10px] shrink-0 mt-1 font-bold">
-              U
-            </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left pt-2">
+            <button type="button" onclick="sendStarterPrompt('Find all male patients with blood group A+')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">🩸</span>
+              <span class="truncate">Find male patients with A+ blood</span>
+            </button>
+            <button type="button" onclick="sendStarterPrompt('Which beds are currently available in hospital?')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">🏨</span>
+              <span class="truncate">Check available beds &amp; rooms</span>
+            </button>
+            <button type="button" onclick="sendStarterPrompt('Who is present today in staff attendance?')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">👥</span>
+              <span class="truncate">Who is present in staff today?</span>
+            </button>
+            <button type="button" onclick="sendStarterPrompt('Show today appointments and tokens')" class="p-3 rounded-2xl bg-white border border-slate-200/90 hover:border-blue-400 hover:shadow-xs transition text-xs font-semibold text-slate-700 flex items-center gap-2.5 text-left">
+              <span class="text-base">📅</span>
+              <span class="truncate">Today\'s appointments &amp; tokens</span>
+            </button>
           </div>
-        `;
-      } else {
-        html += `
-          <div class="flex items-start gap-2.5">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 flex items-center justify-center text-white text-[10px] shrink-0 mt-1 shadow-xs">
-              <i class="fa-solid fa-robot"></i>
-            </div>
-            <div class="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%] text-xs shadow-xs text-slate-700 space-y-2">
-              <div class="whitespace-pre-wrap leading-relaxed">${formatMarkdownDisplay(m.content)}</div>
-              ${m.sql_executed ? `
-                <div class="bg-slate-900 text-slate-200 p-2 rounded-lg text-[10px] font-mono overflow-x-auto">
-                  <div class="text-slate-400 uppercase text-[9px] font-bold mb-1">Executed SQL</div>
-                  <code>${escapeHtml(m.sql_executed)}</code>
-                </div>
-              ` : ''}
-              <div class="text-[9px] text-slate-400 text-right">${time}</div>
-            </div>
-          </div>
-        `;
-      }
+        </div>
+    `;
+
+    // Deselect sidebar items
+    document.querySelectorAll('.history-item').forEach(el => {
+        el.classList.remove('bg-blue-50/80', 'border-blue-200');
     });
 
-    container.innerHTML = html;
-  } catch (err) {
-    container.innerHTML = `<div class="text-center py-8 text-rose-500">Failed to load conversation history.</div>`;
-  }
+    const input = document.getElementById('chat-user-input');
+    input.value = '';
+    input.focus();
 }
 
-function closeTranscriptModal() {
-  document.getElementById('modal-transcript').classList.add('hidden');
+// Load and Replay Conversation from History
+async function loadConversation(convId) {
+    setDashboardMode('chat');
+    activeConversationId = convId;
+
+    // Highlight active sidebar item
+    document.querySelectorAll('.history-item').forEach(el => {
+        const id = parseInt(el.getAttribute('data-conv-id'));
+        if (id === convId) {
+            el.classList.add('bg-blue-50/80', 'border-blue-200');
+        } else {
+            el.classList.remove('bg-blue-50/80', 'border-blue-200');
+        }
+    });
+
+    const thread = document.getElementById('chat-messages-thread');
+    thread.innerHTML = `
+        <div class="text-center py-16 text-slate-400">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-2"></i>
+            <p class="text-xs font-bold text-slate-600">Loading conversation replay...</p>
+        </div>
+    `;
+
+    try {
+        const res = await fetch(`api/chatbot.php?action=history&conversation_id=${convId}`);
+        const data = await res.json();
+        
+        if (!data || !data.messages || data.messages.length === 0) {
+            thread.innerHTML = `<div class="text-center py-16 text-slate-400 text-xs">No messages recorded in this conversation thread.</div>`;
+            return;
+        }
+
+        document.getElementById('current-chat-title').textContent = data.title || `Thread #${convId}`;
+        document.getElementById('current-chat-status').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>${data.messages.length} messages loaded</span>`;
+
+        thread.innerHTML = '';
+        currentChatMessages = data.messages;
+
+        data.messages.forEach(msg => {
+            renderMessageBubble(msg.role, msg.content, msg.sql_executed, msg.created_at);
+        });
+
+        // Scroll to bottom
+        thread.scrollTop = thread.scrollHeight;
+    } catch (e) {
+        console.error(e);
+        thread.innerHTML = `<div class="text-center py-16 text-rose-500 text-xs font-bold">Failed to load conversation history.</div>`;
+    }
+}
+
+// Render Single Message Bubble
+function renderMessageBubble(role, content, sql = null, time = null) {
+    const thread = document.getElementById('chat-messages-thread');
+    
+    // Remove welcome screen if present
+    const welcome = document.getElementById('chat-welcome-screen');
+    if (welcome) welcome.remove();
+
+    const isUser = role === 'user';
+    const timeFormatted = time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const msgEl = document.createElement('div');
+    msgEl.className = `flex items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`;
+
+    if (isUser) {
+        msgEl.innerHTML = `
+            <div class="max-w-[85%] sm:max-w-[75%] space-y-1">
+                <div class="bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 text-xs sm:text-sm font-semibold shadow-sm leading-relaxed whitespace-pre-wrap">
+                    ${escapeHtml(content)}
+                </div>
+                <div class="text-[10px] text-slate-400 text-right pr-1">${timeFormatted}</div>
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center font-black text-xs shrink-0 mt-0.5 shadow-2xs">
+                <?php echo strtoupper(substr($currentUsername, 0, 1)); ?>
+            </div>
+        `;
+    } else {
+        const sqlSnippet = sql ? `
+            <div class="mt-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-[10px] font-bold text-indigo-600 flex items-center gap-1 hover:underline">
+                    <i class="fa-solid fa-database"></i> <span>Executed SQL Query</span>
+                </button>
+                <pre class="hidden mt-1.5 bg-slate-900 text-teal-300 p-2.5 rounded-xl text-[11px] font-mono overflow-x-auto">${escapeHtml(sql)}</pre>
+            </div>
+        ` : '';
+
+        msgEl.innerHTML = `
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-xs bhooma-live-heart">
+                <i class="fa-solid fa-heart-pulse text-xs"></i>
+            </div>
+            <div class="max-w-[90%] sm:max-w-[80%] space-y-1">
+                <div class="bg-white border border-slate-200/90 rounded-2xl rounded-tl-sm px-4 py-3 text-xs sm:text-sm text-slate-800 shadow-2xs leading-relaxed prose prose-sm max-w-none">
+                    <div class="message-content">${formatMarkdownDisplay(content)}</div>
+                    ${sqlSnippet}
+                </div>
+                <div class="flex items-center justify-between px-1 text-[10px] text-slate-400">
+                    <button type="button" onclick="copyMessageText(this)" class="hover:text-blue-600 transition flex items-center gap-1">
+                        <i class="fa-regular fa-copy"></i> <span>Copy</span>
+                    </button>
+                    <span>${timeFormatted}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    thread.appendChild(msgEl);
+    thread.scrollTop = thread.scrollHeight;
+    return msgEl;
+}
+
+// Handle User Input Submission
+async function handleChatSubmit(e) {
+    if (e) e.preventDefault();
+    if (isGenerating) return;
+
+    const input = document.getElementById('chat-user-input');
+    const promptText = input.value.trim();
+    if (!promptText) return;
+
+    input.value = '';
+    autoResizeTextarea(input);
+
+    // 1. Render user message bubble
+    renderMessageBubble('user', promptText);
+
+    // 2. Render placeholder for AI streaming response
+    const thread = document.getElementById('chat-messages-thread');
+    const aiBubble = document.createElement('div');
+    aiBubble.className = "flex items-start gap-3 justify-start";
+    aiBubble.innerHTML = `
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500 via-rose-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-xs bhooma-live-heart">
+            <i class="fa-solid fa-heart-pulse text-xs"></i>
+        </div>
+        <div class="max-w-[90%] sm:max-w-[80%] space-y-1">
+            <div class="bg-white border border-slate-200/90 rounded-2xl rounded-tl-sm px-4 py-3 text-xs sm:text-sm text-slate-800 shadow-2xs leading-relaxed">
+                <div class="ai-stream-content flex items-center gap-2 text-slate-400 font-semibold text-xs">
+                    <i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i>
+                    <span>Consulting hospital clinical engine...</span>
+                </div>
+            </div>
+        </div>
+    `;
+    thread.appendChild(aiBubble);
+    thread.scrollTop = thread.scrollHeight;
+
+    isGenerating = true;
+    document.getElementById('chat-send-btn').disabled = true;
+
+    let fullAiResponse = '';
+    const contentEl = aiBubble.querySelector('.ai-stream-content');
+
+    try {
+        const response = await fetch('api/chatbot.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'chat',
+                message: promptText,
+                conversation_id: activeConversationId,
+                page_context: 'ai_logs.php'
+            })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // keep last incomplete chunk
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const jsonStr = line.substring(6).trim();
+                    if (!jsonStr) continue;
+                    try {
+                        const data = JSON.parse(jsonStr);
+                        if (data.type === 'chunk') {
+                            fullAiResponse += data.content;
+                            contentEl.className = "message-content leading-relaxed";
+                            contentEl.innerHTML = formatMarkdownDisplay(fullAiResponse);
+                            thread.scrollTop = thread.scrollHeight;
+                        } else if (data.type === 'data') {
+                            renderDataTable(data.results || data.content, data.summary);
+                        } else if (data.type === 'action') {
+                            renderActionCard(data.action_id, data.content);
+                        } else if (data.type === 'suggestions') {
+                            updateSuggestions(data.suggestions);
+                        } else if (data.type === 'error') {
+                            contentEl.className = "message-content leading-relaxed";
+                            contentEl.innerHTML = `<span class="text-rose-600 font-bold">⚠️ ${escapeHtml(data.message || 'An error occurred.')}</span>`;
+                        } else if (data.type === 'done') {
+                            if (data.conversation_id) {
+                                activeConversationId = data.conversation_id;
+                            }
+                            reloadConversationsList();
+                        }
+                    } catch (parseErr) {
+                        // ignore chunk boundaries
+                    }
+                }
+            }
+        }
+
+        if (!fullAiResponse && !contentEl.innerHTML.trim()) {
+            contentEl.innerHTML = formatMarkdownDisplay("I have processed your query, but no text response was returned.");
+        }
+
+    } catch (err) {
+        console.error(err);
+        contentEl.innerHTML = `<span class="text-rose-600 font-bold">Failed to communicate with AI engine.</span>`;
+    } finally {
+        isGenerating = false;
+        document.getElementById('chat-send-btn').disabled = false;
+        input.focus();
+    }
+}
+
+function sendStarterPrompt(text) {
+    document.getElementById('chat-user-input').value = text;
+    handleChatSubmit();
+}
+
+function handleInputKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleChatSubmit();
+    }
+}
+
+function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    if (textarea.scrollHeight > 115) {
+        textarea.style.height = '115px';
+        textarea.style.overflowY = 'auto';
+    } else {
+        textarea.style.height = Math.max(44, textarea.scrollHeight) + 'px';
+        textarea.style.overflowY = 'hidden';
+    }
+}
+
+function filterHistoryList() {
+    const q = document.getElementById('history-search-input').value.toLowerCase().trim();
+    document.querySelectorAll('.history-item').forEach(item => {
+        const text = item.getAttribute('data-search-text') || '';
+        item.style.display = (!q || text.includes(q)) ? 'flex' : 'none';
+    });
+}
+
+async function reloadConversationsList() {
+    try {
+        const res = await fetch('api/chatbot.php?action=conversations');
+        const data = await res.json();
+        if (data.success && data.conversations) {
+            renderSidebarConversations(data.conversations);
+        }
+    } catch (e) {
+        console.error('Error reloading history:', e);
+    }
+}
+
+function renderSidebarConversations(convos) {
+    const container = document.getElementById('history-sessions-container');
+    if (!convos.length) return;
+
+    let html = '';
+    convos.forEach(c => {
+        const isActive = activeConversationId === c.id;
+        const displayTitle = c.title || `Thread #${c.id}`;
+        const timeStr = new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        html += `
+          <div 
+            onclick="loadConversation(${c.id})" 
+            data-conv-id="${c.id}"
+            data-search-text="${escapeHtml(displayTitle.toLowerCase())}"
+            class="history-item group relative p-3 rounded-xl transition cursor-pointer border ${isActive ? 'bg-blue-50/80 border-blue-200' : 'border-transparent hover:border-slate-200 hover:bg-white'} flex items-start justify-between gap-2">
+            
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 mb-0.5">
+                <i class="fa-regular fa-message text-[11px] ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'}"></i>
+                <h4 class="text-xs font-bold text-slate-800 truncate leading-snug history-item-title">${escapeHtml(displayTitle)}</h4>
+              </div>
+              <div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                <span>${timeStr}</span>
+                <span>&bull;</span>
+                <span class="font-mono">${c.message_count || 1} msgs</span>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              onclick="event.stopPropagation(); promptDeleteConversation(${c.id})" 
+              class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition text-xs shrink-0" 
+              title="Delete conversation">
+              <i class="fa-solid fa-trash text-[11px]"></i>
+            </button>
+          </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function promptDeleteConversation(id) {
+    openConfirmModal(
+        'Delete Chat Session',
+        'Are you sure you want to delete this chat session?',
+        '<p class="text-xs text-slate-500">All message records in this thread will be permanently deleted from hospital memory.</p>',
+        async () => {
+            try {
+                const res = await fetch('api/chatbot.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete_conversation', conversation_id: id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Deleted', 'Conversation removed');
+                    if (activeConversationId === id) {
+                        startNewChat();
+                    }
+                    reloadConversationsList();
+                }
+            } catch (e) {
+                showToast('Error', 'Failed to delete conversation', 'error');
+            }
+        },
+        'danger'
+    );
+}
+
+function copyMessageText(btn) {
+    const bubble = btn.closest('.max-w-\\[90\\%\\]').querySelector('.message-content');
+    if (!bubble) return;
+    navigator.clipboard.writeText(bubble.innerText).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check text-emerald-600"></i> <span class="text-emerald-600">Copied!</span>';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+}
+
+function exportCurrentTranscript() {
+    if (!currentChatMessages || currentChatMessages.length === 0) {
+        showToast('Empty Thread', 'No messages to export.', 'warning');
+        return;
+    }
+    let text = `BHOOMA HOSPITAL AI TRANSCRIPT\nThread #${activeConversationId || 'New'}\nDate: ${new Date().toLocaleString()}\n==========================================\n\n`;
+    currentChatMessages.forEach(m => {
+        text += `[${m.role.toUpperCase()}] (${m.created_at || ''}):\n${m.content}\n\n`;
+    });
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `AI_Chat_Transcript_${activeConversationId || 'latest'}.txt`;
+    link.click();
 }
 
 function showSqlModal(sql) {
-  document.getElementById('modal-sql-content').textContent = sql;
-  document.getElementById('modal-sql').classList.remove('hidden');
+    document.getElementById('modal-sql-content').textContent = sql;
+    document.getElementById('modal-sql').classList.remove('hidden');
 }
 
 function closeSqlModal() {
-  document.getElementById('modal-sql').classList.add('hidden');
+    document.getElementById('modal-sql').classList.add('hidden');
 }
 
 function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function formatMarkdownDisplay(text) {
-  if (!text) return '';
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>');
+    if (!text) return '';
+    let clean = text;
+
+    // Strip any robotic Direct Answer prefixes seamlessly
+    clean = clean.replace(/^>\s*(?:💡\s*)?(?:\*\*)?Direct Answer:(?:\*\*)?\s*/gmi, '');
+    clean = clean.replace(/^(?:💡\s*)?(?:\*\*)?Direct Answer:(?:\*\*)?\s*/gmi, '');
+
+    // Render executive callouts for > quotes
+    clean = clean.replace(/^>\s*(.*?)(?=\n|$)/gm, (match, p1) => {
+        return `<div class="my-2 p-3 bg-indigo-50/90 border-l-4 border-indigo-600 rounded-r-xl text-slate-800 text-xs font-semibold shadow-2xs">${p1}</div>`;
+    });
+
+    // Convert markdown bullet points to clean list items
+    clean = clean.replace(/^[ \-\*]\s+(.*)$/gm, '<div class="flex items-start gap-2 my-1 text-xs text-slate-700"><span class="text-indigo-500 font-bold">•</span><span>$1</span></div>');
+
+    let formatted = clean
+        .replace(/```([\s\S]*?)```/g, '<pre class="bg-slate-900 text-teal-300 p-3 rounded-xl text-xs font-mono my-2 overflow-x-auto shadow-xs"><code>$1</code></pre>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code class="bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-[11px] border border-slate-200/80">$1</code>')
+        .replace(/\n/g, '<br>');
+    return formatted;
+}
+
+// Toggle Mobile History Sidebar Drawer
+function toggleMobileHistory(show) {
+    const sidebar = document.getElementById('chat-sidebar');
+    const backdrop = document.getElementById('sidebar-mobile-backdrop');
+    if (!sidebar) return;
+    
+    const isHidden = sidebar.classList.contains('-translate-x-full');
+    const willShow = (typeof show === 'boolean') ? show : isHidden;
+    
+    if (willShow) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+    } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+    }
+}
+
+// Update Quick Suggestion Pills dynamically
+function updateSuggestions(suggestions) {
+    if (!suggestions || !suggestions.length) return;
+    const container = document.getElementById('suggestions-chips-container');
+    if (!container) return;
+    container.innerHTML = suggestions.map(s => `
+        <button type="button" onclick="sendStarterPrompt('${escapeHtml(s).replace(/'/g, "\\'")}')" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            ${escapeHtml(s)}
+        </button>
+    `).join('');
+}
+
+// Render Hospital Records Data Table (Single KPI or Multi-row tabular view)
+function renderDataTable(dataArr, summary) {
+    if (!dataArr) return;
+    const thread = document.getElementById('chat-messages-thread');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex items-start gap-3 justify-start max-w-full';
+
+    if (!dataArr.length || dataArr.length === 0) {
+        wrapper.innerHTML = `
+            <div class="w-8 h-8 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 py-3 px-4 rounded-2xl rounded-tl-sm text-xs text-slate-600 font-semibold flex items-center gap-2">
+                <i class="fa-solid fa-inbox text-slate-400"></i>
+                <span>${escapeHtml(summary || 'No matching records found in hospital database.')}</span>
+            </div>
+        `;
+        thread.appendChild(wrapper);
+        thread.scrollTop = thread.scrollHeight;
+        return;
+    }
+
+    const columns = Object.keys(dataArr[0]);
+    let visualHTML = '';
+
+    if (dataArr.length === 1 && columns.length === 1) {
+        const key = columns[0];
+        const val = dataArr[0][key];
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        visualHTML = `
+            <div class="inline-flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5 shadow-2xs">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                    <i class="fa-solid fa-chart-simple"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500">${label}</div>
+                    <div class="text-xl font-black text-indigo-900 leading-tight">${val}</div>
+                </div>
+            </div>
+        `;
+    } else {
+        let tableHTML = `
+            <div class="w-full overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+                <div class="bg-slate-100/90 px-3 py-2 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-table-list text-indigo-600"></i> Hospital Records</span>
+                    <span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">${dataArr.length} records</span>
+                </div>
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                        <tr>`;
+        columns.forEach(col => {
+            const colLabel = col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            tableHTML += `<th class="px-3.5 py-2 text-[11px] tracking-tight uppercase">${colLabel}</th>`;
+        });
+        tableHTML += `</tr></thead><tbody class="divide-y divide-slate-100 bg-white font-medium">`;
+        dataArr.forEach((row, i) => {
+            const bg = i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+            tableHTML += `<tr class="${bg} hover:bg-indigo-50/60 transition">`;
+            columns.forEach(col => {
+                tableHTML += `<td class="px-3.5 py-2 text-slate-700">${row[col] !== null ? escapeHtml(String(row[col])) : '-'}</td>`;
+            });
+            tableHTML += `</tr>`;
+        });
+        tableHTML += `</tbody></table></div>`;
+        visualHTML = tableHTML;
+    }
+
+    wrapper.innerHTML = `
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-teal-400 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-xs">
+            <i class="fa-solid fa-database"></i>
+        </div>
+        <div class="max-w-[95%] sm:max-w-[85%] bg-white border border-slate-200/90 rounded-2xl rounded-tl-sm p-3.5 shadow-2xs overflow-hidden">
+            ${visualHTML}
+        </div>
+    `;
+    thread.appendChild(wrapper);
+    thread.scrollTop = thread.scrollHeight;
+}
+
+// Render Action Approval Card
+function renderActionCard(actionId, details) {
+    const thread = document.getElementById('chat-messages-thread');
+    const isDelete = typeof details === 'string' && (details.toLowerCase().includes('delete') || details.toLowerCase().includes('cancel') || details.toLowerCase().includes('remove'));
+    const badgeBg = isDelete ? 'bg-rose-600 text-white' : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white';
+    const cardBg = isDelete 
+        ? 'bg-rose-50/90 border border-rose-200' 
+        : 'bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/40 border border-blue-200';
+    const titleText = isDelete ? 'Confirm Permanent Deletion' : 'Confirm Hospital Operation';
+    const titleColor = isDelete ? 'text-rose-900' : 'text-slate-900';
+    const iconClass = isDelete ? 'fa-triangle-exclamation' : 'fa-bolt-lightning';
+    const confirmBtnClass = isDelete 
+        ? 'bg-rose-600 hover:bg-rose-700 text-white' 
+        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs';
+    const confirmBtnText = isDelete 
+        ? '<i class="fa-solid fa-trash-can mr-1.5 text-xs"></i> Confirm Delete' 
+        : '<i class="fa-solid fa-circle-check mr-1.5 text-xs"></i> Confirm & Execute';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex items-start gap-3 justify-start max-w-[95%] sm:max-w-[85%]';
+    wrapper.innerHTML = `
+        <div class="w-8 h-8 rounded-xl ${badgeBg} flex items-center justify-center text-xs shrink-0 mt-0.5 shadow-xs">
+            <i class="fa-solid ${iconClass}"></i>
+        </div>
+        <div class="${cardBg} p-4 rounded-2xl shadow-sm w-full transition-all" id="action-card-${actionId}">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/70">
+                <span class="font-extrabold ${titleColor} text-xs tracking-tight">${titleText}</span>
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDelete ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}">
+                    Requires Approval
+                </span>
+            </div>
+            <div class="text-xs text-slate-700 mb-3 leading-relaxed font-semibold">
+                ${escapeHtml(details)}
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+                <button type="button" onclick="executePendingAction(${actionId}, this)" class="${confirmBtnClass} text-xs font-bold py-2 px-3.5 rounded-xl transition-all flex-1 flex items-center justify-center cursor-pointer">
+                    ${confirmBtnText}
+                </button>
+                <button type="button" onclick="cancelPendingAction(${actionId})" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold py-2 px-3 rounded-xl shadow-2xs transition-all flex items-center justify-center cursor-pointer">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    thread.appendChild(wrapper);
+    thread.scrollTop = thread.scrollHeight;
+}
+
+// Execute Pending Action
+async function executePendingAction(actionId, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> Executing...';
+    try {
+        const res = await fetch('api/chatbot.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'execute_action', action_id: actionId })
+        });
+        const data = await res.json();
+        const card = document.getElementById('action-card-' + actionId);
+        if (data.success) {
+            if (card) {
+                card.className = "bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl";
+                card.innerHTML = `<div class="text-xs font-bold text-emerald-800 flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-600"></i> Operation successfully executed and committed to hospital records.</div>`;
+            }
+            showToast('Success', data.message || 'Operation executed successfully');
+        } else {
+            if (card) {
+                card.innerHTML = `<div class="text-xs font-bold text-rose-700 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-rose-600"></i> ${escapeHtml(data.error || 'Execution failed')}</div>`;
+            }
+            showToast('Failed', data.error || 'Action failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error', 'Connection error while executing action', 'error');
+    }
+}
+
+// Cancel Pending Action
+async function cancelPendingAction(actionId) {
+    try {
+        await fetch('api/chatbot.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'cancel_action', action_id: actionId })
+        });
+        const card = document.getElementById('action-card-' + actionId);
+        if (card) {
+            card.className = "bg-slate-100 border border-slate-200 p-3 rounded-2xl";
+            card.innerHTML = `<div class="text-xs font-semibold text-slate-500 flex items-center gap-2"><i class="fa-solid fa-ban text-slate-400"></i> Action was cancelled by user.</div>`;
+        }
+    } catch (e) {}
 }
 
 function exportAuditLogCSV() {
-  const rows = [["Timestamp", "Operator", "Role", "Action Type", "Target Table", "Rows Affected", "Status", "IP Address"]];
-  <?php foreach ($auditLogs as $a): ?>
-    rows.push([
-      "<?php echo addslashes($a['created_at']); ?>",
-      "<?php echo addslashes($a['user_id']); ?>",
-      "<?php echo addslashes($a['user_role']); ?>",
-      "<?php echo addslashes($a['action_type']); ?>",
-      "<?php echo addslashes($a['target_table']); ?>",
-      "<?php echo (int)$a['rows_affected']; ?>",
-      "<?php echo $a['success'] ? 'Executed' : 'Failed'; ?>",
-      "<?php echo addslashes($a['ip_address'] ?? '127.0.0.1'); ?>"
-    ]);
-  <?php endforeach; ?>
-  
-  let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.map(i => `"${i}"`).join(",")).join("\n");
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `BHOOMA_AI_Action_Audit_${new Date().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const rows = [["Timestamp", "Operator", "Role", "Action Type", "Target Table", "Rows Affected", "Status", "IP Address"]];
+    <?php foreach ($auditLogs as $a): ?>
+      rows.push([
+        "<?php echo addslashes($a['created_at']); ?>",
+        "<?php echo addslashes($a['user_id']); ?>",
+        "<?php echo addslashes($a['user_role']); ?>",
+        "<?php echo addslashes($a['action_type']); ?>",
+        "<?php echo addslashes($a['target_table']); ?>",
+        "<?php echo (int)$a['rows_affected']; ?>",
+        "<?php echo $a['success'] ? 'Executed' : 'Failed'; ?>",
+        "<?php echo addslashes($a['ip_address'] ?? '127.0.0.1'); ?>"
+      ]);
+    <?php endforeach; ?>
+    
+    let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.map(i => `"${i}"`).join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Hospital_AI_Audit_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 </script>
 

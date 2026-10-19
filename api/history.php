@@ -184,6 +184,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $allFiles[] = $f;
             }
         }
+        // Fetch all bed observations and monitor images for this patient (even after discharge)
+        $bedObservations = [];
+        $obsStmt = $conn->prepare("
+            SELECT bo.*,
+                   DATE_FORMAT(bo.observed_at, '%h:%i %p') as observed_time_12h,
+                   DATE_FORMAT(bo.observed_at, '%d-%b-%Y') as observed_date,
+                   DATE_FORMAT(bo.observed_at, '%Y-%m-%d %H:%i') as observed_timestamp
+            FROM bed_observations bo
+            WHERE bo.patient_id = ?
+            ORDER BY bo.id DESC
+        ");
+        if ($obsStmt) {
+            $obsStmt->bind_param("s", $patient_id);
+            $obsStmt->execute();
+            $obsRes = $obsStmt->get_result();
+            while ($oRow = $obsRes->fetch_assoc()) {
+                $oId = (int)$oRow['id'];
+                $oImgRes = $conn->query("SELECT id, title, image_path, thumbnail_path, mime_type, file_size, captured_at, DATE_FORMAT(captured_at, '%h:%i %p') as captured_time FROM bed_observation_images WHERE observation_id = $oId ORDER BY id ASC");
+                $oImgs = [];
+                if ($oImgRes) {
+                    while ($oImg = $oImgRes->fetch_assoc()) {
+                        $oImgs[] = $oImg;
+                    }
+                }
+                $oRow['images'] = $oImgs;
+                $bedObservations[] = $oRow;
+            }
+        }
+        $patient['bed_observations'] = $bedObservations;
         $patient['files'] = $allFiles;
         $patient['can_view_files'] = $can_view_files;
         

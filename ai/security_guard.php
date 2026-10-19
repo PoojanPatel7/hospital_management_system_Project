@@ -15,13 +15,15 @@ function getUserRole($session) {
 }
 
 function getAllowedTables($role) {
-    // Grant access to all hospital system tables for intelligent assistant querying
+    // Grant access to all 28 hospital system tables for comprehensive intelligent assistant querying
     return [
         'hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments',
         'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules',
         'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files',
         'system_state', 'ai_config', 'ai_action_log', 'ai_conversations',
-        'ai_chat_messages', 'ai_pending_actions'
+        'ai_chat_messages', 'ai_pending_actions',
+        'bed_observations', 'bed_observation_images', 'consultation_charges',
+        'online_consultations', 'file_audit_log', 'hospital_geofence', 'staff_permissions'
     ];
 }
 
@@ -29,14 +31,17 @@ function getAllowedWriteOps($role) {
     $role = strtolower($role);
     switch ($role) {
         case 'admin':
-            return ['INSERT', 'UPDATE']; // Except hospitals, system_state
+            return ['INSERT', 'UPDATE']; // Full administrative operations
         case 'receptionist':
-            return ['INSERT' => ['patients', 'appointments'], 'UPDATE' => ['appointments']];
+            return ['INSERT' => ['patients', 'appointments', 'consultation_charges'], 'UPDATE' => ['appointments']];
         case 'nurse':
-            return ['UPDATE' => ['beds', 'appointments']];
+            return ['INSERT' => ['bed_observations', 'bed_observation_images'], 'UPDATE' => ['beds', 'appointments', 'bed_observations']];
         case 'rmo':
         case 'doctor':
-            return ['INSERT' => ['prescriptions', 'diagnoses', 'appointments'], 'UPDATE' => ['prescriptions', 'diagnoses', 'appointments', 'beds']];
+            return [
+                'INSERT' => ['prescriptions', 'diagnoses', 'appointments', 'bed_observations', 'online_consultations'], 
+                'UPDATE' => ['prescriptions', 'diagnoses', 'appointments', 'beds', 'bed_observations', 'online_consultations']
+            ];
         default:
             return [];
     }

@@ -9,7 +9,9 @@ define('ALLOWED_TABLES', [
     'staff', 'staff_attendance', 'doctor_categories', 'doctor_day_schedules',
     'doctor_slots', 'prescriptions', 'diagnoses', 'timeline_events', 'patient_files',
     'system_state', 'ai_config', 'ai_action_log', 'ai_conversations',
-    'ai_chat_messages', 'ai_pending_actions'
+    'ai_chat_messages', 'ai_pending_actions',
+    'bed_observations', 'bed_observation_images', 'consultation_charges',
+    'online_consultations', 'file_audit_log', 'hospital_geofence', 'staff_permissions'
 ]);
 
 function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
@@ -19,6 +21,16 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
         return ['valid' => false, 'error' => 'Only SELECT operations are allowed for read queries.'];
     }
     
+    // 0. Auto-map common table aliases before validation:
+    $sql = preg_replace('/\bFROM\s+`?vitals`?\b/i', 'FROM bed_observations', $sql);
+    $sql = preg_replace('/\bJOIN\s+`?vitals`?\b/i', 'JOIN bed_observations', $sql);
+    $sql = preg_replace('/\bFROM\s+`?charges`?\b/i', 'FROM consultation_charges', $sql);
+    $sql = preg_replace('/\bJOIN\s+`?charges`?\b/i', 'JOIN consultation_charges', $sql);
+    $sql = preg_replace('/\bFROM\s+`?fees`?\b/i', 'FROM consultation_charges', $sql);
+    $sql = preg_replace('/\bJOIN\s+`?fees`?\b/i', 'JOIN consultation_charges', $sql);
+    $sql = preg_replace('/\bFROM\s+`?telemedicine`?\b/i', 'FROM online_consultations', $sql);
+    $sql = preg_replace('/\bJOIN\s+`?telemedicine`?\b/i', 'JOIN online_consultations', $sql);
+
     $tables = extractTablesFromSql($sql);
     foreach ($tables as $table) {
         $cleanTable = strtolower($table);
@@ -58,6 +70,30 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
     $sql = preg_replace('/\b(a|app|appt|appointments)\.bed_number\s*=\s*(b|bed|beds)\.id\b/i', '${1}.bed_number = ${2}.bed_number', $sql);
     $sql = preg_replace('/\b(b|bed|beds)\.id\s*=\s*(a|app|appt|appointments)\.bed_number\b/i', '${2}.bed_number = ${1}.bed_number', $sql);
     $sql = preg_replace('/\b(b|bed|beds)\.patient_id\s*=\s*(p|patients|pat)\.patient_id\b/i', '${1}.patient_id = ${2}.id', $sql);
+
+    // 5b. Auto-rewrite multi-word patient name queries (split across name and surname)
+    $sql = preg_replace_callback('/\b(?:([a-zA-Z0-9_]+)\.)?name\s*(LIKE|=)\s*[\'"]%?([a-zA-Z0-9]+)\s+([a-zA-Z0-9\s]+)%?[\'"]/i', function($m) {
+        $prefix = !empty($m[1]) ? $m[1] . '.' : '';
+        $op = strtoupper($m[2]);
+        $first = trim($m[3]);
+        $rest = trim($m[4]);
+        $full = "$first $rest";
+        if ($op === 'LIKE') {
+            return "(CONCAT({$prefix}name, ' ', COALESCE({$prefix}surname, '')) LIKE '%$full%' OR ({$prefix}name LIKE '%$first%' AND {$prefix}surname LIKE '%$rest%'))";
+        } else {
+            return "(CONCAT({$prefix}name, ' ', COALESCE({$prefix}surname, '')) = '$full' OR ({$prefix}name = '$first' AND {$prefix}surname = '$rest'))";
+        }
+    }, $sql);
+
+    // 5c. Fix patient_files patient_name column references
+    if (stripos($sql, 'patient_files') !== false && preg_match('/\b(?:patient_files|pf)\.patient_name\b/i', $sql)) {
+        if (stripos($sql, 'JOIN patients') === false && stripos($sql, 'JOIN `patients`') === false) {
+            $sql = preg_replace('/\bFROM\s+`?patient_files`?\s*(?:as\s+)?([a-zA-Z0-9_]+)?\b/i', "FROM patient_files pf JOIN patients p ON pf.patient_id = p.id", $sql);
+            $sql = preg_replace('/\b(?:patient_files|pf)\.patient_name\b/i', "CONCAT(p.name, ' ', COALESCE(p.surname, ''))", $sql);
+        } else {
+            $sql = preg_replace('/\b(?:patient_files|pf)\.patient_name\b/i', "CONCAT(p.name, ' ', COALESCE(p.surname, ''))", $sql);
+        }
+    }
 
     // 6. staff table PK is `id`, NOT `staff_id` (Only target staff table aliases, NEVER staff_attendance)
     $sql = preg_replace('/\b(staff|s)\.staff_id\b/i', '${1}.id', $sql);
@@ -104,19 +140,43 @@ function sanitizeReadQuery($sql, $hospitalId, $allowedTables, $userQuery = '') {
         $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])hospital_id\b/i', "$alias.hospital_id", $sql);
     }
     
+    // 12. Auto-map common table aliases for new database tables:
+    $sql = preg_replace('/\bFROM\s+`?vitals`?\b/i', 'FROM bed_observations', $sql);
+    $sql = preg_replace('/\bJOIN\s+`?vitals`?\b/i', 'JOIN bed_observations', $sql);
+    $sql = preg_replace('/\bFROM\s+`?charges`?\b/i', 'FROM consultation_charges', $sql);
+    $sql = preg_replace('/\bFROM\s+`?fees`?\b/i', 'FROM consultation_charges', $sql);
+    $sql = preg_replace('/\bFROM\s+`?telemedicine`?\b/i', 'FROM online_consultations', $sql);
+    
+    // Auto-map vitals columns
+    if (stripos($sql, 'bed_observations') !== false) {
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])pulse\b/i', 'vital_pulse', $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])bp\b/i', 'vital_bp', $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])spo2\b/i', 'vital_spo2', $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])temp\b/i', 'vital_temp', $sql);
+        $sql = preg_replace('/\b(?<![\.a-zA-Z0-9_])resp\b/i', 'vital_resp', $sql);
+    }
+    
     // Auto-replace placeholder hospital_id = ? with real ID
     $sql = preg_replace('/hospital_id\s*=\s*[\'"]?\?[\'"]?/i', "hospital_id = $hospitalId", $sql);
 
     // Tables that actually contain hospital_id:
-    $tablesWithHospitalId = ['hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments', 'staff', 'staff_attendance'];
+    $tablesWithHospitalId = [
+        'hospitals', 'patients', 'doctors', 'appointments', 'beds', 'departments',
+        'staff', 'staff_attendance', 'bed_observations', 'consultation_charges',
+        'online_consultations', 'file_audit_log', 'hospital_geofence'
+    ];
 
     // Auto-inject WHERE hospital_id = $hospitalId if not present
     if (stripos($sql, 'hospital_id') === false) {
         // Find which table/alias in the query actually has hospital_id
         $hIdCol = null;
-        if (preg_match_all('/\b(?:FROM|JOIN)\s+`?([a-zA-Z0-9_]+)`?\s+(?:AS\s+)?([a-zA-Z0-9_]+)?\b/i', $sql, $tblMatches, PREG_SET_ORDER)) {
+        if (preg_match_all('/\b(?:FROM|JOIN)\s+`?([a-zA-Z0-9_]+)`?(?:\s+(?:AS\s+)?([a-zA-Z0-9_]+))?\b/i', $sql, $tblMatches, PREG_SET_ORDER)) {
             foreach ($tblMatches as $m) {
                 $tName = strtolower($m[1]);
+                $candAlias = !empty($m[2]) ? strtolower($m[2]) : '';
+                if (in_array($candAlias, ['where', 'order', 'group', 'limit', 'join', 'left', 'right', 'inner', 'on', 'set'])) {
+                    $m[2] = null;
+                }
                 $tAlias = !empty($m[2]) ? $m[2] : $m[1];
                 if (in_array($tName, $tablesWithHospitalId)) {
                     $hIdCol = (count($tblMatches) > 1) ? "$tAlias.hospital_id" : "hospital_id";

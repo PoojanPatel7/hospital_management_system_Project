@@ -57,34 +57,46 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Auto update schema for new columns safely
-$cols = [];
-$res = $conn->query("SHOW COLUMNS FROM patients");
-if ($res) {
-    while ($row = $res->fetch_assoc()) {
-        $cols[] = $row['Field'];
+try {
+    $cols = [];
+    $res = $conn->query("SHOW COLUMNS FROM patients");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $cols[] = $row['Field'];
+        }
     }
+    if (!empty($cols)) {
+        if (!in_array('gender', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN gender VARCHAR(20) DEFAULT NULL");
+        if (!in_array('blood_group', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN blood_group VARCHAR(10) DEFAULT NULL");
+        if (!in_array('age', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN age VARCHAR(20) DEFAULT NULL");
+        if (!in_array('emergency_contact_name', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN emergency_contact_name VARCHAR(255) DEFAULT NULL");
+        if (!in_array('emergency_contact_phone', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN emergency_contact_phone VARCHAR(50) DEFAULT NULL");
+        if (!in_array('hospital_id', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN hospital_id INT DEFAULT NULL");
+        if (!in_array('qr_token', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN qr_token VARCHAR(255) DEFAULT NULL");
+        if (!in_array('qr_generated_at', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN qr_generated_at DATETIME DEFAULT NULL");
+    }
+} catch (Throwable $e) {
+    error_log("Patients schema check notice: " . $e->getMessage());
 }
-if (!in_array('gender', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN gender VARCHAR(20) DEFAULT NULL");
-if (!in_array('blood_group', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN blood_group VARCHAR(10) DEFAULT NULL");
-if (!in_array('age', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN age VARCHAR(20) DEFAULT NULL");
-if (!in_array('emergency_contact_name', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN emergency_contact_name VARCHAR(255) DEFAULT NULL");
-if (!in_array('emergency_contact_phone', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN emergency_contact_phone VARCHAR(50) DEFAULT NULL");
-if (!in_array('hospital_id', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN hospital_id INT DEFAULT NULL");
-if (!in_array('qr_token', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN qr_token VARCHAR(255) DEFAULT NULL");
-if (!in_array('qr_generated_at', $cols)) $conn->query("ALTER TABLE patients ADD COLUMN qr_generated_at DATETIME DEFAULT NULL");
 
 // Patient Files schema updates for Binary BLOB storage
-$pfCols = [];
-$pfRes = $conn->query("SHOW COLUMNS FROM patient_files");
-if ($pfRes) {
-    while ($r = $pfRes->fetch_assoc()) {
-        $pfCols[] = $r['Field'];
+try {
+    $pfCols = [];
+    $pfRes = $conn->query("SHOW COLUMNS FROM patient_files");
+    if ($pfRes) {
+        while ($r = $pfRes->fetch_assoc()) {
+            $pfCols[] = $r['Field'];
+        }
     }
+    if (!empty($pfCols)) {
+        if (!in_array('file_data', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN file_data LONGBLOB DEFAULT NULL");
+        if (!in_array('file_name', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN file_name VARCHAR(255) DEFAULT NULL");
+        if (!in_array('mime_type', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN mime_type VARCHAR(100) DEFAULT NULL");
+        if (!in_array('file_size', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN file_size INT DEFAULT 0");
+    }
+} catch (Throwable $e) {
+    error_log("Patient files schema check notice: " . $e->getMessage());
 }
-if (!in_array('file_data', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN file_data LONGBLOB DEFAULT NULL");
-if (!in_array('file_name', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN file_name VARCHAR(255) DEFAULT NULL");
-if (!in_array('mime_type', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN mime_type VARCHAR(100) DEFAULT NULL");
-if (!in_array('file_size', $pfCols)) $conn->query("ALTER TABLE patient_files ADD COLUMN file_size INT DEFAULT 0");
 
 // Auto-migrate any unmigrated files from disk into binary BLOB
 $unmigratedRes = $conn->query("SELECT id, file_path FROM patient_files WHERE file_data IS NULL OR file_size = 0 LIMIT 10");
@@ -412,6 +424,48 @@ $conn->query("CREATE TABLE IF NOT EXISTS consultation_charges (
     KEY idx_hospital (hospital_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+// 15. NEW TABLES: bed_observations & bed_observation_images
+$conn->query("CREATE TABLE IF NOT EXISTS bed_observations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hospital_id INT DEFAULT 1,
+    bed_number VARCHAR(50) NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    appointment_id INT DEFAULT NULL,
+    observed_at DATETIME NOT NULL,
+    observation_hour VARCHAR(50) DEFAULT NULL,
+    vital_pulse VARCHAR(30) DEFAULT NULL,
+    vital_bp VARCHAR(30) DEFAULT NULL,
+    vital_spo2 VARCHAR(30) DEFAULT NULL,
+    vital_temp VARCHAR(30) DEFAULT NULL,
+    vital_resp VARCHAR(30) DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    recorded_by_id INT DEFAULT NULL,
+    recorded_by_name VARCHAR(150) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_bed (bed_number),
+    KEY idx_pat (patient_id),
+    KEY idx_hosp (hospital_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("CREATE TABLE IF NOT EXISTS bed_observation_images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    observation_id INT NOT NULL,
+    bed_number VARCHAR(50) NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    appointment_id INT DEFAULT NULL,
+    title VARCHAR(255) DEFAULT 'Monitor Image',
+    image_path VARCHAR(255) NOT NULL,
+    thumbnail_path VARCHAR(255) DEFAULT NULL,
+    mime_type VARCHAR(100) DEFAULT 'image/jpeg',
+    file_size INT DEFAULT 0,
+    captured_at DATETIME NOT NULL,
+    patient_file_id INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_obs (observation_id),
+    KEY idx_bed (bed_number),
+    KEY idx_pat (patient_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // 13. Create upload directories
 $uploadBase = __DIR__ . '/uploads/patients';
 if (!is_dir($uploadBase)) {
@@ -420,6 +474,10 @@ if (!is_dir($uploadBase)) {
 $staffAvatarDir = __DIR__ . '/uploads/staff_avatars';
 if (!is_dir($staffAvatarDir)) {
     @mkdir($staffAvatarDir, 0755, true);
+}
+$bedMonitorDir = __DIR__ . '/uploads/bed_monitors';
+if (!is_dir($bedMonitorDir)) {
+    @mkdir($bedMonitorDir, 0755, true);
 }
 
 // 14. Seed default consultation charges

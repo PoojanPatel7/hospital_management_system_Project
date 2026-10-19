@@ -31,6 +31,11 @@ test_cookie.txt
 new_modal.html
 index2.html
 
+# Local Training Datasets & Caches (>100MB)
+*.local.jsonl
+*.local.json
+ai/live_database_cache.json
+
 # Python helper/fixer scripts (development utilities)
 *.py
 !ai/python/*.py

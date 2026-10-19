@@ -21,25 +21,54 @@ if (!$patient && !empty($patient_id_param)) {
 }
 
 if (!$patient) {
-    ?>
-    <?php include 'includes/header.php'; ?>
-    <div class="max-w-xl mx-auto my-12 bg-white rounded-3xl p-8 shadow-xl border border-slate-200 text-center space-y-4">
-        <div class="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-inner">
-            <i class="fa-solid fa-qrcode"></i>
+    if ($isStaffLoggedIn) {
+        include 'includes/header.php';
+        ?>
+        <div class="max-w-xl mx-auto my-12 bg-white rounded-3xl p-8 shadow-xl border border-slate-200 text-center space-y-4">
+            <div class="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-inner">
+                <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <h2 class="text-xl font-black text-slate-900">Patient QR Code Not Found</h2>
+            <p class="text-xs text-slate-500 leading-relaxed">No patient record in the system matches the scanned QR token or MRN. Please verify the code or search the patient directory.</p>
+            <div class="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                <button onclick="openQRScannerModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow">
+                    <i class="fa-solid fa-camera"></i> Scan Another QR
+                </button>
+                <a href="patients.php" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-address-book"></i> Patient Directory
+                </a>
+            </div>
         </div>
-        <h2 class="text-xl font-black text-slate-900">Patient QR Code Not Found</h2>
-        <p class="text-xs text-slate-500 leading-relaxed">No patient record in the system matches the scanned QR token or MRN. Please verify the code or search the patient directory.</p>
-        <div class="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
-            <button onclick="openQRScannerModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow">
-                <i class="fa-solid fa-camera"></i> Scan Another QR
-            </button>
-            <a href="patients.php" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5">
-                <i class="fa-solid fa-address-book"></i> Patient Directory
-            </a>
-        </div>
-    </div>
-    <?php include 'includes/footer.php'; ?>
-    <?php
+        <?php 
+        include 'includes/footer.php';
+    } else {
+        ?>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Patient QR Code Not Found | CarePulse Hospital</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+        </head>
+        <body class="bg-slate-950 text-slate-200 min-h-screen flex items-center justify-center p-4 font-sans">
+            <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 text-center space-y-4 shadow-2xl backdrop-blur-md">
+                <div class="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center text-3xl mx-auto border border-rose-500/30">
+                    <i class="fa-solid fa-qrcode"></i>
+                </div>
+                <h1 class="text-xl font-black text-white">QR Code Not Found</h1>
+                <p class="text-xs text-slate-400 leading-relaxed">This QR code does not match any registered patient in the system, or may have expired. Please verify with the hospital reception desk.</p>
+                <div class="pt-2">
+                    <a href="login.php" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition shadow-lg">
+                        <i class="fa-solid fa-user-doctor"></i> Doctor / Staff Sign In
+                    </a>
+                </div>
+            </div>
+        </body>
+        </html>
+        <?php
+    }
     exit;
 }
 
@@ -88,6 +117,353 @@ $fullName = trim(($patient['name'] ?? '') . ' ' . ($patient['surname'] ?? ''));
 if (empty($fullName)) $fullName = 'Patient Record';
 $initials = strtoupper(substr($patient['name'] ?? 'P', 0, 1) . substr($patient['surname'] ?? 'R', 0, 1));
 $isStaffLoggedIn = isset($_SESSION['hospital_id']) || isset($_SESSION['staff_id']);
+
+// Fetch real hospital name
+$hospital_id = $_SESSION['hospital_id'] ?? ($patient['hospital_id'] ?? 1);
+$hospital_name = 'CarePulse Hospital';
+if ($hospital_id) {
+    $hStmt = $conn->prepare("SELECT name FROM hospitals WHERE id = ?");
+    if ($hStmt) {
+        $hStmt->bind_param("i", $hospital_id);
+        $hStmt->execute();
+        $hRes = $hStmt->get_result()->fetch_assoc();
+        if ($hRes && !empty($hRes['name'])) {
+            $hospital_name = $hRes['name'];
+        }
+    }
+}
+
+// Compute base URLs
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+$protocol = $isHttps ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+// For doctor share link: If host is localhost/127.0.0.1, resolve host LAN IP so mobile devices on the network can open it
+$hostOnly = explode(':', $host)[0];
+$portSuffix = (strpos($host, ':') !== false) ? (':' . explode(':', $host)[1]) : '';
+$doctorHost = $host;
+if (in_array($hostOnly, ['localhost', '127.0.0.1'])) {
+    $lanIp = gethostbyname(gethostname());
+    if (!empty($lanIp) && $lanIp !== '127.0.0.1' && filter_var($lanIp, FILTER_VALIDATE_IP)) {
+        $doctorHost = $lanIp . $portSuffix;
+    }
+}
+
+// Encode all path segments (e.g. spaces become %20) so messaging apps like WhatsApp treat the entire URL as a clickable link
+$rawScriptDir = str_replace('\\', '/', dirname($_SERVER['PHP_SELF']));
+$dirParts = array_filter(explode('/', $rawScriptDir), function($p) { return $p !== ''; });
+$encodedScriptDir = !empty($dirParts) ? '/' . implode('/', array_map('rawurlencode', $dirParts)) : '';
+
+$doctorBaseUrl = rtrim($protocol . $doctorHost . $encodedScriptDir, '/');
+$localBaseUrl = rtrim($protocol . $host . $encodedScriptDir, '/');
+
+$fullProfileUrl = $doctorBaseUrl . "/patient_profile_qr.php?token=" . urlencode($token);
+$qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=500x500&ecc=H&margin=10&data=" . urlencode($fullProfileUrl);
+$localQrImageUrl = $localBaseUrl . "/api/qr.php?action=image&token=" . urlencode($token);
+
+// Mask phone for guest privacy
+$rawPhone = trim((string)($patient['phone'] ?? ''));
+if (!empty($rawPhone)) {
+    $cleanPhone = preg_replace('/[^0-9+]/', '', $rawPhone);
+    if (strlen($cleanPhone) >= 8) {
+        $maskedPhone = substr($cleanPhone, 0, 3) . '•••••' . substr($cleanPhone, -3);
+    } else {
+        $maskedPhone = $rawPhone;
+    }
+} else {
+    $maskedPhone = 'Not provided';
+}
+
+$loginRedirectUrl = "login.php?redirect=" . urlencode("patient_profile_qr.php?token=" . urlencode($token));
+
+// =========================================================================
+// RESTRICTED COMPACT VIEW FOR PATIENTS WHO SCAN THE QR CODE
+// =========================================================================
+if (!$isStaffLoggedIn):
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title><?= htmlspecialchars($fullName) ?> — Patient Health Pass | <?= htmlspecialchars($hospital_name) ?></title>
+
+    <!-- Open Graph Meta Tags for WhatsApp, Telegram & Social Rich Previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="<?= htmlspecialchars($hospital_name) ?>" />
+    <meta property="og:title" content="🏥 Patient Health Record: <?= htmlspecialchars($fullName) ?> (<?= htmlspecialchars($patient_id) ?>)" />
+    <meta property="og:description" content="<?= htmlspecialchars($hospital_name) ?> — Tap to view verified clinical profile, prescriptions, and digital QR health dossier." />
+    <meta property="og:image" content="<?= htmlspecialchars($qrImageUrl) ?>" />
+    <meta property="og:image:secure_url" content="<?= htmlspecialchars($qrImageUrl) ?>" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="500" />
+    <meta property="og:image:height" content="500" />
+    <meta property="og:url" content="<?= htmlspecialchars($fullProfileUrl) ?>" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Patient Health Record: <?= htmlspecialchars($fullName) ?>" />
+    <meta name="twitter:description" content="<?= htmlspecialchars($hospital_name) ?> — Tap to view patient profile and prescriptions." />
+    <meta name="twitter:image" content="<?= htmlspecialchars($qrImageUrl) ?>" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: #090e1a; 
+            color: #e2e8f0; 
+        }
+        .bg-mesh-dark {
+            background-color: #090e1a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.12) 0px, transparent 50%);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-mesh-dark antialiased flex flex-col justify-between p-4 sm:p-6">
+
+    <!-- Top Hospital Mini Brand -->
+    <header class="max-w-md w-full mx-auto flex items-center justify-between py-2">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-500/20">
+                <i class="fa-solid fa-hospital"></i>
+            </div>
+            <div>
+                <h1 class="text-xs sm:text-sm font-extrabold text-white leading-tight"><?= htmlspecialchars($hospital_name) ?></h1>
+                <p class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Digital Health Network</span>
+                </p>
+            </div>
+        </div>
+        <span class="text-[10px] font-bold text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700/60">
+            <i class="fa-solid fa-lock text-emerald-400 mr-1"></i> Protected
+        </span>
+    </header>
+
+    <!-- Main Compact Health Card -->
+    <main class="max-w-md w-full mx-auto my-auto py-4 space-y-4">
+
+        <!-- Patient Pass Card -->
+        <div class="bg-slate-900/90 border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl text-center space-y-5 relative overflow-hidden">
+            <div class="absolute -right-20 -top-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-20 -bottom-20 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Verified Pill & MRN -->
+            <div class="flex items-center justify-center gap-2 relative z-10">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <i class="fa-solid fa-circle-check text-[10px]"></i> Verified Health Pass
+                </span>
+                <span class="font-mono text-indigo-200 text-[11px] font-bold bg-indigo-500/20 px-2.5 py-0.5 rounded-full border border-indigo-400/30">
+                    MRN: <?= htmlspecialchars($patient_id) ?>
+                </span>
+            </div>
+
+            <!-- Patient Name & Demographics -->
+            <div class="space-y-2 relative z-10">
+                <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+                    <?= htmlspecialchars($fullName) ?>
+                </h2>
+
+                <div class="flex flex-wrap items-center justify-center gap-1.5 text-xs font-semibold">
+                    <?php if (!empty($age)): ?>
+                        <span class="bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 text-slate-200">
+                            <?= htmlspecialchars($age) ?> Yrs
+                        </span>
+                    <?php endif; ?>
+                    <?php if (!empty($gender)): ?>
+                        <span class="bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 text-slate-200">
+                            <?= htmlspecialchars($gender) ?>
+                        </span>
+                    <?php endif; ?>
+                    <?php if (!empty($blood)): ?>
+                        <span class="bg-rose-500/20 px-2.5 py-1 rounded-lg border border-rose-400/30 text-rose-200 font-bold">
+                            <i class="fa-solid fa-droplet text-rose-400 mr-1 text-[10px]"></i><?= htmlspecialchars($blood) ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Crisp QR Code Centerpiece -->
+            <div class="relative z-10 py-1">
+                <div class="bg-white p-4 sm:p-4.5 rounded-3xl inline-block shadow-2xl border-4 border-slate-700/60 transition-transform duration-200 hover:scale-105">
+                    <img 
+                        id="patient-qr-img" 
+                        src="<?= htmlspecialchars($qrImageUrl) ?>" 
+                        alt="Patient Lifetime QR Code" 
+                        class="w-48 h-48 sm:w-56 sm:h-56 object-contain mx-auto block" 
+                    />
+                </div>
+                <div class="mt-2.5 text-[11px] font-medium text-slate-400 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-qrcode text-indigo-400"></i>
+                    <span>Scan to verify digital clinical dossier</span>
+                </div>
+            </div>
+
+            <!-- ONLY ONE DIRECT SHARE BUTTON -->
+            <div class="pt-2 relative z-10">
+                <button 
+                    id="btn-share-doctor" 
+                    onclick="shareDirectToDoctor()" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-indigo-600/30 transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                >
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 rounded-xl bg-white/15 border border-white/10 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-share-nodes text-white"></i>
+                        </div>
+                        <div class="text-left">
+                            <div class="text-[10px] uppercase tracking-wider font-extrabold text-indigo-200 leading-tight">Digital Clinical Dossier</div>
+                            <div class="text-base sm:text-lg font-black tracking-tight leading-snug">Share with Doctor</div>
+                        </div>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-white shrink-0 group-hover:translate-x-1 transition-transform">
+                        <i class="fa-solid fa-arrow-right text-sm"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Doctor / Staff Sign In Discreet Access -->
+        <div class="text-center pt-1">
+            <a href="<?= htmlspecialchars($loginRedirectUrl) ?>" class="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-indigo-300 transition py-2 px-3.5 rounded-xl hover:bg-white/5">
+                <i class="fa-solid fa-user-doctor text-indigo-400"></i>
+                <span>Doctor or Hospital Staff? Sign In here</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+            </a>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-md w-full mx-auto py-3 text-center text-[11px] text-slate-500">
+        <p>&copy; <?= date('Y') ?> <?= htmlspecialchars($hospital_name) ?> • CarePulse Digital Health</p>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl border border-indigo-500/40 shadow-2xl flex items-center gap-2.5 text-xs font-bold transition-all transform translate-y-16 opacity-0 pointer-events-none">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toast-text">Notification</span>
+    </div>
+
+    <script>
+    const shareData = {
+        patientName: "<?= addslashes($fullName) ?>",
+        patientMrn: "<?= addslashes($patient_id) ?>",
+        patientBlood: "<?= addslashes($blood ?: 'N/A') ?>",
+        patientAge: "<?= addslashes($age ?: '--') ?>",
+        patientGender: "<?= addslashes($gender ?: '--') ?>",
+        hospitalName: "<?= addslashes($hospital_name) ?>",
+        profileUrl: "<?= addslashes($fullProfileUrl) ?>",
+        qrImageUrl: "<?= addslashes($qrImageUrl) ?>",
+        localQrImageUrl: "<?= addslashes($localQrImageUrl) ?>",
+        qrToken: "<?= addslashes($token) ?>"
+    };
+
+    // Clean background message with standalone, space-free clickable links
+    function generateShareText() {
+        return `🏥 *PATIENT HEALTH RECORD - ${shareData.hospitalName.toUpperCase()}*\n` +
+               `━━━━━━━━━━━━━━━━━━━━━\n` +
+               `👤 *Patient:* ${shareData.patientName}\n` +
+               `🆔 *MRN:* ${shareData.patientMrn}\n` +
+               `🩸 *Blood:* ${shareData.patientBlood}  |  🎂 *Age/Sex:* ${shareData.patientAge} / ${shareData.patientGender}\n\n` +
+               `📲 *PATIENT PROFILE LINK (Tap to Open):*\n` +
+               `${shareData.profileUrl}\n\n` +
+               `*(Doctor: Tap the link above to view verified medical records, prescriptions & diagnostic reports)*`;
+    }
+
+    // Only One Unified Share Action - Always Shares Patient Profile Link + QR Image
+    async function shareDirectToDoctor() {
+        const btn = document.getElementById('btn-share-doctor');
+        const originalHtml = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.classList.add('opacity-80', 'cursor-wait');
+        btn.innerHTML = `
+            <div class="flex items-center justify-center gap-3 w-full py-0.5">
+                <i class="fa-solid fa-spinner fa-spin text-xl text-white"></i>
+                <span class="text-sm font-black">Sharing Record & Link...</span>
+            </div>
+        `;
+
+        const text = generateShareText();
+
+        // 1. Always copy the full message and doctor access link to clipboard first as a safeguard
+        try {
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(text);
+            }
+        } catch(e) {}
+
+        // 2. Primary: Universal Web Share with both Text, Patient Profile Link & Image Link
+        // Passing text and url ensures messaging apps (WhatsApp, Telegram, Messages, etc.)
+        // NEVER drop the patient profile link and render the QR code image card!
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Patient Health Record: ${shareData.patientName} (${shareData.patientMrn})`,
+                    text: text,
+                    url: shareData.profileUrl
+                });
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-wait');
+                showToast("Shared successfully with patient profile link!", "fa-solid fa-check text-emerald-400");
+                return;
+            } catch(e) {
+                if (e.name === 'AbortError') {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-80', 'cursor-wait');
+                    return;
+                }
+            }
+        }
+
+        // 3. Fallback for Desktop / unsupported browsers: Open messaging link with full text & link
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+
+        showToast("Patient profile link & details ready!", "fa-solid fa-link text-indigo-400");
+
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        btn.classList.remove('opacity-80', 'cursor-wait');
+    }
+
+    let toastTimeout = null;
+    function showToast(text, iconClass) {
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toast-text');
+        const toastIcon = document.getElementById('toast-icon');
+
+        toastText.textContent = text;
+        if (iconClass) toastIcon.className = iconClass;
+
+        toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+        toast.classList.add('translate-y-0', 'opacity-100');
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+            toast.classList.remove('translate-y-0', 'opacity-100');
+        }, 3200);
+    }
+    </script>
+</body>
+</html>
+<?php
+    exit;
+endif;
+?>
+
+<?php
+// =========================================================================
+// CLINICAL STAFF & DOCTOR LOGGED-IN VIEW (FULL ADMINISTRATIVE DASHBOARD)
+// =========================================================================
 
 // Check if patient already has an active appointment / token today or active in queue
 $today = date('Y-m-d');
@@ -205,6 +581,9 @@ if (!empty($existingTodayAppt['token_number']) && (int)$existingTodayAppt['token
                 <a href="patient_profile.php?id=<?php echo urlencode($patient_id); ?>" class="bg-white hover:bg-slate-100 text-slate-900 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md">
                     <i class="fa-solid fa-folder-open text-indigo-600"></i> Full Clinical Dossier
                 </a>
+                <button onclick="shareStaffQRToDoctor()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md">
+                    <i class="fa-solid fa-share-nodes text-sm"></i> Share with Doctor
+                </button>
                 <button onclick="window.print()" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition">
                     <i class="fa-solid fa-print"></i> Print QR Summary
                 </button>
@@ -1535,6 +1914,38 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+async function shareStaffQRToDoctor() {
+    const text = `🏥 *Patient Health QR Dossier*\n\n` +
+        `👤 *Name:* <?= addslashes($fullName) ?>\n` +
+        `🆔 *MRN:* <?= addslashes($patient_id) ?>\n` +
+        `🩸 *Blood Group:* <?= addslashes($blood ?: 'Not specified') ?>\n` +
+        `🎂 *Age/Gender:* <?= addslashes(($age ? $age . ' Yrs' : '') . ($gender ? ' / ' . $gender : '')) ?>\n` +
+        `🏥 *Hospital:* <?= addslashes($hospital_name) ?>\n\n` +
+        `🔗 *Doctor Direct Access Link:*\n<?= addslashes($fullProfileUrl) ?>\n\n` +
+        `*(Tap or scan link to view complete patient medical profile & prescriptions)*`;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Patient Health Record - <?= addslashes($fullName) ?>',
+                text: text,
+                url: '<?= addslashes($fullProfileUrl) ?>'
+            });
+            return;
+        } catch(e) {}
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+        if (typeof showToast === 'function') {
+            showToast('Copied', 'Doctor access link & record copied to clipboard!');
+        } else {
+            alert('Doctor access link & record copied to clipboard!');
+        }
+    }).catch(() => {
+        prompt('Copy Doctor Access Link:', '<?= addslashes($fullProfileUrl) ?>');
+    });
 }
 
 window.addEventListener('DOMContentLoaded', loadPatientData);

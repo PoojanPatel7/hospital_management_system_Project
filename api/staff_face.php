@@ -153,7 +153,8 @@ if ($action === 'register_face') {
         }
     }
     
-    if ($duplicateStaff) {
+    $forceOverride = !empty($jsonInput['force_override']) || !empty($_POST['force_override']);
+    if ($duplicateStaff && !$forceOverride) {
         $matchScore = round(max(0, min(100, (1.0 - ($minDistance / 0.6)) * 100)));
         echo json_encode([
             'status' => 'error',
@@ -161,7 +162,7 @@ if ($action === 'register_face') {
             'message' => 'Duplicate Face Detected: This face is already enrolled for ' . 
                          $duplicateStaff['first_name'] . ' ' . $duplicateStaff['last_name'] . 
                          ' (' . ($duplicateStaff['staff_code'] ?: 'ID #' . $duplicateStaff['id']) . ') with ' . 
-                         $matchScore . '% similarity. The system strictly prohibits registering the same face for multiple staff members.',
+                         $matchScore . '% similarity. Would you like to re-assign or update anyway?',
             'duplicate_staff' => [
                 'id' => $duplicateStaff['id'],
                 'name' => $duplicateStaff['first_name'] . ' ' . $duplicateStaff['last_name'],
@@ -267,14 +268,18 @@ if ($action === 'mark_test_attendance' || $action === 'auto_punch_attendance') {
     $today = date('Y-m-d');
     $now = date('H:i:s');
     
-    // Check if already marked with a valid check-in today
-    $checkStmt = $conn->prepare("SELECT id, status, check_in_time, check_out_time, marked_by, check_in_method FROM staff_attendance WHERE hospital_id = ? AND staff_id = ? AND date = ?");
+    // Check if attendance record already exists for today
+    $checkStmt = $conn->prepare("SELECT id, status, check_in_time, check_out_time, marked_by, check_in_method, notes FROM staff_attendance WHERE hospital_id = ? AND staff_id = ? AND date = ?");
     $checkStmt->bind_param("iis", $hospital_id, $staff_id, $today);
     $checkStmt->execute();
     $existing = $checkStmt->get_result()->fetch_assoc();
     
-    // Only consider 'already_marked' if there is an actual check_in_time and not an auto-generated Absent placeholder
-    if ($existing && !empty($existing['check_in_time']) && $existing['status'] !== 'Absent') {
+    // Check if previously marked as Absent or On Leave
+    $wasAbsent = ($existing && in_array($existing['status'], ['Absent', 'On Leave']));
+    $previousStatus = $existing ? $existing['status'] : null;
+
+    // Only consider 'already_marked' if there is an actual check_in_time and not marked Absent or On Leave
+    if ($existing && !empty($existing['check_in_time']) && !$wasAbsent) {
         echo json_encode([
             'status' => 'already_marked',
             'message' => 'Attendance was already marked today at ' . date('h:i A', strtotime($existing['check_in_time'])),
@@ -294,47 +299,62 @@ if ($action === 'mark_test_attendance' || $action === 'auto_punch_attendance') {
         exit;
     }
     
-    // Determine status based on shift
-    $shift_start = '09:00:00';
-    if ($staff['shift'] && preg_match('/\((\d{2}:\d{2})/', $staff['shift'], $m)) {
-        $shift_start = $m[1] . ':00';
-    }
-    
-    $start_time_ts = strtotime("$today $shift_start");
-    $now_ts = strtotime("$today $now");
-    $status = 'Present';
-    if ($now_ts > $start_time_ts + 600) {
-        $status = 'Late';
-    }
-    if ($now_ts > $start_time_ts + 14400) {
-        $status = 'Half Day';
-    }
-    
     $face_verified = 1;
     $loc_verified = 1;
     $method = 'face_scan_kiosk';
-    $notes = 'Live Face Biometric Verified (' . round($confidence * 100, 1) . '% match, Anti-spoofing Live Human Verified)';
+    $timeFormatted = date('h:i:s A', strtotime($now));
+
+    // If attendance was previously marked as Absent (or On Leave), change status to 'Present' with descriptive time note
+    if ($wasAbsent) {
+        $status = 'Present';
+        $working_hours = 8.0;
+        $notes = "Status updated from $previousStatus to Present via Face AI Terminal at $timeFormatted (Live Face Match: " . round($confidence * 100, 1) . "%). Previously marked $previousStatus.";
+    } else {
+        // Normal check-in: Determine status based on shift start
+        $shift_start = '09:00:00';
+        if ($staff['shift'] && preg_match('/\((\d{2}:\d{2})/', $staff['shift'], $m)) {
+            $shift_start = $m[1] . ':00';
+        }
+        
+        $start_time_ts = strtotime("$today $shift_start");
+        $now_ts = strtotime("$today $now");
+        $status = 'Present';
+        if ($now_ts > $start_time_ts + 600) {
+            $status = 'Late';
+        }
+        if ($now_ts > $start_time_ts + 14400) {
+            $status = 'Half Day';
+        }
+        $working_hours = ($status === 'Present') ? 8.0 : (($status === 'Late') ? 7.5 : 4.0);
+        $notes = 'Live Face Biometric Verified (' . round($confidence * 100, 1) . '% match, Anti-spoofing Live Human Verified)';
+    }
     
     $saveSuccess = false;
     if ($existing) {
-        // Update existing placeholder / absent record with real face-scan check-in
+        // Update existing record (e.g. changing status from Absent to Present, setting current check_in_time, working_hours, and note)
         $upStmt = $conn->prepare("UPDATE staff_attendance 
-                                  SET status = ?, check_in_time = ?, selfie_verified = ?, location_verified = ?, check_in_method = ?, face_confidence = ?, marked_by = 'Face Attendance Terminal', notes = ? 
+                                  SET status = ?, check_in_time = ?, working_hours = ?, selfie_verified = ?, location_verified = ?, check_in_method = ?, face_confidence = ?, marked_by = 'Face Attendance Terminal', notes = ?, updated_at = CURRENT_TIMESTAMP 
                                   WHERE id = ?");
-        $upStmt->bind_param("ssiisdsi", $status, $now, $face_verified, $loc_verified, $method, $confidence, $notes, $existing['id']);
+        $upStmt->bind_param("ssdiisdsi", $status, $now, $working_hours, $face_verified, $loc_verified, $method, $confidence, $notes, $existing['id']);
         $saveSuccess = $upStmt->execute();
     } else {
         // Insert new attendance record
-        $insStmt = $conn->prepare("INSERT INTO staff_attendance (hospital_id, staff_id, date, status, check_in_time, selfie_verified, location_verified, check_in_method, face_confidence, marked_by, notes) 
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Face Attendance Terminal', ?)");
-        $insStmt->bind_param("iisssiisds", $hospital_id, $staff_id, $today, $status, $now, $face_verified, $loc_verified, $method, $confidence, $notes);
+        $insStmt = $conn->prepare("INSERT INTO staff_attendance (hospital_id, staff_id, date, status, check_in_time, working_hours, selfie_verified, location_verified, check_in_method, face_confidence, marked_by, notes) 
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Face Attendance Terminal', ?)");
+        $insStmt->bind_param("iisssdiisds", $hospital_id, $staff_id, $today, $status, $now, $working_hours, $face_verified, $loc_verified, $method, $confidence, $notes);
         $saveSuccess = $insStmt->execute();
     }
     
     if ($saveSuccess) {
+        $msg = $wasAbsent 
+            ? "Attendance updated: {$staff['first_name']} {$staff['last_name']} status changed from $previousStatus to Present at " . date('h:i A', strtotime($now))
+            : "Attendance successfully recorded for {$staff['first_name']} {$staff['last_name']} ($status)";
+
         echo json_encode([
             'status' => 'success',
-            'message' => 'Attendance successfully recorded for ' . $staff['first_name'] . ' ' . $staff['last_name'] . ' (' . $status . ')',
+            'was_absent' => $wasAbsent,
+            'previous_status' => $previousStatus,
+            'message' => $msg,
             'data' => [
                 'staff_id' => $staff['id'],
                 'staff_name' => $staff['first_name'] . ' ' . $staff['last_name'],
@@ -343,8 +363,11 @@ if ($action === 'mark_test_attendance' || $action === 'auto_punch_attendance') {
                 'department' => $staff['department'],
                 'avatar' => $staff['avatar'],
                 'status' => $status,
+                'was_absent' => $wasAbsent,
+                'previous_status' => $previousStatus,
                 'check_in_time' => $now,
-                'check_in_time_formatted' => date('h:i A', strtotime($now))
+                'check_in_time_formatted' => date('h:i A', strtotime($now)),
+                'notes' => $notes
             ]
         ]);
     } else {
@@ -384,11 +407,11 @@ if ($action === 'reset_test_attendance') {
 // -------------------------------------------------------------
 if ($action === 'get_today_face_punches') {
     $today = date('Y-m-d');
-    $stmt = $conn->prepare("SELECT a.id, a.check_in_time, a.status, a.face_confidence, a.marked_by,
+    $stmt = $conn->prepare("SELECT a.id, a.check_in_time, a.status, a.face_confidence, a.marked_by, a.notes,
                                    s.id AS staff_id, s.first_name, s.last_name, s.staff_code, s.role, s.department, s.avatar
                             FROM staff_attendance a
                             JOIN staff s ON a.staff_id = s.id
-                            WHERE a.hospital_id = ? AND a.date = ?
+                            WHERE a.hospital_id = ? AND a.date = ? AND a.check_in_time IS NOT NULL AND a.status != 'Absent'
                             ORDER BY a.check_in_time DESC LIMIT 25");
     $stmt->bind_param("is", $hospital_id, $today);
     $stmt->execute();

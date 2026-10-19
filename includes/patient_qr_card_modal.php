@@ -44,17 +44,20 @@
         </div>
 
         <!-- Action Controls -->
-        <div class="grid grid-cols-2 gap-2.5 mt-5">
-            <button onclick="printPatientQRCard()" class="bg-slate-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow">
+        <div class="grid grid-cols-2 gap-2 mt-5">
+            <button onclick="shareQRViaNative()" class="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow">
+                <i class="fa-solid fa-share-nodes text-sm"></i> Share Patient Record
+            </button>
+            <button onclick="printPatientQRCard()" class="bg-slate-900 hover:bg-black text-white font-bold py-2 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow">
                 <i class="fa-solid fa-print"></i> Print Card
             </button>
-            <button onclick="downloadQRImage()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow">
+            <button onclick="downloadQRImage()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow">
                 <i class="fa-solid fa-download"></i> Save Image
             </button>
-            <button onclick="copyQRProfileUrl()" class="col-span-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2">
+            <button onclick="copyQRProfileUrl()" class="col-span-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
                 <i class="fa-solid fa-link"></i> Copy Link
             </button>
-            <a id="qr-modal-open-link" href="#" target="_blank" class="col-span-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 border border-blue-200">
+            <a id="qr-modal-open-link" href="#" target="_blank" class="col-span-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 border border-blue-200">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Profile
             </a>
         </div>
@@ -170,6 +173,79 @@ function copyQRProfileUrl() {
         alert('Permanent patient profile URL copied to clipboard!');
     }).catch(() => {
         prompt('Copy patient profile URL:', currentQRData.url);
+    });
+}
+
+function getShareMessageForModal() {
+    if (!currentQRData) return '';
+    const p = currentQRData.patient || {};
+    const patientName = `${p.name || ''} ${p.surname || ''}`.trim() || 'Patient';
+    const patientMrn = p.id || 'N/A';
+    const patientBlood = p.blood_group || 'N/A';
+    const patientAge = p.age || '--';
+    const patientGender = p.gender || '--';
+    const profileUrl = currentQRData.url || window.location.href;
+    const qrImg = currentQRData.qr_image_url || '';
+
+    return `🏥 *PATIENT HEALTH PROFILE - CAREPULSE HOSPITAL*\n` +
+           `━━━━━━━━━━━━━━━━━━━━━\n` +
+           `👤 *Patient:* ${patientName}\n` +
+           `🆔 *MRN / ID:* ${patientMrn}\n` +
+           `🩸 *Blood:* ${patientBlood}  |  🎂 *Age/Sex:* ${patientAge} / ${patientGender}\n\n` +
+           `📲 *Doctor Access Link:*\n${profileUrl}\n\n` +
+           `*(Doctors & Staff: Tap the link above to open complete patient medical profile & prescriptions)*`;
+}
+
+function shareQRViaWhatsApp() {
+    if (!currentQRData) return;
+    const msg = getShareMessageForModal();
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+}
+
+async function shareQRViaNative() {
+    if (!currentQRData) return;
+    const msg = getShareMessageForModal();
+    const p = currentQRData.patient || {};
+    const patientName = `${p.name || ''} ${p.surname || ''}`.trim() || 'Patient';
+    const patientMrn = p.id || 'record';
+    const profileUrl = currentQRData.url || window.location.href;
+
+    try {
+        if (navigator.canShare && currentQRData.qr_image_url) {
+            const localImgUrl = `api/qr.php?action=image&patient_id=${encodeURIComponent(patientMrn)}&token=${encodeURIComponent(currentQRData.token || '')}`;
+            const res = await fetch(localImgUrl);
+            const blob = await res.blob();
+            const file = new File([blob], `Patient_QR_${patientMrn}.png`, { type: 'image/png' });
+
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: `Patient Health Record - ${patientName}`,
+                    text: msg,
+                    files: [file]
+                });
+                return;
+            }
+        }
+    } catch(e) {
+        console.warn('Native file share fallback', e);
+    }
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: `Patient Health Record - ${patientName}`,
+                text: msg,
+                url: profileUrl
+            });
+            return;
+        } catch(e) {}
+    }
+
+    navigator.clipboard.writeText(msg).then(() => {
+        alert('Share message and QR link copied to clipboard!');
+    }).catch(() => {
+        prompt('Copy patient message & link:', msg);
     });
 }
 </script>

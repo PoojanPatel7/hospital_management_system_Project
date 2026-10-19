@@ -30,6 +30,48 @@ $stRes = $conn->query("SELECT online_booking_enabled FROM system_state WHERE id 
 if ($stRes && $stRow = $stRes->fetch_assoc()) {
     $online_booking_active = (int)($stRow['online_booking_enabled'] ?? 1);
 }
+
+// Fetch all staff members & today's attendance for the dashboard roster at Visit Analytics
+$hospital_id = !empty($_SESSION['hospital_id']) ? (int)$_SESSION['hospital_id'] : 1;
+$todayDate = date('Y-m-d');
+$staffListQuery = "
+    SELECT s.id, s.staff_code, s.first_name, s.last_name, s.role, s.department, s.shift, s.phone, s.status, s.avatar,
+           a.status AS att_status, a.check_in_time
+    FROM staff s
+    LEFT JOIN staff_attendance a ON s.id = a.staff_id AND a.date = ?
+    WHERE (s.hospital_id = ? OR s.hospital_id IS NULL)
+    ORDER BY 
+        CASE 
+            WHEN a.status = 'Present' THEN 1
+            WHEN a.status = 'Late' THEN 2
+            WHEN a.status = 'Half Day' THEN 3
+            WHEN a.status = 'On Leave' THEN 4
+            WHEN a.status = 'Absent' THEN 5
+            ELSE 6
+        END ASC,
+        s.first_name ASC
+";
+$staffStmt = $conn->prepare($staffListQuery);
+$staffStmt->bind_param("si", $todayDate, $hospital_id);
+$staffStmt->execute();
+$staffResult = $staffStmt->get_result();
+$dashboardStaffList = [];
+$staffCounts = ['total' => 0, 'present' => 0, 'absent' => 0, 'leave' => 0, 'off_duty' => 0];
+
+while ($st = $staffResult->fetch_assoc()) {
+    $staffCounts['total']++;
+    $att = $st['att_status'] ?? '';
+    if ($att === 'Present' || $att === 'Late') {
+        $staffCounts['present']++;
+    } elseif ($att === 'Absent') {
+        $staffCounts['absent']++;
+    } elseif ($att === 'On Leave' || $att === 'Half Day') {
+        $staffCounts['leave']++;
+    } else {
+        $staffCounts['off_duty']++;
+    }
+    $dashboardStaffList[] = $st;
+}
 ?>
 
 <!-- GSAP Animation Engine & Chart.js -->
@@ -59,6 +101,26 @@ if ($stRes && $stRow = $stRes->fetch_assoc()) {
 .dash-metric-number {
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
+}
+#employee-roster-container::-webkit-scrollbar {
+    width: 4px;
+}
+#employee-roster-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+#employee-roster-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+#employee-roster-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 </style>
 
@@ -432,49 +494,303 @@ if ($stRes && $stRow = $stRes->fetch_assoc()) {
 
     </div>
 
-    <!-- ================= 5. ANALYTICS & TIMELINE OVERVIEW ================= -->
-    <div class="dash-card p-6 sm:p-8 space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+    <!-- ================= 5. ANALYTICS & TIMELINE OVERVIEW + EMPLOYEE STATUS ================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        
+        <!-- Left Column: Visit Analytics (lg:col-span-7) -->
+        <div id="visit-analytics-card" class="dash-card p-4 sm:p-6 lg:p-7 space-y-5 lg:col-span-7 flex flex-col justify-between">
             <div>
-                <h3 class="text-lg font-black text-slate-900 tracking-tight">Visit Analytics</h3>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                    <div class="flex items-center justify-between w-full sm:w-auto">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-xs shadow-2xs">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Visit Analytics</h3>
+                                <p class="text-[11px] text-slate-400 font-medium hidden sm:block">Patient footfall &amp; completion trends</p>
+                            </div>
+                        </div>
+                        <!-- Phone view shortcut to jump to staff status -->
+                        <a href="#dash-employee-status-card" class="lg:hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            <i class="fa-solid fa-id-badge text-blue-500"></i>
+                            <span>Staff (<?php echo $staffCounts['total']; ?>) &darr;</span>
+                        </a>
+                    </div>
+                    
+                    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-full border border-slate-200/80 self-start sm:self-auto">
+                        <button type="button" onclick="setChartTimeline('7days')" id="btn-chart-7d" class="px-3 py-1 rounded-full text-xs font-bold bg-white text-slate-900 shadow-2xs">7 Days</button>
+                        <button type="button" onclick="setChartTimeline('14days')" id="btn-chart-14d" class="px-3 py-1 rounded-full text-xs font-bold text-slate-500 hover:text-slate-900">14 Days</button>
+                        <button type="button" onclick="setChartTimeline('30days')" id="btn-chart-30d" class="px-3 py-1 rounded-full text-xs font-bold text-slate-500 hover:text-slate-900">30 Days</button>
+                    </div>
+                </div>
+
+                <div class="h-60 sm:h-72 w-full mt-2">
+                    <canvas id="canvas-dashboard-timeline"></canvas>
+                </div>
             </div>
-            
-            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-full border border-slate-200/80">
-                <button type="button" onclick="setChartTimeline('7days')" id="btn-chart-7d" class="px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-900 shadow-2xs">7 Days</button>
-                <button type="button" onclick="setChartTimeline('14days')" id="btn-chart-14d" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-500 hover:text-slate-900">14 Days</button>
-                <button type="button" onclick="setChartTimeline('30days')" id="btn-chart-30d" class="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-500 hover:text-slate-900">30 Days</button>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-slate-100">
+                <div class="p-1 sm:p-0">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Visits</div>
+                    <div id="chart-stat-total" class="text-lg sm:text-xl font-black text-slate-900 mt-0.5 dash-metric-number">--</div>
+                </div>
+                <div class="p-1 sm:p-0">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Completion</div>
+                    <div id="chart-stat-rate" class="text-lg sm:text-xl font-black text-slate-900 mt-0.5 dash-metric-number">--%</div>
+                </div>
+                <div class="p-1 sm:p-0">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Peak Volume</div>
+                    <div id="chart-stat-peak" class="text-base sm:text-xl font-black text-slate-900 mt-0.5 truncate">--</div>
+                </div>
+                <div class="p-1 sm:p-0">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Daily Avg</div>
+                    <div id="chart-stat-avg" class="text-lg sm:text-xl font-black text-slate-900 mt-0.5 dash-metric-number">--</div>
+                </div>
             </div>
         </div>
 
-        <div class="h-64 sm:h-72 w-full">
-            <canvas id="canvas-dashboard-timeline"></canvas>
+        <!-- Right Column: Employee Status Card (lg:col-span-5) -->
+        <div id="dash-employee-status-card" class="dash-card p-4 sm:p-6 lg:p-7 space-y-4 lg:col-span-5 flex flex-col justify-between">
+            <div>
+                <!-- Header -->
+                <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xs shadow-2xs">
+                            <i class="fa-solid fa-id-badge"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Employee Status</h3>
+                                <span id="staff-badge-total" class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                                    <?php echo $staffCounts['total']; ?> Staff
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 font-medium">Real-time attendance &amp; on-duty roster</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <!-- Jump back to analytics on phone -->
+                        <a href="#visit-analytics-card" class="lg:hidden text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-up text-[10px]"></i> Analytics
+                        </a>
+                        <a href="face_attendance.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 text-xs font-bold transition shadow-2xs">
+                            <i class="fa-solid fa-camera text-purple-600 text-xs"></i>
+                            <span>Mark Attendance</span>
+                        </a>
+                        <a href="staff.php" class="hidden sm:inline-flex text-xs font-bold text-slate-500 hover:text-slate-900 items-center gap-1 transition p-1.5 rounded-lg hover:bg-slate-100" title="Manage Staff Directory">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Controls: Search & Filter Tabs (Optimized for Mobile Phone & Touch) -->
+                <div class="space-y-2.5 pt-2">
+                    <!-- Search Input -->
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input 
+                            type="text" 
+                            id="employee-search-input" 
+                            oninput="filterStaffRoster()" 
+                            placeholder="Search employee name..." 
+                            class="w-full pl-8 pr-8 py-2 rounded-xl bg-slate-50/80 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-xs font-medium text-slate-800 placeholder-slate-400 transition outline-none"
+                        />
+                        <button 
+                            type="button" 
+                            id="btn-clear-staff-search" 
+                            onclick="clearStaffSearch()" 
+                            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 text-xs"
+                        >
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Filter Chips (Horizontal swipeable on phone view) -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs select-none no-scrollbar">
+                        <button type="button" onclick="setStaffFilter('all')" id="filter-staff-all" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition">
+                            All (<span id="count-staff-all"><?php echo $staffCounts['total']; ?></span>)
+                        </button>
+                        <button type="button" onclick="setStaffFilter('present')" id="filter-staff-present" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100 transition">
+                            Present (<span id="count-staff-present"><?php echo $staffCounts['present']; ?></span>)
+                        </button>
+                        <button type="button" onclick="setStaffFilter('off_duty')" id="filter-staff-off_duty" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+                            Off Duty (<span id="count-staff-off_duty"><?php echo $staffCounts['off_duty']; ?></span>)
+                        </button>
+                        <button type="button" onclick="setStaffFilter('absent')" id="filter-staff-absent" class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200/80 hover:bg-rose-100 transition">
+                            Absent/Leave (<span id="count-staff-absent"><?php echo $staffCounts['absent'] + $staffCounts['leave']; ?></span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scrollable Employee List Container (Touch Friendly, Phone Optimized) -->
+                <div id="employee-roster-container" class="mt-2.5 max-h-[300px] sm:max-h-[360px] overflow-y-auto space-y-2 pr-1">
+                    <?php if (empty($dashboardStaffList)): ?>
+                        <div class="py-8 text-center text-xs text-slate-400 font-medium">
+                            No employees found in system.
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($dashboardStaffList as $st): 
+                            $name = trim($st['first_name'] . ' ' . $st['last_name']);
+                            $role = $st['role'] ?? 'Staff';
+                            $dept = $st['department'] ?? 'Hospital';
+                            $att = $st['att_status'] ?? '';
+                            $empStatus = $st['status'] ?? 'Active';
+                            $initials = strtoupper(substr($st['first_name'] ?? 'S', 0, 1) . substr($st['last_name'] ?? '', 0, 1));
+                            if (empty($initials)) $initials = 'ST';
+
+                            // Determine status pill & styling
+                            $badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+                            $dotClass = 'bg-slate-400';
+                            $statusLabel = 'Off Duty';
+                            $filterGroup = 'off_duty';
+
+                            if ($att === 'Present') {
+                                $badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200/90';
+                                $dotClass = 'bg-emerald-500 animate-pulse';
+                                $statusLabel = 'Present';
+                                $filterGroup = 'present';
+                            } elseif ($att === 'Late') {
+                                $badgeClass = 'bg-amber-50 text-amber-800 border-amber-200/90';
+                                $dotClass = 'bg-amber-500';
+                                $statusLabel = 'Late';
+                                $filterGroup = 'present';
+                            } elseif ($att === 'Half Day') {
+                                $badgeClass = 'bg-sky-50 text-sky-800 border-sky-200/90';
+                                $dotClass = 'bg-sky-500';
+                                $statusLabel = 'Half Day';
+                                $filterGroup = 'absent';
+                            } elseif ($att === 'On Leave') {
+                                $badgeClass = 'bg-purple-50 text-purple-800 border-purple-200/90';
+                                $dotClass = 'bg-purple-500';
+                                $statusLabel = 'On Leave';
+                                $filterGroup = 'absent';
+                            } elseif ($att === 'Absent') {
+                                $badgeClass = 'bg-rose-50 text-rose-800 border-rose-200/90';
+                                $dotClass = 'bg-rose-500';
+                                $statusLabel = 'Absent';
+                                $filterGroup = 'absent';
+                            } elseif ($empStatus === 'Inactive') {
+                                $badgeClass = 'bg-slate-200 text-slate-600 border-slate-300';
+                                $dotClass = 'bg-slate-500';
+                                $statusLabel = 'Inactive';
+                                $filterGroup = 'off_duty';
+                            }
+
+                            // Avatar background tones
+                            $avatarColors = [
+                                'bg-blue-100 text-blue-700',
+                                'bg-emerald-100 text-emerald-700',
+                                'bg-indigo-100 text-indigo-700',
+                                'bg-violet-100 text-violet-700',
+                                'bg-amber-100 text-amber-700',
+                                'bg-rose-100 text-rose-700'
+                            ];
+                            $avatarColor = $avatarColors[$st['id'] % count($avatarColors)];
+                        ?>
+                        <div 
+                            class="staff-roster-row flex items-center justify-between p-2 sm:p-2.5 rounded-2xl bg-slate-50/70 hover:bg-white hover:border-slate-300/80 border border-slate-100/90 transition shadow-2xs group"
+                            data-name="<?php echo htmlspecialchars(strtolower($name)); ?>"
+                            data-role="<?php echo htmlspecialchars(strtolower($role)); ?>"
+                            data-dept="<?php echo htmlspecialchars(strtolower($dept)); ?>"
+                            data-filter="<?php echo $filterGroup; ?>"
+                        >
+                            <!-- Avatar + Name Only -->
+                            <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                                <div class="w-8 h-8 rounded-xl <?php echo $avatarColor; ?> flex items-center justify-center text-[11px] font-black shrink-0 shadow-2xs">
+                                    <?php echo htmlspecialchars($initials); ?>
+                                </div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                    <?php echo htmlspecialchars($name); ?>
+                                </h4>
+                            </div>
+
+                            <!-- Status Pill (Simple & Clear) -->
+                            <div class="shrink-0 flex items-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold border shadow-2xs <?php echo $badgeClass; ?>">
+                                    <span class="w-1.5 h-1.5 rounded-full <?php echo $dotClass; ?>"></span>
+                                    <span><?php echo $statusLabel; ?></span>
+                                </span>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+
+                    <!-- Empty search results placeholder -->
+                    <div id="staff-search-empty" class="hidden py-8 text-center">
+                        <i class="fa-solid fa-user-xmark text-slate-300 text-2xl mb-1.5"></i>
+                        <p class="text-xs font-bold text-slate-600">No matching employees found</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Try searching with a different name or role.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Quick Stats & Links -->
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 text-[11px]">
+                <div class="text-slate-500 font-medium">
+                    <span class="text-emerald-600 font-bold" id="staff-summary-onduty"><?php echo $staffCounts['present']; ?></span> on duty now &bull; <span class="text-slate-700 font-bold"><?php echo $staffCounts['total']; ?></span> registered
+                </div>
+                <a href="staff.php" class="font-bold text-blue-600 hover:text-blue-800 transition">
+                    Staff Directory &rarr;
+                </a>
+            </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
-            <div>
-                <div class="text-[11px] font-bold text-slate-400 uppercase">Total Visits</div>
-                <div id="chart-stat-total" class="text-xl font-black text-slate-900 mt-1 dash-metric-number">--</div>
+    </div>
+
+    <!-- ================= 6. MARK ATTENDANCE (AI FACE ATTENDANCE KIOSK) ================= -->
+    <div class="dash-card p-5 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-5 bg-gradient-to-r from-purple-50/50 via-white to-indigo-50/40 border border-purple-100 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-xl sm:text-2xl font-black shadow-lg shadow-purple-500/25 shrink-0">
+                <i class="fa-solid fa-face-viewfinder"></i>
             </div>
             <div>
-                <div class="text-[11px] font-bold text-slate-400 uppercase">Completion Rate</div>
-                <div id="chart-stat-rate" class="text-xl font-black text-slate-900 mt-1 dash-metric-number">--%</div>
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 border border-purple-200">
+                        AI Facial Terminal
+                    </span>
+                    <span class="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Kiosk Active
+                    </span>
+                </div>
+                <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Mark Attendance</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Instant touchless attendance verification with face recognition &amp; live punch records</p>
             </div>
-            <div>
-                <div class="text-[11px] font-bold text-slate-400 uppercase">Peak Volume Day</div>
-                <div id="chart-stat-peak" class="text-xl font-black text-slate-900 mt-1">--</div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <!-- Quick punches summary pill -->
+            <div class="hidden sm:flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs text-xs font-semibold">
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 block uppercase">Punched Today</span>
+                    <span class="text-emerald-700 font-black text-sm"><?php echo $staffCounts['present']; ?> Staff</span>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <div>
+                    <span class="text-[10px] font-bold text-slate-400 block uppercase">Unmarked</span>
+                    <span class="text-slate-500 font-black text-sm"><?php echo $staffCounts['off_duty']; ?> Remaining</span>
+                </div>
             </div>
-            <div>
-                <div class="text-[11px] font-bold text-slate-400 uppercase">Daily Average</div>
-                <div id="chart-stat-avg" class="text-xl font-black text-slate-900 mt-1 dash-metric-number">--</div>
-            </div>
+
+            <!-- Open Face Attendance button -->
+            <a 
+                href="face_attendance.php" 
+                class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 transition flex items-center justify-center gap-2.5 active:scale-95 text-center group"
+            >
+                <i class="fa-solid fa-camera text-sm"></i>
+                <span>Open Face Attendance</span>
+                <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
         </div>
     </div>
 
-    <!-- ================= 6. MINIMALIST APP LAUNCHER GRID ================= -->
+    <!-- ================= 7. MINIMALIST APP LAUNCHER GRID ================= -->
     <div class="dash-card p-6 sm:p-8 space-y-4">
         <h3 class="text-xs font-black uppercase tracking-wider text-slate-400">Quick App Launcher</h3>
         
-        <div class="grid grid-cols-4 sm:grid-cols-8 gap-3 sm:gap-4 pt-2">
+        <div class="grid grid-cols-3 sm:grid-cols-9 gap-3 sm:gap-4 pt-2">
             <a href="index.php" class="flex flex-col items-center gap-2 group p-2 rounded-2xl hover:bg-slate-50 transition">
                 <div class="w-12 h-12 rounded-2xl bg-slate-100 group-hover:bg-slate-900 group-hover:text-white text-slate-700 flex items-center justify-center text-lg transition shadow-2xs">
                     <i class="fa-solid fa-address-card"></i>
@@ -530,6 +846,13 @@ if ($stRes && $stRow = $stRes->fetch_assoc()) {
                 </div>
                 <span class="text-xs font-bold text-slate-700">Staff</span>
             </a>
+
+            <a href="face_attendance.php" class="flex flex-col items-center gap-2 group p-2 rounded-2xl hover:bg-purple-50/70 transition">
+                <div class="w-12 h-12 rounded-2xl bg-purple-50 group-hover:bg-purple-600 group-hover:text-white text-purple-700 flex items-center justify-center text-lg transition shadow-2xs border border-purple-200/60">
+                    <i class="fa-solid fa-face-viewfinder"></i>
+                </div>
+                <span class="text-xs font-bold text-purple-900">Attendance</span>
+            </a>
         </div>
     </div>
 
@@ -563,11 +886,13 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchTimelineChart(currentTimelineRange);
     fetchPipelineQueue();
     fetchAiTelemetry();
+    fetchStaffRosterLive();
 
     // 4. Polling every 15s for live OPD updates
     setInterval(() => {
         fetchPipelineQueue();
         fetchOverviewKPIs();
+        fetchStaffRosterLive();
     }, 15000);
 });
 
@@ -987,6 +1312,101 @@ function openChatbotModal() {
     const trigger = document.getElementById('ai-chat-pill-trigger') || document.querySelector('[onclick*="toggleChatbot"]');
     if (trigger) trigger.click();
     else if (typeof toggleChatbot === 'function') toggleChatbot();
+}
+
+// ================= STAFF EMPLOYEE STATUS ROSTER LOGIC =================
+let currentStaffFilter = 'all';
+
+function filterStaffRoster() {
+    const input = document.getElementById('employee-search-input');
+    const term = input ? input.value.trim().toLowerCase() : '';
+    const clearBtn = document.getElementById('btn-clear-staff-search');
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', term === '');
+    }
+
+    const rows = document.querySelectorAll('.staff-roster-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const role = row.getAttribute('data-role') || '';
+        const dept = row.getAttribute('data-dept') || '';
+        const filterGroup = row.getAttribute('data-filter') || '';
+
+        const matchesSearch = term === '' || name.includes(term) || role.includes(term) || dept.includes(term);
+        const matchesFilter = (currentStaffFilter === 'all') || (filterGroup === currentStaffFilter);
+
+        if (matchesSearch && matchesFilter) {
+            row.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+
+    const emptyMsg = document.getElementById('staff-search-empty');
+    if (emptyMsg) {
+        emptyMsg.classList.toggle('hidden', visibleCount > 0);
+    }
+}
+
+function setStaffFilter(filter) {
+    currentStaffFilter = filter;
+    const filterKeys = ['all', 'present', 'off_duty', 'absent'];
+    filterKeys.forEach(k => {
+        const btn = document.getElementById('filter-staff-' + k);
+        if (btn) {
+            if (k === filter) {
+                btn.className = 'shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition';
+            } else if (k === 'present') {
+                btn.className = 'shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100 transition';
+            } else if (k === 'absent') {
+                btn.className = 'shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200/80 hover:bg-rose-100 transition';
+            } else {
+                btn.className = 'shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+            }
+        }
+    });
+    filterStaffRoster();
+}
+
+function clearStaffSearch() {
+    const input = document.getElementById('employee-search-input');
+    if (input) {
+        input.value = '';
+    }
+    filterStaffRoster();
+}
+
+// Live Staff Roster Polling & Real-time Update
+async function fetchStaffRosterLive() {
+    try {
+        const res = await fetch('api/dashboard.php?action=get_staff_roster');
+        const data = await res.json();
+        if (data.status === 'success' && data.counts) {
+            const c = data.counts;
+            const bTotal = document.getElementById('staff-badge-total');
+            if (bTotal) bTotal.textContent = `${c.total} Staff`;
+            
+            const cAll = document.getElementById('count-staff-all');
+            if (cAll) cAll.textContent = c.total;
+            
+            const cPres = document.getElementById('count-staff-present');
+            if (cPres) cPres.textContent = c.present;
+            
+            const cOff = document.getElementById('count-staff-off_duty');
+            if (cOff) cOff.textContent = c.off_duty;
+            
+            const cAbs = document.getElementById('count-staff-absent');
+            if (cAbs) cAbs.textContent = c.absent + c.leave;
+            
+            const sumOn = document.getElementById('staff-summary-onduty');
+            if (sumOn) sumOn.textContent = c.present;
+        }
+    } catch (e) {
+        console.warn('Staff roster live poll error:', e);
+    }
 }
 
 function escapeHtml(str) {
