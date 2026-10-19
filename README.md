@@ -23,9 +23,6 @@
   <img src="https://img.shields.io/badge/GSAP-Animations-88CE02?style=for-the-badge&logo=greensock&logoColor=white" alt="GSAP"/>
 </p>
 
-<p align="center">
-  <img src="hms_architecture_poster_white_updated.jpg" alt="HMS Architecture Blueprint" width="95%"/>
-</p>
 
 ---
 
