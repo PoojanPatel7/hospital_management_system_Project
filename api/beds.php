@@ -166,6 +166,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     ");
                     if ($fileRes) {
                         while ($fr = $fileRes->fetch_assoc()) {
+                            $filePath = $fr['file_path'] ?: '';
+                            $thumbPath = $fr['thumbnail_path'] ?: '';
+                            $mime = strtolower($fr['mime_type'] ?: '');
+                            $ext = strtolower(pathinfo($fr['file_name'] ?: $filePath, PATHINFO_EXTENSION));
+                            $isImg = (strpos($mime, 'image/') === 0 || in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp']));
+                            $fr['is_image'] = $isImg;
+                            $fr['url'] = !empty($filePath) ? $filePath : ('api/file.php?id=' . $fr['id']);
+                            $fr['thumb_url'] = !empty($thumbPath) ? $thumbPath : ($isImg ? (!empty($filePath) ? $filePath : 'api/file.php?id=' . $fr['id'] . '&thumb=1') : '');
                             $recentFiles[] = $fr;
                         }
                     }
